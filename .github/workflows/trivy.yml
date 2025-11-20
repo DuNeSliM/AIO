@@ -1,0 +1,44 @@
+name: "Trivy security scan"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "0 2 * * 1"  
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -f backend/api/Dockerfile \
+            -t local/go-api:latest \
+            backend/api
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: "local/go-api:latest"
+          format: "table"
+          vuln-type: "os,library"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Trivy config scan (k8s manifests)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: "config"
+          hide-progress: true
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          scan-ref: "./k8s"
