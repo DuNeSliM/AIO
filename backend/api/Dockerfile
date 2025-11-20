@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN go build -o server .
 
-FROM alpine:3.19
+FROM alpine:3.22
 
 WORKDIR /app
 COPY --from=builder /app/server /app/server
