@@ -1,4 +1,4 @@
-module aoi.com/api
+module aoi/api
 
 go 1.25.4
 
@@ -14,6 +14,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

@@ -44,3 +44,40 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
+        - name: go-api
+          image: ghcr.io/your-org/go-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: go-api-auth
+                  key: JWT_SECRET
+
+            - name: ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: go-api-auth
+                  key: ENCRYPTION_KEY
+
+            - name: BNET_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: go-api-auth
+                  key: BNET_CLIENT_ID
+
+            - name: BNET_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: go-api-auth
+                  key: BNET_CLIENT_SECRET
+
+            - name: BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: go-api-auth
+                  key: BASE_URL
