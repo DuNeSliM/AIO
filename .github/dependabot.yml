@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Go modules in backend/api
+  - package-ecosystem: "gomod"
+    directory: "/backend/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Dockerfile for the Go API in backend/api
+  - package-ecosystem: "docker"
+    directory: "/backend/api"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions workflows in the repo root
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
