@@ -10,12 +10,18 @@ import (
 	"io"
 )
 
-type Encryptor struct {
+// Encryptor interface for encrypting and decrypting data
+type Encryptor interface {
+	Encrypt(plaintext []byte) ([]byte, error)
+	Decrypt(ciphertext []byte) ([]byte, error)
+}
+
+type encryptor struct {
 	gcm cipher.AEAD
 }
 
 // NewEncryptorFromBase64Key expects a 16/24/32 byte key, base64-encoded.
-func NewEncryptorFromBase64Key(k string) (*Encryptor, error) {
+func NewEncryptorFromBase64Key(k string) (Encryptor, error) {
 	rawKey, err := base64.StdEncoding.DecodeString(k)
 	if err != nil {
 		return nil, fmt.Errorf("decode key: %w", err)
@@ -31,32 +37,27 @@ func NewEncryptorFromBase64Key(k string) (*Encryptor, error) {
 		return nil, fmt.Errorf("new GCM: %w", err)
 	}
 
-	return &Encryptor{gcm: gcm}, nil
+	return &encryptor{gcm: gcm}, nil
 }
 
-// Encrypt returns base64(nonce||ciphertext).
-func (e *Encryptor) Encrypt(plaintext []byte) (string, error) {
+// Encrypt returns encrypted bytes (nonce||ciphertext).
+func (e *encryptor) Encrypt(plaintext []byte) ([]byte, error) {
 	nonce := make([]byte, e.gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("nonce: %w", err)
+		return nil, fmt.Errorf("nonce: %w", err)
 	}
 
 	ct := e.gcm.Seal(nonce, nonce, plaintext, nil)
-	return base64.StdEncoding.EncodeToString(ct), nil
+	return ct, nil
 }
 
-func (e *Encryptor) Decrypt(ciphertextB64 string) ([]byte, error) {
-	data, err := base64.StdEncoding.DecodeString(ciphertextB64)
-	if err != nil {
-		return nil, fmt.Errorf("decode: %w", err)
-	}
-
-	if len(data) < e.gcm.NonceSize() {
+func (e *encryptor) Decrypt(ciphertext []byte) ([]byte, error) {
+	if len(ciphertext) < e.gcm.NonceSize() {
 		return nil, fmt.Errorf("ciphertext too short")
 	}
 
-	nonce := data[:e.gcm.NonceSize()]
-	ct := data[e.gcm.NonceSize():]
+	nonce := ciphertext[:e.gcm.NonceSize()]
+	ct := ciphertext[e.gcm.NonceSize():]
 	pt, err := e.gcm.Open(nil, nonce, ct, nil)
 	if err != nil {
 		return nil, fmt.Errorf("decrypt: %w", err)

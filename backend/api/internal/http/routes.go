@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"aoi/api/internal/auth"
+	"aoi/api/internal/crypto"
+	"aoi/api/internal/library"
 	"aoi/api/internal/users"
 )
 
@@ -17,6 +19,8 @@ func RegisterRoutes(
 	jwtSvc auth.JWTService,
 	userSvc users.Service,
 	externalSvc auth.ExternalAuthService,
+	librarySvc library.Service,
+	encryptor crypto.Encryptor,
 ) {
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -25,9 +29,11 @@ func RegisterRoutes(
 
 	// Auth endpoints (register, login, external login)
 	ah := &AuthHandlers{
-		Users:    userSvc,
-		JWT:      jwtSvc,
-		External: externalSvc,
+		Users:     userSvc,
+		JWT:       jwtSvc,
+		External:  externalSvc,
+		Library:   librarySvc,
+		Encryptor: encryptor,
 	}
 	ah.RegisterRoutes(r)
 
@@ -35,7 +41,7 @@ func RegisterRoutes(
 	api := r.Group("/api")
 	api.Use(AuthMiddleware(jwtSecret))
 
-	// Example: current user endpoint
+	// Current user endpoint
 	api.GET("/me", func(c *gin.Context) {
 		userIDAny, _ := c.Get("userID")
 		userID, ok := userIDAny.(int64)
@@ -52,4 +58,10 @@ func RegisterRoutes(
 
 		c.JSON(nethttp.StatusOK, u.ToPublic())
 	})
+
+	// Library and shop endpoints
+	if librarySvc != nil {
+		libraryHandlers := NewLibraryHandlers(librarySvc)
+		libraryHandlers.RegisterRoutes(api)
+	}
 }

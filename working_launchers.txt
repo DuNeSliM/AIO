@@ -1,0 +1,11 @@
+with login:
+    Amazon Games
+    Battlenet
+    Epic Games
+    GoG
+    Steam
+    Xbox
+
+from launcher:
+    ubisoft
+    
