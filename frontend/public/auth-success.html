@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Success - Redirecting...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { margin: 0 0 1rem 0; }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .info {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        .token {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✓ Login Successful!</h1>
+        <div class="spinner"></div>
+        <p>Redirecting back to the app...</p>
+        <p class="info">If the app doesn't open automatically, copy your token:</p>
+        <div class="token" id="tokenDisplay"></div>
+        <p class="info">Then close this window and paste it in the app.</p>
+    </div>
+
+    <script>
+        // Extract token from URL hash
+        const hash = window.location.hash;
+        const params = new URLSearchParams(hash.substring(hash.indexOf('?')));
+        const token = params.get('token');
+        const store = params.get('store');
+
+        if (token) {
+            // Display token
+            document.getElementById('tokenDisplay').textContent = token;
+
+            // Try to open the app with custom protocol (if configured)
+            // For now, just show the token
+            
+            // Alternative: Try to communicate with the Tauri app via localhost
+            setTimeout(() => {
+                window.close();
+            }, 3000);
+        } else {
+            document.querySelector('.container').innerHTML = 
+                '<h1>Error</h1><p>No token found in URL</p>';
+        }
+    </script>
+</body>
+</html>
