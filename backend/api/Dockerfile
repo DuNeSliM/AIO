@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN go build -o server .
 
-FROM alpine:3.23
+FROM alpine:latest
 
 RUN apk update && apk upgrade --no-cache \
     && apk add --no-cache ca-certificates \
