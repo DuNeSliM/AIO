@@ -8,7 +8,11 @@ RUN go mod download
 COPY . .
 RUN go build -o server .
 
-FROM alpine:3.22
+FROM alpine:3.23
+
+RUN apk update && apk upgrade --no-cache \
+    && apk add --no-cache ca-certificates \
+    && update-ca-certificates || true
 
 WORKDIR /app
 COPY --from=builder /app/server /app/server
