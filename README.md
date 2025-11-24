@@ -4,7 +4,11 @@ Desktop App to bundle all your games in one bib
 Frontend: Tauri
 Backend: Go
 
-for encryption of secrets we do it like this: 
-```bash
-sops --encrypt --in-place k8s/api/secret.yaml
-```
+## Missing / Not Working
+- Account creation
+- Linking Steam, Epic, GoG, Xbox, Battlenet, Uplay, Amazon, EA, PSN
+- Wishlist creation
+- Import Steam Wishlist
+- Store
+- Bib
+- Notifications
