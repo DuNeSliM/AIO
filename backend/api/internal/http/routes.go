@@ -31,6 +31,7 @@ func RegisterRoutes(
 	ah := &AuthHandlers{
 		Users:     userSvc,
 		JWT:       jwtSvc,
+		JWTSecret: jwtSecret,
 		External:  externalSvc,
 		Library:   librarySvc,
 		Encryptor: encryptor,

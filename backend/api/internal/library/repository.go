@@ -442,5 +442,3 @@ func (r *postgresRepository) UpdateStoreGame(ctx context.Context, storeGame *mod
 
 	return err
 }
-
-// Continuing in next part due to length...

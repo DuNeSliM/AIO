@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 
 	"aoi/api/internal/models"
@@ -343,6 +344,16 @@ func (r *postgresRepository) getBestPrice(ctx context.Context, gameID int64) *mo
 
 // Store account operations
 func (r *postgresRepository) CreateStoreAccount(ctx context.Context, account *models.UserStoreAccount) (*models.UserStoreAccount, error) {
+	// First, delete any existing link to this store account from other users
+	// This prevents the unique constraint violation on (store, store_user_id)
+	deleteQuery := `DELETE FROM user_store_accounts WHERE store = $1 AND store_user_id = $2 AND user_id != $3`
+	_, err := r.db.ExecContext(ctx, deleteQuery, account.Store, account.StoreUserID, account.UserID)
+	if err != nil {
+		log.Printf("Warning: Failed to delete existing store account links: %v", err)
+	} else {
+		log.Printf("Removed any existing %s account links for store_user_id=%s from other users", account.Store, account.StoreUserID)
+	}
+
 	query := `
 		INSERT INTO user_store_accounts (user_id, store, store_user_id, display_name, avatar_url,
 			access_token_enc, refresh_token_enc, expires_at, is_connected, last_synced_at,
@@ -359,7 +370,7 @@ func (r *postgresRepository) CreateStoreAccount(ctx context.Context, account *mo
 			updated_at = NOW()
 		RETURNING id, created_at, updated_at`
 
-	err := r.db.QueryRowContext(ctx, query,
+	err = r.db.QueryRowContext(ctx, query,
 		account.UserID, account.Store, account.StoreUserID, account.DisplayName,
 		account.AvatarURL, account.AccessToken, account.RefreshToken, account.TokenExpiresAt,
 		account.IsConnected, account.LastSyncedAt, account.AutoImport,
@@ -378,6 +389,7 @@ func (r *postgresRepository) GetUserStoreAccounts(ctx context.Context, userID in
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
+		log.Printf("GetUserStoreAccounts query error for userID %d: %v", userID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -385,17 +397,30 @@ func (r *postgresRepository) GetUserStoreAccounts(ctx context.Context, userID in
 	accounts := []*models.UserStoreAccount{}
 	for rows.Next() {
 		acc := &models.UserStoreAccount{}
+		var expiresAt, lastSyncedAt sql.NullTime
+		var refreshToken []byte
 		err := rows.Scan(
 			&acc.ID, &acc.UserID, &acc.Store, &acc.StoreUserID, &acc.DisplayName,
-			&acc.AvatarURL, &acc.AccessToken, &acc.RefreshToken, &acc.TokenExpiresAt,
-			&acc.IsConnected, &acc.LastSyncedAt, &acc.AutoImport, &acc.CreatedAt, &acc.UpdatedAt,
+			&acc.AvatarURL, &acc.AccessToken, &refreshToken, &expiresAt,
+			&acc.IsConnected, &lastSyncedAt, &acc.AutoImport, &acc.CreatedAt, &acc.UpdatedAt,
 		)
 		if err != nil {
+			log.Printf("GetUserStoreAccounts scan error: %v", err)
 			return nil, err
+		}
+		if expiresAt.Valid {
+			acc.TokenExpiresAt = &expiresAt.Time
+		}
+		if lastSyncedAt.Valid {
+			acc.LastSyncedAt = &lastSyncedAt.Time
+		}
+		if len(refreshToken) > 0 {
+			acc.RefreshToken = refreshToken
 		}
 		accounts = append(accounts, acc)
 	}
 
+	log.Printf("GetUserStoreAccounts returning %d accounts for userID %d", len(accounts), userID)
 	return accounts, nil
 }
 
@@ -408,10 +433,12 @@ func (r *postgresRepository) GetUserStoreAccount(ctx context.Context, userID int
 		WHERE user_id = $1 AND store = $2`
 
 	acc := &models.UserStoreAccount{}
+	var expiresAt, lastSyncedAt sql.NullTime
+	var refreshToken []byte
 	err := r.db.QueryRowContext(ctx, query, userID, store).Scan(
 		&acc.ID, &acc.UserID, &acc.Store, &acc.StoreUserID, &acc.DisplayName,
-		&acc.AvatarURL, &acc.AccessToken, &acc.RefreshToken, &acc.TokenExpiresAt,
-		&acc.IsConnected, &acc.LastSyncedAt, &acc.AutoImport, &acc.CreatedAt, &acc.UpdatedAt,
+		&acc.AvatarURL, &acc.AccessToken, &refreshToken, &expiresAt,
+		&acc.IsConnected, &lastSyncedAt, &acc.AutoImport, &acc.CreatedAt, &acc.UpdatedAt,
 	)
 
 	if err != nil {
@@ -419,6 +446,16 @@ func (r *postgresRepository) GetUserStoreAccount(ctx context.Context, userID int
 			return nil, fmt.Errorf("store account not found")
 		}
 		return nil, err
+	}
+
+	if expiresAt.Valid {
+		acc.TokenExpiresAt = &expiresAt.Time
+	}
+	if lastSyncedAt.Valid {
+		acc.LastSyncedAt = &lastSyncedAt.Time
+	}
+	if len(refreshToken) > 0 {
+		acc.RefreshToken = refreshToken
 	}
 
 	return acc, nil

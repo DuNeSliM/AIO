@@ -98,7 +98,8 @@ export default function LibraryPage({ token }: LibraryPageProps) {
   const handleLinkStore = async (store: string) => {
     setLoading(store);
     try {
-      const authUrl = `${apiUrl}/api/auth/${store}/login`;
+      // Pass JWT token as query parameter so backend can identify the user
+      const authUrl = `${apiUrl}/api/auth/${store}/login?token=${encodeURIComponent(token)}`;
       await open(authUrl);
       setTimeout(() => setLoading(""), 1000);
     } catch (error) {
