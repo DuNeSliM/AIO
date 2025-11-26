@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 
 	"aoi/api/internal/auth"
@@ -36,6 +37,11 @@ func getOrGenerateKey(envKey string, size int) string {
 }
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	// Basic config
 	port := os.Getenv("PORT")
 	if port == "" {

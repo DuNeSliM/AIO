@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface LibraryPageProps {
   token: string;
@@ -11,6 +11,7 @@ interface LibraryGame {
   store_game_id: string;
   store_url: string;
   cover_image?: string;
+  icon?: string;
   is_installed: boolean;
   install_path?: string;
   play_time?: number;
@@ -18,29 +19,40 @@ interface LibraryGame {
 }
 
 export default function LibraryPage({ token }: LibraryPageProps) {
-  const [games, setGames] = useState<LibraryGame[]>([
-    // Mock data for testing
-    {
-      id: "1",
-      name: "Counter-Strike 2",
-      store: "steam",
-      store_game_id: "730",
-      store_url: "https://store.steampowered.com/app/730",
-      is_installed: true,
-      play_time: 1200,
-    },
-    {
-      id: "2",
-      name: "Cyberpunk 2077",
-      store: "gog",
-      store_game_id: "1423049311",
-      store_url: "https://www.gog.com/game/cyberpunk_2077",
-      is_installed: false,
-    },
-  ]);
+  const [games, setGames] = useState<LibraryGame[]>([]);
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
   const [apiUrl] = useState("http://localhost:8080");
+
+  // Fetch library on mount
+  useEffect(() => {
+    fetchLibrary();
+  }, [token]);
+
+  const fetchLibrary = async () => {
+    setLoading("fetch");
+    try {
+      const response = await fetch(`${apiUrl}/api/library`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Library response:", data);
+        setGames(data.games || []);
+      } else {
+        console.error("Failed to fetch library:", response.status);
+        setMessage(`Failed to load library: ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error("Error fetching library:", err);
+      setMessage(`Error loading library: ${err}`);
+    } finally {
+      setLoading("");
+    }
+  };
 
   const handleLaunch = async (game: LibraryGame) => {
     setLoading(game.id);
@@ -129,8 +141,8 @@ export default function LibraryPage({ token }: LibraryPageProps) {
       
       if (response.ok) {
         setMessage(`Successfully synced! Found ${result.total_synced || 0} games.`);
-        // Reload library
-        // TODO: Fetch real library data
+        // Reload library to show new games
+        await fetchLibrary();
       } else {
         setMessage(`Sync failed: ${result.error || "Unknown error"}`);
       }
@@ -164,8 +176,8 @@ export default function LibraryPage({ token }: LibraryPageProps) {
       <div className="library-grid">
         {games.map((game) => (
           <div key={game.id} className="library-game-card">
-            {game.cover_image ? (
-              <img src={game.cover_image} alt={game.name} className="game-cover" />
+            {game.cover_image || game.icon ? (
+              <img src={game.cover_image || game.icon} alt={game.name} className="game-cover" />
             ) : (
               <div className="game-cover-placeholder">
                 <span>🎮</span>

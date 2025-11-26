@@ -319,11 +319,18 @@ func (h *AuthHandlers) ProviderCallback(c *gin.Context) {
             });
         }
 
-        // Auto-redirect to Tauri app
+        // Auto-redirect to Tauri app via deep link protocol
         window.onload = function() {
-            // Try to redirect to the Tauri app running on localhost:1420
+            // Try deep link first (desktop app)
             setTimeout(() => {
-                window.location.href = 'http://localhost:1420/#/auth-success?token=' + encodeURIComponent(token) + '&store=' + encodeURIComponent(store);
+                window.location.href = 'aio://auth-callback?token=' + encodeURIComponent(token) + '&store=' + encodeURIComponent(store);
+                
+                // Fallback to localhost after 2 seconds if deep link fails (development mode)
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        window.location.href = 'http://localhost:1420/#/auth-success?token=' + encodeURIComponent(token) + '&store=' + encodeURIComponent(store);
+                    }
+                }, 2000);
             }, 500);
         };
     </script>
