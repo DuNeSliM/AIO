@@ -129,27 +129,27 @@ func (h *AuthHandlers) LoginProvider(c *gin.Context) {
 	// Try Authorization header first, then query parameter (for browser redirects)
 	var userID int64
 	var tokenStr string
-	
+
 	// Try Authorization header
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		tokenStr = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
 	}
-	
+
 	// Try query parameter (for browser-based OAuth flows)
 	if tokenStr == "" {
 		tokenStr = c.Query("token")
 	}
-	
+
 	if tokenStr != "" {
 		secretBytes := []byte(h.JWTSecret)
-		
+
 		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
 			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 			}
 			return secretBytes, nil
 		})
-		
+
 		if err == nil && token.Valid {
 			if claims, ok := token.Claims.(jwt.MapClaims); ok {
 				if sub, exists := claims["sub"]; exists {
@@ -166,7 +166,7 @@ func (h *AuthHandlers) LoginProvider(c *gin.Context) {
 				}
 			}
 		}
-		
+
 		if userID > 0 {
 			log.Printf("OAuth flow for logged-in user: userID=%d, provider=%s", userID, provider)
 			c.SetCookie("oauth_user_id_"+provider, fmt.Sprintf("%d", userID), 300, "/", "", true, true)
