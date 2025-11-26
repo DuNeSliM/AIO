@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { open } from "@tauri-apps/api/shell";
 
 interface LibraryPageProps {
   token: string;
@@ -18,16 +19,29 @@ interface LibraryGame {
   last_played?: string;
 }
 
+interface StoreAccount {
+  store: string;
+  display_name: string;
+  is_connected: boolean;
+  last_synced_at?: string;
+}
+
+const STORES = [
+  { id: "steam", name: "Steam", color: "#1b2838" },
+  { id: "epic", name: "Epic Games", color: "#0078f2" },
+  { id: "gog", name: "GOG", color: "#86328a" },
+  { id: "xbox", name: "Xbox", color: "#107c10" },
+];
+
 export default function LibraryPage({ token }: LibraryPageProps) {
   const [games, setGames] = useState<LibraryGame[]>([]);
+  const [storeAccounts, setStoreAccounts] = useState<StoreAccount[]>([]);
+  const [showStoreModal, setShowStoreModal] = useState(false);
   const [loading, setLoading] = useState("");
   const [message, setMessage] = useState("");
   const [apiUrl] = useState("http://localhost:8080");
 
-  // Fetch library on mount
-  useEffect(() => {
-    fetchLibrary();
-  }, [token]);
+  console.log("LibraryPage render - showStoreModal:", showStoreModal, "storeAccounts:", storeAccounts.length);
 
   const fetchLibrary = async () => {
     setLoading("fetch");
@@ -44,15 +58,71 @@ export default function LibraryPage({ token }: LibraryPageProps) {
         setGames(data.games || []);
       } else {
         console.error("Failed to fetch library:", response.status);
-        setMessage(`Failed to load library: ${response.statusText}`);
       }
     } catch (err) {
       console.error("Error fetching library:", err);
-      setMessage(`Error loading library: ${err}`);
     } finally {
       setLoading("");
     }
   };
+
+  const fetchStoreAccounts = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/api/stores/accounts`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Store accounts:", data);
+        // Handle both array response and object with accounts property
+        if (Array.isArray(data)) {
+          setStoreAccounts(data);
+        } else if (data && Array.isArray(data.accounts)) {
+          setStoreAccounts(data.accounts);
+        } else {
+          setStoreAccounts([]);
+        }
+      } else {
+        console.error("Failed to fetch store accounts:", response.status);
+        setStoreAccounts([]);
+      }
+    } catch (err) {
+      console.error("Error fetching store accounts:", err);
+      setStoreAccounts([]);
+    }
+  };
+
+  const handleLinkStore = async (store: string) => {
+    setLoading(store);
+    try {
+      const authUrl = `${apiUrl}/api/auth/${store}/login`;
+      await open(authUrl);
+      setTimeout(() => setLoading(""), 1000);
+    } catch (error) {
+      console.error("Failed to open login:", error);
+      setMessage("Failed to open login page: " + error);
+      setLoading("");
+    }
+  };
+
+  // Fetch library and store accounts on mount
+  useEffect(() => {
+    fetchLibrary();
+    fetchStoreAccounts();
+
+    // Listen for store link events
+    const handleStoreLinked = () => {
+      fetchStoreAccounts();
+      setShowStoreModal(true);
+    };
+
+    window.addEventListener('store-linked', handleStoreLinked);
+    return () => window.removeEventListener('store-linked', handleStoreLinked);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const handleLaunch = async (game: LibraryGame) => {
     setLoading(game.id);
@@ -157,15 +227,83 @@ export default function LibraryPage({ token }: LibraryPageProps) {
   return (
     <div className="library-page">
       <div className="library-header">
-        <h2>📚 Your Game Library</h2>
-        <button 
-          onClick={handleSync} 
-          disabled={loading === "sync"}
-          className="primary-button"
-        >
-          {loading === "sync" ? "🔄 Syncing..." : "🔄 Sync Library"}
-        </button>
+        <h2>📚 Your Game Library ({games.length} games)</h2>
+        <div className="header-actions">
+          <button 
+            onClick={() => {
+              console.log("Opening store modal");
+              setShowStoreModal(true);
+            }} 
+            className="secondary-button"
+          >
+            🔗 Manage Stores
+          </button>
+          <button 
+            onClick={handleSync} 
+            disabled={loading === "sync"}
+            className="primary-button"
+          >
+            {loading === "sync" ? "🔄 Syncing..." : "🔄 Sync Library"}
+          </button>
+        </div>
       </div>
+
+      {/* Store Accounts Modal */}
+      {showStoreModal && (
+        <div className="modal-overlay" onClick={() => {
+          console.log("Closing modal from overlay");
+          setShowStoreModal(false);
+        }}>
+          <div className="modal-content" onClick={(e) => {
+            console.log("Modal content clicked");
+            e.stopPropagation();
+          }}>
+            <div className="modal-header">
+              <h2>🔗 Store Accounts</h2>
+              <button onClick={() => {
+                console.log("Closing modal from button");
+                setShowStoreModal(false);
+              }} className="close-button">✕</button>
+            </div>
+            <div className="modal-body">
+              <p className="info">Link your game store accounts to automatically sync your library</p>
+              
+              <div className="store-accounts-list">
+                {STORES.map((store) => {
+                  const account = storeAccounts.find(a => a.store === store.id);
+                  const isConnected = account?.is_connected;
+                  
+                  return (
+                    <div key={store.id} className="store-account-item">
+                      <div className="store-info">
+                        <div className="store-icon" style={{ backgroundColor: store.color }}>
+                          {store.name.charAt(0)}
+                        </div>
+                        <div className="store-details">
+                          <h3>{store.name}</h3>
+                          {isConnected && account?.display_name && (
+                            <p className="connected-as">Connected as: {account.display_name}</p>
+                          )}
+                          {isConnected && account?.last_synced_at && (
+                            <p className="last-sync">Last synced: {new Date(account.last_synced_at).toLocaleString()}</p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleLinkStore(store.id)}
+                        disabled={loading === store.id}
+                        className={isConnected ? "connected-button" : "connect-button"}
+                      >
+                        {loading === store.id ? "Opening..." : isConnected ? "✓ Connected" : "Connect"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {message && (
         <div className="message-box">
@@ -217,21 +355,20 @@ export default function LibraryPage({ token }: LibraryPageProps) {
         ))}
       </div>
 
-      {games.length === 0 && (
+      {games.length === 0 && !loading && (
         <div className="empty-state">
-          <p>Your library is empty!</p>
-          <p className="info">Connect your game store accounts to sync your games.</p>
+          <h2>🎮 Welcome to Your Game Library!</h2>
+          <p>Your library is empty. Get started by:</p>
+          <ol className="empty-steps">
+            <li>Click "Manage Stores" to link your game accounts</li>
+            <li>Click "Sync Library" to import your games</li>
+            <li>Your games will appear here automatically!</li>
+          </ol>
+          <button onClick={() => setShowStoreModal(true)} className="primary-button">
+            Get Started - Link Store Account
+          </button>
         </div>
       )}
-
-      <div className="library-info">
-        <h3>💡 How to Test</h3>
-        <ul>
-          <li><strong>Play Button:</strong> Launches installed games via store deep links (steam://, epic://, etc.)</li>
-          <li><strong>Install Button:</strong> Opens the store client to the download page</li>
-          <li><strong>Deep Links:</strong> Make sure the respective store client is installed on your system</li>
-        </ul>
-      </div>
     </div>
   );
 }

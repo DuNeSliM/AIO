@@ -76,8 +76,13 @@ func main() {
 		log.Println("No DATABASE_URL set, using in-memory storage (not recommended for production)")
 	}
 
-	// Users: in-memory repo + service for now
-	userRepo := users.NewInMemoryRepository()
+	// Users: use database if available, otherwise in-memory
+	var userRepo users.Repository
+	if db != nil {
+		userRepo = users.NewPostgresRepository(db)
+	} else {
+		userRepo = users.NewInMemoryRepository()
+	}
 	userSvc := users.NewService(userRepo)
 
 	// JWT & external providers

@@ -170,10 +170,12 @@ func (h *AuthHandlers) ProviderCallback(c *gin.Context) {
 	// Save store account to library repository if we have library service
 	if h.Library != nil && storeInfo != nil {
 		// Encrypt tokens
+		log.Printf("DEBUG: Encrypting access token for %s, token length: %d", provider, len(storeInfo.AccessToken))
 		accessTokenEnc, err := h.Encryptor.Encrypt([]byte(storeInfo.AccessToken))
 		if err != nil {
 			log.Printf("Failed to encrypt access token: %v", err)
 		} else {
+			log.Printf("DEBUG: Encrypted token length: %d bytes", len(accessTokenEnc))
 			var refreshTokenEnc []byte
 			if storeInfo.RefreshToken != "" {
 				refreshTokenEnc, err = h.Encryptor.Encrypt([]byte(storeInfo.RefreshToken))

@@ -9,6 +9,15 @@ function App() {
   const [currentPage, setCurrentPage] = useState<"auth" | "store" | "library">("auth");
   const [token, setToken] = useState<string>("");
 
+  // Check for saved token on mount
+  useEffect(() => {
+    const savedToken = localStorage.getItem("aio_token");
+    if (savedToken) {
+      setToken(savedToken);
+      setCurrentPage("library");
+    }
+  }, []);
+
   // Check for token in URL on mount and when hash changes (from OAuth callback redirect)
   useEffect(() => {
     const checkForToken = () => {
@@ -19,11 +28,12 @@ function App() {
         const store = params.get("store");
         
         if (tokenFromUrl) {
+          localStorage.setItem("aio_token", tokenFromUrl);
           setToken(tokenFromUrl);
           setCurrentPage("library");
           
           // Show success message
-          alert(`Successfully logged in with ${store || "store"}!`);
+          alert(`Successfully linked ${store || "store"} account!`);
           
           // Clear the URL hash
           window.location.hash = "";
@@ -51,9 +61,21 @@ function App() {
           const store = urlObj.searchParams.get('store');
           
           if (tokenFromUrl) {
-            setToken(decodeURIComponent(tokenFromUrl));
-            setCurrentPage('library');
-            alert(`Successfully logged in with ${store || 'store'}!`);
+            // If we already have a token, this is just linking a store account
+            // The backend already handled saving the store account, so just show success
+            if (token) {
+              setCurrentPage('library');
+              alert(`Successfully linked ${store || 'store'} account! Click "Sync Library" to import your games.`);
+              // Trigger a page reload to refresh store accounts
+              window.dispatchEvent(new CustomEvent('store-linked'));
+            } else {
+              // This is a first-time login
+              const decodedToken = decodeURIComponent(tokenFromUrl);
+              localStorage.setItem("aio_token", decodedToken);
+              setToken(decodedToken);
+              setCurrentPage('library');
+              alert(`Successfully logged in with ${store || 'store'}!`);
+            }
           }
         } catch (e) {
           console.error('Failed to parse deep link:', e);
@@ -70,51 +92,53 @@ function App() {
   }, []);
 
   const handleLogin = (jwtToken: string) => {
+    localStorage.setItem("aio_token", jwtToken);
     setToken(jwtToken);
-    setCurrentPage("store");
+    setCurrentPage("library");
   };
+  
+  const handleLogout = () => {
+    localStorage.removeItem("aio_token");
+    setToken("");
+    setCurrentPage("auth");
+  };
+
+  // Show auth page if not logged in
+  if (!token) {
+    return (
+      <div className="app">
+        <AuthPage onLogin={handleLogin} />
+      </div>
+    );
+  }
 
   return (
     <div className="app">
       <nav className="navbar">
-        <h1>🎮 AIO Game Library - Test</h1>
+        <h1>🎮 AIO Game Library</h1>
         <div className="nav-buttons">
           <button 
-            onClick={() => setCurrentPage("auth")}
-            className={currentPage === "auth" ? "active" : ""}
+            onClick={() => setCurrentPage("library")}
+            className={currentPage === "library" ? "active" : ""}
           >
-            🔐 Auth
+            📚 Library
           </button>
           <button 
             onClick={() => setCurrentPage("store")}
             className={currentPage === "store" ? "active" : ""}
-            disabled={!token}
           >
             🛒 Store
           </button>
-          <button 
-            onClick={() => setCurrentPage("library")}
-            className={currentPage === "library" ? "active" : ""}
-            disabled={!token}
-          >
-            📚 Library
-          </button>
         </div>
-        {token && (
-          <button 
-            onClick={() => {
-              setToken("");
-              setCurrentPage("auth");
-            }}
-            className="logout"
-          >
-            Logout
-          </button>
-        )}
+        <button 
+          onClick={handleLogout}
+          className="logout"
+        >
+          Logout
+        </button>
       </nav>
 
       <main className="content">
-        {currentPage === "auth" && <AuthPage onLogin={handleLogin} />}
         {currentPage === "store" && <StorePage token={token} />}
         {currentPage === "library" && <LibraryPage token={token} />}
       </main>
