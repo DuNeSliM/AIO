@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
+import { listen } from "@tauri-apps/api/event";
 import AuthPage from "./components/AuthPage";
 import StorePage from "./components/StorePage";
 import LibraryPage from "./components/LibraryPage";
@@ -8,25 +9,64 @@ function App() {
   const [currentPage, setCurrentPage] = useState<"auth" | "store" | "library">("auth");
   const [token, setToken] = useState<string>("");
 
-  // Check for token in URL on mount (from OAuth callback redirect)
+  // Check for token in URL on mount and when hash changes (from OAuth callback redirect)
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("auth-success")) {
-      const params = new URLSearchParams(hash.split("?")[1]);
-      const tokenFromUrl = params.get("token");
-      const store = params.get("store");
-      
-      if (tokenFromUrl) {
-        setToken(tokenFromUrl);
-        setCurrentPage("library");
+    const checkForToken = () => {
+      const hash = window.location.hash;
+      if (hash.includes("auth-success")) {
+        const params = new URLSearchParams(hash.split("?")[1]);
+        const tokenFromUrl = params.get("token");
+        const store = params.get("store");
         
-        // Show success message
-        alert(`Successfully logged in with ${store || "store"}!`);
-        
-        // Clear the URL hash
-        window.location.hash = "";
+        if (tokenFromUrl) {
+          setToken(tokenFromUrl);
+          setCurrentPage("library");
+          
+          // Show success message
+          alert(`Successfully logged in with ${store || "store"}!`);
+          
+          // Clear the URL hash
+          window.location.hash = "";
+        }
       }
-    }
+    };
+
+    // Check on mount
+    checkForToken();
+
+    // Listen for hash changes (when browser redirects back from OAuth)
+    window.addEventListener('hashchange', checkForToken);
+
+    // Listen for deep link events from Tauri (when OS opens the app with aio:// protocol)
+    let unlisten: (() => void) | undefined;
+    listen<string>('deep-link', (event) => {
+      console.log('Deep link received:', event.payload);
+      const url = event.payload;
+      
+      // Parse URL: aio://auth-callback?token=xxx&store=yyy
+      if (url.includes('auth-callback')) {
+        try {
+          const urlObj = new URL(url.replace('aio://', 'http://'));
+          const tokenFromUrl = urlObj.searchParams.get('token');
+          const store = urlObj.searchParams.get('store');
+          
+          if (tokenFromUrl) {
+            setToken(decodeURIComponent(tokenFromUrl));
+            setCurrentPage('library');
+            alert(`Successfully logged in with ${store || 'store'}!`);
+          }
+        } catch (e) {
+          console.error('Failed to parse deep link:', e);
+        }
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+
+    return () => {
+      window.removeEventListener('hashchange', checkForToken);
+      if (unlisten) unlisten();
+    };
   }, []);
 
   const handleLogin = (jwtToken: string) => {

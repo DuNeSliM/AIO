@@ -110,10 +110,12 @@ func (c *SteamClient) GetUserInfo(ctx context.Context, accessToken string) (*Sto
 func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
 	// Steam requires an API key to fetch games
 	if c.apiKey == "" {
+		fmt.Println("WARNING: STEAM_API_KEY is not set!")
 		return []StoreGameInfo{}, nil // Return empty list instead of error if no API key
 	}
 
 	steamID := accessToken
+	fmt.Printf("Steam GetUserGames: steamID=%s, apiKey=%s...\n", steamID, c.apiKey[:10])
 
 	url := fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=%s&steamid=%s&include_appinfo=1&include_played_free_games=1",
 		c.apiKey, steamID)
@@ -128,6 +130,14 @@ func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]S
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	fmt.Printf("Steam API Response Status: %d\n", resp.StatusCode)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Steam API Response Body: %s\n", string(bodyBytes))
 
 	var result struct {
 		Response struct {
@@ -145,7 +155,7 @@ func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]S
 		} `json:"response"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(bodyBytes, &result); err != nil {
 		return nil, err
 	}
 
