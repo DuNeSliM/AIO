@@ -8,8 +8,11 @@ import (
 	"io"
 	"log"
 	nethttp "net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 
 	"aoi/api/internal/auth"
 	"aoi/api/internal/crypto"
@@ -22,6 +25,7 @@ import (
 type AuthHandlers struct {
 	Users     users.Service
 	JWT       auth.JWTService
+	JWTSecret string
 	External  auth.ExternalAuthService
 	Library   library.Service
 	Encryptor crypto.Encryptor
@@ -97,6 +101,8 @@ func (h *AuthHandlers) LoginEmail(c *gin.Context) {
 		return
 	}
 
+	log.Printf("User logged in: email=%s, userID=%d", req.Email, user.ID)
+
 	token, err := h.JWT.GenerateToken(user.ID)
 	if err != nil {
 		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": "could not create token"})
@@ -118,6 +124,54 @@ func (h *AuthHandlers) LoginProvider(c *gin.Context) {
 	}
 
 	state := generateRandomState(32)
+
+	// Check if user is logged in by looking for JWT token
+	// Try Authorization header first, then query parameter (for browser redirects)
+	var userID int64
+	var tokenStr string
+	
+	// Try Authorization header
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		tokenStr = strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+	}
+	
+	// Try query parameter (for browser-based OAuth flows)
+	if tokenStr == "" {
+		tokenStr = c.Query("token")
+	}
+	
+	if tokenStr != "" {
+		secretBytes := []byte(h.JWTSecret)
+		
+		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
+			return secretBytes, nil
+		})
+		
+		if err == nil && token.Valid {
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if sub, exists := claims["sub"]; exists {
+					switch v := sub.(type) {
+					case float64:
+						userID = int64(v)
+					case int64:
+						userID = v
+					case string:
+						if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+							userID = parsed
+						}
+					}
+				}
+			}
+		}
+		
+		if userID > 0 {
+			log.Printf("OAuth flow for logged-in user: userID=%d, provider=%s", userID, provider)
+			c.SetCookie("oauth_user_id_"+provider, fmt.Sprintf("%d", userID), 300, "/", "", true, true)
+		}
+	}
 
 	authURL, err := h.External.GetAuthURL(c.Request.Context(), provider, state)
 	if err != nil {
@@ -160,11 +214,29 @@ func (h *AuthHandlers) ProviderCallback(c *gin.Context) {
 		return
 	}
 
+	// Check if this is linking to an existing user
+	var existingUserID int64
+	if userIDStr, err := c.Cookie("oauth_user_id_" + provider); err == nil && userIDStr != "" {
+		if parsedID, err := fmt.Sscanf(userIDStr, "%d", &existingUserID); err == nil && parsedID == 1 {
+			log.Printf("Linking %s to existing userID=%d", provider, existingUserID)
+		}
+		c.SetCookie("oauth_user_id_"+provider, "", -1, "/", "", true, true) // Clear cookie
+	}
+
 	user, storeInfo, err := h.External.HandleCallback(c.Request.Context(), provider, code, state)
 	if err != nil || user == nil {
 		log.Printf("HandleCallback error for provider %s: %v", provider, err)
 		c.JSON(nethttp.StatusUnauthorized, gin.H{"error": "provider login failed"})
 		return
+	}
+
+	// If we have an existing user ID, use that instead of the newly created one
+	if existingUserID > 0 {
+		existingUser, err := h.Users.GetByID(c.Request.Context(), existingUserID)
+		if err == nil && existingUser != nil {
+			log.Printf("Using existing user %d instead of %d for %s link", existingUserID, user.ID, provider)
+			user = existingUser
+		}
 	}
 
 	// Save store account to library repository if we have library service
