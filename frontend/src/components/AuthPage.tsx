@@ -18,16 +18,92 @@ const STORES = [
 ];
 
 export default function AuthPage({ onLogin }: AuthPageProps) {
+  const [mode, setMode] = useState<"login" | "register" | "stores">("login");
   const [loading, setLoading] = useState("");
-  const [manualToken, setManualToken] = useState("");
-  const [apiUrl, setApiUrl] = useState("http://localhost:8080");
+  const [message, setMessage] = useState("");
+  const [apiUrl] = useState("http://localhost:8080");
+  
+  // Form fields
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
+    
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match!");
+      return;
+    }
+    
+    if (password.length < 8) {
+      setMessage("Password must be at least 8 characters!");
+      return;
+    }
+    
+    setLoading("register");
+    
+    try {
+      const response = await fetch(`${apiUrl}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, username, password }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage("Account created successfully! Logging you in...");
+        // Save token to localStorage
+        localStorage.setItem("aio_token", data.token);
+        onLogin(data.token);
+      } else {
+        setMessage(`Registration failed: ${data.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      setMessage(`Error: ${err}`);
+    } finally {
+      setLoading("");
+    }
+  };
+  
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage("");
+    setLoading("login");
+    
+    try {
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage("Login successful!");
+        // Save token to localStorage
+        localStorage.setItem("aio_token", data.token);
+        onLogin(data.token);
+      } else {
+        setMessage(`Login failed: ${data.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      setMessage(`Error: ${err}`);
+    } finally {
+      setLoading("");
+    }
+  };
 
   const handleStoreLogin = async (store: string) => {
     setLoading(store);
     try {
       const authUrl = `${apiUrl}/api/auth/${store}/login`;
       
-      // Open OAuth in browser - backend will redirect back to localhost:1420 with token
+      // Open OAuth in browser - backend will redirect back via aio:// protocol
       await open(authUrl);
       
       // Clear loading state after opening
@@ -35,70 +111,153 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
       
     } catch (error) {
       console.error("Failed to open login:", error);
-      alert("Failed to open login page: " + error);
+      setMessage("Failed to open login page: " + error);
       setLoading("");
-    }
-  };
-
-  const handleManualLogin = () => {
-    if (manualToken.trim()) {
-      onLogin(manualToken.trim());
     }
   };
 
   return (
     <div className="auth-page">
-      <div className="auth-section">
-        <h2>API Configuration</h2>
-        <div className="form-group">
-          <label>Backend API URL:</label>
-          <input
-            type="text"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
-            placeholder="http://localhost:8080"
-          />
+      <div className="auth-container">
+        <h1>🎮 AIO Game Library</h1>
+        
+        {message && (
+          <div className={`message-box ${message.includes("success") ? "success" : "error"}`}>
+            {message}
+          </div>
+        )}
+        
+        <div className="auth-tabs">
+          <button
+            className={mode === "login" ? "active" : ""}
+            onClick={() => setMode("login")}
+          >
+            Login
+          </button>
+          <button
+            className={mode === "register" ? "active" : ""}
+            onClick={() => setMode("register")}
+          >
+            Register
+          </button>
+          <button
+            className={mode === "stores" ? "active" : ""}
+            onClick={() => setMode("stores")}
+          >
+            Link Stores
+          </button>
         </div>
-      </div>
 
-      <div className="auth-section">
-        <h2>Sign In with Game Store</h2>
-        <p className="info">Click a store to sign in. A login window will open.</p>
-        <div className="store-grid">
-          {STORES.map((store) => (
-            <button
-              key={store.id}
-              onClick={() => handleStoreLogin(store.id)}
-              disabled={loading === store.id}
-              className="store-button"
-              style={{ backgroundColor: store.color }}
+        {mode === "login" && (
+          <form onSubmit={handleLogin} className="auth-form">
+            <h2>Login to Your Account</h2>
+            <div className="form-group">
+              <label>Email:</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Password:</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="primary-button"
+              disabled={loading === "login"}
             >
-              {loading === store.id ? "Opening..." : `Sign in with ${store.name}`}
+              {loading === "login" ? "Logging in..." : "Login"}
             </button>
-          ))}
-        </div>
-      </div>
+          </form>
+        )}
 
-      <div className="auth-section">
-        <h2>Manual Token Entry</h2>
-        <p className="info">After logging in, paste the JWT token here:</p>
-        <textarea
-          value={manualToken}
-          onChange={(e) => setManualToken(e.target.value)}
-          placeholder="Paste JWT token here..."
-          rows={4}
-        />
-        <button onClick={handleManualLogin} className="primary-button">
-          Login with Token
-        </button>
-      </div>
+        {mode === "register" && (
+          <form onSubmit={handleRegister} className="auth-form">
+            <h2>Create New Account</h2>
+            <div className="form-group">
+              <label>Username:</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Your username"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Email:</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Password:</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+            <div className="form-group">
+              <label>Confirm Password:</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={8}
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="primary-button"
+              disabled={loading === "register"}
+            >
+              {loading === "register" ? "Creating Account..." : "Create Account"}
+            </button>
+          </form>
+        )}
 
-      <div className="auth-section">
-        <h3>Quick Test (Development)</h3>
-        <p className="info">For testing without OAuth, you can use any mock token:</p>
-        <button onClick={() => onLogin("test-token-12345")} className="secondary-button">
-          Use Test Token
-        </button>
+        {mode === "stores" && (
+          <div className="auth-section">
+            <h2>Link Your Game Store Accounts</h2>
+            <p className="info">Connect your game stores to automatically sync your library</p>
+            <div className="store-grid">
+              {STORES.map((store) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleStoreLogin(store.id)}
+                  disabled={loading === store.id}
+                  className="store-button"
+                  style={{ backgroundColor: store.color }}
+                >
+                  {loading === store.id ? "Opening..." : store.name}
+                </button>
+              ))}
+            </div>
+            <p className="info-small">
+              Note: You need to login to your AIO account first before linking stores
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

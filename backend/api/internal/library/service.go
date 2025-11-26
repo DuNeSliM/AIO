@@ -162,13 +162,17 @@ func (s *service) GetUserStoreAccounts(ctx context.Context, userID int64) ([]*mo
 		return nil, err
 	}
 
-	// Don't expose encrypted tokens
-	for _, acc := range accounts {
-		acc.AccessToken = nil
-		acc.RefreshToken = nil
+	// Don't expose encrypted tokens - return copies without tokens
+	result := make([]*models.UserStoreAccount, len(accounts))
+	for i, acc := range accounts {
+		// Create a copy without the sensitive fields
+		accCopy := *acc
+		accCopy.AccessToken = nil
+		accCopy.RefreshToken = nil
+		result[i] = &accCopy
 	}
 
-	return accounts, nil
+	return result, nil
 }
 
 func (s *service) DisconnectStoreAccount(ctx context.Context, userID int64, store string) error {
@@ -187,10 +191,12 @@ func (s *service) SyncStoreLibrary(ctx context.Context, userID int64, store stri
 	}
 
 	// Decrypt access token
+	log.Printf("DEBUG: Decrypting access token for %s, encrypted length: %d bytes", store, len(account.AccessToken))
 	accessToken, err := s.encryptor.Decrypt(account.AccessToken)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt access token: %w", err)
 	}
+	log.Printf("DEBUG: Decrypted token length: %d bytes", len(accessToken))
 
 	// Get store client
 	client, ok := s.storeManager.GetClient(store)
