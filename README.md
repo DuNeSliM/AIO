@@ -23,3 +23,8 @@ Backend: Go
 - Get own game statistics -> maybe profile page -> friends to compare stats?
 - Game overlay? Screenshots?(right now all stores have there own screenshot folder, can you overwrite there hotkey)
 - Can you show download progress in our app of games in other apps?
+
+
+## Done
+- Account creation and login
+- link Steam account and sync lib

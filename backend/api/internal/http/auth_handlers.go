@@ -225,6 +225,14 @@ func (h *AuthHandlers) ProviderCallback(c *gin.Context) {
 
 	user, storeInfo, err := h.External.HandleCallback(c.Request.Context(), provider, code, state)
 	if err != nil || user == nil {
+		// Check if this is Epic's SCOPE_CONSENT error
+		if err != nil && strings.HasPrefix(err.Error(), "SCOPE_CONSENT_REQUIRED:") {
+			continuationURL := strings.TrimPrefix(err.Error(), "SCOPE_CONSENT_REQUIRED:")
+			log.Printf("Epic requires scope consent, redirecting to: %s", continuationURL)
+			c.Redirect(nethttp.StatusFound, continuationURL)
+			return
+		}
+
 		log.Printf("HandleCallback error for provider %s: %v", provider, err)
 		c.JSON(nethttp.StatusUnauthorized, gin.H{"error": "provider login failed"})
 		return
