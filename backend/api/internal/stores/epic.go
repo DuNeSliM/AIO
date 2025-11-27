@@ -3,10 +3,14 @@ package stores
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -34,29 +38,230 @@ func (c *EpicClient) GetAuthURL(state string) string {
 }
 
 func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreTokens, error) {
-	// TODO: Implement Epic Games OAuth token exchange
-	// Epic uses standard OAuth2 flow
-	return nil, fmt.Errorf("epic games integration not fully implemented")
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	// Epic requires Basic Auth with base64 encoded client_id:client_secret
+	auth := base64.StdEncoding.EncodeToString([]byte(c.clientID + ":" + c.clientSecret))
+
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", code)
+	data.Set("redirect_uri", c.redirectURI)
+
+	log.Printf("Epic OAuth Debug: clientID=%s, redirectURI=%s, authHeader=Basic %s\n", c.clientID, c.redirectURI, auth)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Basic "+auth)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		return nil, fmt.Errorf("token exchange failed: %v", errResp)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		AccountID    string `json:"account_id"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	return &StoreTokens{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
 func (c *EpicClient) RefreshToken(ctx context.Context, refreshToken string) (*StoreTokens, error) {
-	// TODO: Implement token refresh
-	return nil, fmt.Errorf("epic games integration not fully implemented")
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	// Epic requires Basic Auth with base64 encoded client_id:client_secret
+	auth := base64.StdEncoding.EncodeToString([]byte(c.clientID + ":" + c.clientSecret))
+
+	data := url.Values{}
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Basic "+auth)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errResp map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&errResp)
+		return nil, fmt.Errorf("token refresh failed: %v", errResp)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		AccountID    string `json:"account_id"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode refresh response: %w", err)
+	}
+
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	return &StoreTokens{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
 func (c *EpicClient) GetUserInfo(ctx context.Context, accessToken string) (*StoreUserInfo, error) {
-	return nil, fmt.Errorf("use OAuth callback for user info")
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v2/userInfo", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create userInfo request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("epic userInfo failed with status %d", resp.StatusCode)
+	}
+
+	var userInfo struct {
+		AccountID     string `json:"account_id"`
+		DisplayName   string `json:"displayName"`
+		PreferredLang string `json:"preferredLanguage"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	return &StoreUserInfo{
+		StoreUserID: userInfo.AccountID,
+		DisplayName: userInfo.DisplayName,
+	}, nil
 }
 
 func (c *EpicClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	// Get user's account ID first
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v1/userInfo", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v2/userInfo", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create userInfo request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("epic userInfo failed with status %d", resp.StatusCode)
+	}
+
+	var userInfo struct {
+		AccountID string `json:"account_id"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	// Get user's library using the library items endpoint
+	req, err = http.NewRequestWithContext(ctx, "GET",
+		"https://library-service.live.use1a.on.epicgames.com/library/api/public/items?includeMetadata=true", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create library request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err = httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get library: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("epic library failed with status %d", resp.StatusCode)
+	}
+
+	var library struct {
+		Records []struct {
+			AppName       string `json:"appName"`
+			ProductID     string `json:"productId"`
+			Namespace     string `json:"namespace"`
+			CatalogItemID string `json:"catalogItemId"`
+		} `json:"records"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&library); err != nil {
+		return nil, fmt.Errorf("failed to decode library: %w", err)
+	}
+
+	// Fetch game details for each item
+	games := make([]StoreGameInfo, 0, len(library.Records))
+	for _, item := range library.Records {
+		// Get game details from the catalog
+		gameInfo, err := c.getEpicGameDetails(ctx, item.Namespace, item.CatalogItemID)
+		if err != nil {
+			// Skip games we can't fetch details for
+			games = append(games, StoreGameInfo{
+				StoreGameID: item.AppName,
+				Name:        item.AppName,
+			})
+			continue
+		}
+
+		games = append(games, *gameInfo)
+	}
+
+	return games, nil
+}
+
+func (c *EpicClient) getEpicGameDetails(ctx context.Context, namespace, catalogItemID string) (*StoreGameInfo, error) {
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+
+	req, err := http.NewRequestWithContext(ctx, "GET",
+		fmt.Sprintf("https://catalog-public-service-prod06.ol.epicgames.com/catalog/api/shared/namespace/%s/bulk/items?id=%s&includeDLCDetails=false&includeMainGameDetails=false&country=US&locale=en-US", namespace, catalogItemID), nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -64,47 +269,45 @@ func (c *EpicClient) GetUserGames(ctx context.Context, accessToken string) ([]St
 	}
 	defer resp.Body.Close()
 
-	var userInfo struct {
-		AccountID string `json:"account_id"`
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("catalog request failed with status %d", resp.StatusCode)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+	var catalogResp map[string]struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Developer   string `json:"developer"`
+		KeyImages   []struct {
+			Type string `json:"type"`
+			URL  string `json:"url"`
+		} `json:"keyImages"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&catalogResp); err != nil {
 		return nil, err
 	}
 
-	// Get user's library
-	req, err = http.NewRequestWithContext(ctx, "GET",
-		fmt.Sprintf("https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/public/assets/v2/platform/Windows/namespace/epic/catalogItem?accountId=%s", userInfo.AccountID), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	// Get the first (and usually only) item from the response
+	for itemID, details := range catalogResp {
+		game := &StoreGameInfo{
+			StoreGameID: itemID,
+			Name:        details.Title,
+			Description: details.Description,
+			Developer:   details.Developer,
+		}
 
-	resp, err = httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+		// Extract cover image
+		for _, img := range details.KeyImages {
+			if img.Type == "DieselStoreFrontWide" || img.Type == "OfferImageWide" {
+				game.CoverImage = img.URL
+				break
+			}
+		}
 
-	var assets []struct {
-		AssetID   string `json:"assetId"`
-		AppName   string `json:"appName"`
-		LabelName string `json:"labelName"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&assets); err != nil {
-		return nil, err
+		return game, nil
 	}
 
-	games := make([]StoreGameInfo, 0, len(assets))
-	for _, asset := range assets {
-		games = append(games, StoreGameInfo{
-			StoreGameID: asset.AssetID,
-			Name:        asset.LabelName,
-		})
-	}
-
-	return games, nil
+	return nil, fmt.Errorf("no game details found")
 }
 
 func (c *EpicClient) SearchGames(ctx context.Context, query string, limit int) ([]StoreGameInfo, error) {

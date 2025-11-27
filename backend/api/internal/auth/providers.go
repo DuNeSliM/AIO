@@ -4,10 +4,12 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -267,11 +269,78 @@ func (s *externalAuthService) exchangeOAuth2Code(ctx context.Context, tokenURL, 
 	return result.AccessToken, result.RefreshToken, expiresAt, nil
 }
 
+// Epic Games requires Basic Auth (not form-based client credentials)
+func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, clientID, clientSecret, redirectURI, code string) (string, string, time.Time, error) {
+	auth := base64.StdEncoding.EncodeToString([]byte(clientID + ":" + clientSecret))
+
+	data := url.Values{}
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", code)
+	data.Set("redirect_uri", redirectURI)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	req.Header.Set("Authorization", "Basic "+auth)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// Debug logging
+	log.Printf("=== Epic OAuth Token Request ===")
+	log.Printf("URL: POST https://api.epicgames.dev/epic/oauth/v2/token")
+	log.Printf("Headers:")
+	log.Printf("  Authorization: Basic %s", auth)
+	log.Printf("  Content-Type: application/x-www-form-urlencoded")
+	log.Printf("Body: %s", data.Encode())
+	log.Printf("ClientID: %s", clientID)
+	log.Printf("RedirectURI: %s", redirectURI)
+	log.Printf("================================")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", "", time.Time{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+
+		// Check for Epic's SCOPE_CONSENT error
+		var epicError struct {
+			ErrorCode        string `json:"errorCode"`
+			CorrectiveAction string `json:"correctiveAction"`
+			ContinuationURL  string `json:"continuationUrl"`
+		}
+
+		if json.Unmarshal(body, &epicError) == nil && epicError.CorrectiveAction == "SCOPE_CONSENT" {
+			// Return a special error with the continuation URL
+			return "", "", time.Time{}, fmt.Errorf("SCOPE_CONSENT_REQUIRED:%s", epicError.ContinuationURL)
+		}
+
+		return "", "", time.Time{}, fmt.Errorf("token exchange failed: %s", string(body))
+	}
+
+	var result struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", time.Time{}, err
+	}
+
+	expiresAt := time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
+	return result.AccessToken, result.RefreshToken, expiresAt, nil
+}
+
 // Epic Games
 func (s *externalAuthService) getEpicAuthURL(state string) string {
 	clientID := os.Getenv("EPIC_CLIENT_ID")
 	redirectURI := getEnvOrDefault("EPIC_REDIRECT_URI", "http://localhost:8080/auth/epic/callback")
-	return s.getOAuth2URL(clientID, "https://www.epicgames.com/id/authorize", redirectURI, state, "basic_profile")
+	// Try without explicit scope - let Epic use default scopes from the client policy
+	return fmt.Sprintf("%s?client_id=%s&response_type=code&redirect_uri=%s&state=%s",
+		"https://www.epicgames.com/id/authorize", clientID, url.QueryEscape(redirectURI), state)
 }
 
 func (s *externalAuthService) handleEpicCallback(ctx context.Context, code string) (*StoreAccountInfo, error) {
@@ -283,8 +352,7 @@ func (s *externalAuthService) handleEpicCallback(ctx context.Context, code strin
 		return nil, fmt.Errorf("Epic Games credentials not configured")
 	}
 
-	accessToken, refreshToken, expiresAt, err := s.exchangeOAuth2Code(ctx,
-		"https://api.epicgames.dev/epic/oauth/v1/token",
+	accessToken, refreshToken, expiresAt, err := s.exchangeEpicOAuth2Code(ctx,
 		clientID, clientSecret, redirectURI, code)
 	if err != nil {
 		return nil, err
@@ -296,10 +364,37 @@ func (s *externalAuthService) handleEpicCallback(ctx context.Context, code strin
 		return nil, err
 	}
 
+	// Debug: log the entire userInfo response
+	userInfoJSON, _ := json.Marshal(userInfo)
+	log.Printf("Epic userInfo response: %s", string(userInfoJSON))
+
+	// Epic uses "sub" for account ID (standard OpenID Connect)
+	accountID, ok := userInfo["sub"].(string)
+	if !ok {
+		// Fallback to account_id if sub is not present
+		accountID, ok = userInfo["account_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("no account identifier in Epic userInfo response")
+		}
+	}
+
+	// Epic uses "preferred_username" for display name
+	displayName, ok := userInfo["preferred_username"].(string)
+	if !ok {
+		// Try other common fields
+		displayName, ok = userInfo["display_name"].(string)
+		if !ok {
+			displayName, ok = userInfo["displayName"].(string)
+			if !ok {
+				displayName = accountID // fallback to account ID
+			}
+		}
+	}
+
 	return &StoreAccountInfo{
 		Store:        "epic",
-		StoreUserID:  userInfo["account_id"].(string),
-		DisplayName:  userInfo["display_name"].(string),
+		StoreUserID:  accountID,
+		DisplayName:  displayName,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresAt:    expiresAt,
