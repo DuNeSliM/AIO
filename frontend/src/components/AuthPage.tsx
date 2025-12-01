@@ -104,7 +104,14 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
       const authUrl = `${apiUrl}/api/auth/${store}/login`;
       
       // Open OAuth in browser - backend will redirect back via aio:// protocol
-      await open(authUrl);
+      // use Tauri shell.open when running inside Tauri; fall back to window.open for browser dev
+      try {
+        await open(authUrl);
+      } catch (err) {
+        // Fallback for non-Tauri environments (Vite dev in browser)
+        console.warn('Tauri shell.open failed, falling back to window.open:', err);
+        window.open(authUrl, '_blank');
+      }
       
       // Clear loading state after opening
       setTimeout(() => setLoading(""), 1000);

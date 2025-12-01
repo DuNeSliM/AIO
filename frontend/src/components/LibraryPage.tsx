@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/api/shell";
 
 interface LibraryPageProps {
   token: string;
+  onSelectGame?: (game: LibraryGame) => void;
 }
 
 interface LibraryGame {
@@ -33,7 +34,7 @@ const STORES = [
   { id: "xbox", name: "Xbox", color: "#107c10" },
 ];
 
-export default function LibraryPage({ token }: LibraryPageProps) {
+export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
   const [games, setGames] = useState<LibraryGame[]>([]);
   const [storeAccounts, setStoreAccounts] = useState<StoreAccount[]>([]);
   const [showStoreModal, setShowStoreModal] = useState(false);
@@ -100,7 +101,13 @@ export default function LibraryPage({ token }: LibraryPageProps) {
     try {
       // Pass JWT token as query parameter so backend can identify the user
       const authUrl = `${apiUrl}/api/auth/${store}/login?token=${encodeURIComponent(token)}`;
-      await open(authUrl);
+      // Try Tauri open first, fall back to window.open for dev in browser
+      try {
+        await open(authUrl);
+      } catch (err) {
+        console.warn('Tauri shell.open failed, falling back to window.open:', err);
+        window.open(authUrl, '_blank');
+      }
       setTimeout(() => setLoading(""), 1000);
     } catch (error) {
       console.error("Failed to open login:", error);
@@ -314,7 +321,7 @@ export default function LibraryPage({ token }: LibraryPageProps) {
 
       <div className="library-grid">
         {games.map((game) => (
-          <div key={game.id} className="library-game-card">
+          <div key={game.id} className="library-game-card" onClick={() => onSelectGame && onSelectGame(game)}>
             {game.cover_image || game.icon ? (
               <img src={game.cover_image || game.icon} alt={game.name} className="game-cover" />
             ) : (
