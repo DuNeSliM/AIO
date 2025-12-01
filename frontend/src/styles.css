@@ -736,6 +736,61 @@ textarea {
   border-color: #229954;
 }
 
+.store-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.connected-status {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #27ae60;
+  background: #27ae60;
+  color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.browser-sync-button {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #0078f2;
+  background: transparent;
+  color: #0078f2;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.browser-sync-button:hover {
+  background: #0078f2;
+  color: white;
+}
+
+.disconnect-button {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #e74c3c;
+  background: transparent;
+  color: #e74c3c;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.disconnect-button:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+.disconnect-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .empty-steps {
   text-align: left;
   margin: 2rem auto;

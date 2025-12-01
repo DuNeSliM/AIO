@@ -38,6 +38,9 @@ func (h *AuthHandlers) RegisterRoutes(r gin.IRoutes) {
 	r.GET("/auth/:provider/login", h.LoginProvider)
 	r.GET("/auth/:provider/callback", h.ProviderCallback)
 
+	// Epic Launcher specific redirect
+	r.GET("/launcher/authorized", h.EpicLauncherCallback)
+
 	// Also register under /api prefix for frontend
 	r.GET("/api/auth/:provider/login", h.LoginProvider)
 	r.GET("/api/auth/:provider/callback", h.ProviderCallback)
@@ -418,6 +421,124 @@ func (h *AuthHandlers) ProviderCallback(c *gin.Context) {
     </script>
 </body>
 </html>`, token, storeInfo.Store, token, storeInfo.Store)
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(nethttp.StatusOK, html)
+}
+
+// GET /launcher/authorized - Epic Launcher specific callback
+func (h *AuthHandlers) EpicLauncherCallback(c *gin.Context) {
+	code := c.Query("code")
+	state := c.Query("state")
+
+	if code == "" || state == "" {
+		c.JSON(nethttp.StatusBadRequest, gin.H{"error": "missing code or state"})
+		return
+	}
+
+	// Validate state cookie
+	cookieName := "oauth_state_epic"
+	expectedState, err := c.Cookie(cookieName)
+	if err != nil || expectedState == "" || expectedState != state {
+		c.JSON(nethttp.StatusUnauthorized, gin.H{"error": "invalid oauth state"})
+		return
+	}
+
+	// Check if linking to existing user
+	var existingUserID int64
+	if userIDStr, err := c.Cookie("oauth_user_id_epic"); err == nil && userIDStr != "" {
+		if parsedID, err := fmt.Sscanf(userIDStr, "%d", &existingUserID); err == nil && parsedID == 1 {
+			log.Printf("Linking epic to existing userID=%d", existingUserID)
+		}
+		c.SetCookie("oauth_user_id_epic", "", -1, "/", "", true, true)
+	}
+
+	user, storeInfo, err := h.External.HandleCallback(c.Request.Context(), "epic", code, state)
+	if err != nil || user == nil {
+		log.Printf("Epic HandleCallback error: %v", err)
+		c.JSON(nethttp.StatusUnauthorized, gin.H{"error": "epic login failed"})
+		return
+	}
+
+	// If we have an existing user ID, use that
+	if existingUserID > 0 {
+		existingUser, err := h.Users.GetByID(c.Request.Context(), existingUserID)
+		if err == nil && existingUser != nil {
+			log.Printf("Using existing user %d for epic link", existingUserID)
+			user = existingUser
+		}
+	}
+
+	// Save store account
+	if h.Library != nil && storeInfo != nil {
+		accessTokenEnc, err := h.Encryptor.Encrypt([]byte(storeInfo.AccessToken))
+		if err != nil {
+			log.Printf("Failed to encrypt access token: %v", err)
+		} else {
+			var refreshTokenEnc []byte
+			if storeInfo.RefreshToken != "" {
+				refreshTokenEnc, _ = h.Encryptor.Encrypt([]byte(storeInfo.RefreshToken))
+			}
+
+			expiresAt := &storeInfo.ExpiresAt
+			if storeInfo.ExpiresAt.IsZero() {
+				expiresAt = nil
+			}
+
+			account := &models.UserStoreAccount{
+				UserID:         user.ID,
+				Store:          "epic",
+				StoreUserID:    storeInfo.StoreUserID,
+				DisplayName:    storeInfo.DisplayName,
+				AccessToken:    accessTokenEnc,
+				RefreshToken:   refreshTokenEnc,
+				TokenExpiresAt: expiresAt,
+				IsConnected:    true,
+				AutoImport:     true,
+			}
+
+			if err := h.Library.SaveStoreAccount(c.Request.Context(), account); err != nil {
+				log.Printf("Failed to save epic account: %v", err)
+			} else {
+				log.Printf("Successfully saved epic account for user %d", user.ID)
+			}
+		}
+	}
+
+	// Generate JWT token
+	token, err := h.JWT.GenerateToken(user.ID)
+	if err != nil {
+		c.JSON(nethttp.StatusInternalServerError, gin.H{"error": "could not create token"})
+		return
+	}
+
+	// Return success HTML with auto-redirect
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<head>
+    <title>Epic Connected Successfully</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); }
+        .container { background: white; padding: 3rem; border-radius: 1rem; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; max-width: 500px; }
+        h1 { color: #667eea; margin-bottom: 1rem; font-size: 2rem; }
+        p { color: #666; margin-bottom: 2rem; line-height: 1.6; }
+        .success-icon { font-size: 4rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>Epic Connected!</h1>
+        <p>Your Epic Games account has been successfully connected.</p>
+        <p>Redirecting back to the app...</p>
+    </div>
+    <script>
+        setTimeout(() => {
+            window.location.href = 'http://localhost:1420/#/auth-success?token=' + encodeURIComponent('%s') + '&store=epic';
+        }, 1500);
+    </script>
+</body>
+</html>`, token)
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.String(nethttp.StatusOK, html)

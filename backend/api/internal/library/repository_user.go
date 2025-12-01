@@ -115,12 +115,15 @@ func (r *postgresRepository) GetUserLibrary(ctx context.Context, userID int64, f
 	queryBuilder.WriteString(fmt.Sprintf(" ORDER BY %s %s", sortBy, sortOrder))
 
 	// Pagination
-	limit := 50
+	limit := 1000 // Increased default limit
 	if filter.Limit > 0 {
 		limit = filter.Limit
 	}
 	queryBuilder.WriteString(fmt.Sprintf(" LIMIT $%d OFFSET $%d", argCount, argCount+1))
 	args = append(args, limit, filter.Offset)
+
+	log.Printf("GetUserLibrary query: %s", queryBuilder.String())
+	log.Printf("GetUserLibrary args: %v", args)
 
 	rows, err := r.db.QueryContext(ctx, queryBuilder.String(), args...)
 	if err != nil {
@@ -160,6 +163,7 @@ func (r *postgresRepository) GetUserLibrary(ctx context.Context, userID int64, f
 		results = append(results, detail)
 	}
 
+	log.Printf("GetUserLibrary returned %d games for user %d", len(results), userID)
 	return results, nil
 }
 

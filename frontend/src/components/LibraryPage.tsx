@@ -109,6 +109,199 @@ export default function LibraryPage({ token }: LibraryPageProps) {
     }
   };
 
+  const handleDisconnectStore = async (storeId: string) => {
+    if (!window.confirm(`Are you sure you want to disconnect your ${storeId.toUpperCase()} account?`)) {
+      return;
+    }
+
+    setLoading(storeId);
+    setMessage("");
+    
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/stores/${storeId}/disconnect`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        setMessage(`Successfully disconnected ${storeId.toUpperCase()} account`);
+        // Refresh store accounts list
+        await fetchStoreAccounts();
+        // Refresh library to remove games from disconnected store
+        await fetchLibrary();
+      } else {
+        const error = await response.json();
+        setMessage(`Failed to disconnect: ${error.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      setMessage(`Failed to disconnect: ${err}`);
+      console.error(err);
+    } finally {
+      setLoading("");
+    }
+  };
+
+  const handleEpicConsoleSync = async () => {
+    try {
+      setMessage("Generating console script...");
+      
+      // Get user info
+      const userResponse = await fetch(`${apiUrl}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!userResponse.ok) {
+        setMessage("Failed to get user info");
+        return;
+      }
+      
+      const userData = await userResponse.json();
+      
+      // Store current game count to detect changes
+      const currentGameCount = games.length;
+      
+      // Generate the console script with embedded credentials
+      const script = `
+(async function() {
+  const userId = "${userData.id}";
+  const token = "${token}";
+  const apiUrl = "http://localhost:8080";
+  
+  console.log("🎮 Fetching Epic Games library...");
+  
+  let allGames = [];
+  let nextPageToken = null;
+  
+  while (true) {
+    const url = nextPageToken 
+      ? \`https://www.epicgames.com/account/v2/payment/ajaxGetOrderHistory?nextPageToken=\${nextPageToken}\`
+      : 'https://www.epicgames.com/account/v2/payment/ajaxGetOrderHistory';
+    
+    const response = await fetch(url, { credentials: 'include' });
+    
+    if (!response.ok) {
+      console.error("Failed to fetch orders");
+      break;
+    }
+    
+    const data = await response.json();
+    const games = data.orders
+      .filter(order => order.items && order.items.length > 0)
+      .flatMap(order => order.items
+        .filter(item => item.description)
+        .map(item => ({
+          name: item.description,
+          epicId: item.offerId || "",
+          platform: "Epic Games"
+        }))
+      );
+    
+    allGames = allGames.concat(games);
+    console.log(\`Found \${allGames.length} games so far...\`);
+    
+    // Check if there's a next page
+    if (!data.nextPageToken) break;
+    nextPageToken = data.nextPageToken;
+  }
+  
+  // Remove duplicates
+  const uniqueGames = Array.from(new Map(allGames.map(g => [g.name, g])).values());
+  console.log(\`\n✅ Total unique games: \${uniqueGames.length}\`);
+  
+  // Send to backend using a form POST that opens result in new tab
+  console.log("📤 Syncing " + uniqueGames.length + " games to AIO...");
+  
+  const syncData = {
+    userId: userId,
+    token: token,
+    games: uniqueGames
+  };
+  
+  // Create form and submit to new window
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = \`\${apiUrl}/api/stores/epic/browser-sync\`;
+  form.target = '_blank';
+  form.style.display = 'none';
+  
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'data';
+  input.value = JSON.stringify(syncData);
+  
+  form.appendChild(input);
+  document.body.appendChild(form);
+  
+  console.log("\\n📋 Submitting to AIO...");
+  form.submit();
+  
+  console.log("\\n✅ Sync request sent!");
+  console.log("A new window should open with the result.");
+  console.log("\\nIf popup is blocked, manually open:");
+  console.log("%chttp://localhost:8080/api/stores/epic/browser-sync", "color: blue; text-decoration: underline;");
+  console.log("(Note: You'll need to re-run this script if you use the manual link)");
+  
+  // Cleanup
+  setTimeout(() => {
+    document.body.removeChild(form);
+  }, 1000);
+})();
+`;
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(script);
+      
+      // Open Epic Games page and instructions in separate tabs
+      await open("https://www.epicgames.com/account/transactions");
+      await open("http://localhost:8080/epic-instructions");
+      
+      setMessage("✅ Script copied to clipboard!\n\nInstructions opened in new tab - follow the steps there!");
+      
+      // Start polling for library changes after Epic sync
+      let pollCount = 0;
+      const maxPolls = 60; // Poll for up to 60 seconds
+      const pollInterval = setInterval(async () => {
+        pollCount++;
+        
+        try {
+          const response = await fetch(`${apiUrl}/api/library`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const newGameCount = data.games?.length || 0;
+            
+            // If game count increased, refresh and stop polling
+            if (newGameCount > currentGameCount) {
+              clearInterval(pollInterval);
+              setGames(data.games || []);
+              setMessage(`✅ Library updated! Added ${newGameCount - currentGameCount} new games from Epic.`);
+              console.log(`Epic sync detected: ${currentGameCount} → ${newGameCount} games`);
+            }
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
+        }
+        
+        // Stop polling after max attempts
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+          console.log("Stopped polling for Epic sync");
+        }
+      }, 1000); // Poll every second
+      
+    } catch (error) {
+      console.error("Failed to generate script:", error);
+      setMessage("❌ Failed: " + error);
+    }
+  };
+
   // Fetch library and store accounts on mount
   useEffect(() => {
     fetchLibrary();
@@ -290,13 +483,37 @@ export default function LibraryPage({ token }: LibraryPageProps) {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleLinkStore(store.id)}
-                        disabled={loading === store.id}
-                        className={isConnected ? "connected-button" : "connect-button"}
-                      >
-                        {loading === store.id ? "Opening..." : isConnected ? "✓ Connected" : "Connect"}
-                      </button>
+                      <div className="store-actions">
+                        {isConnected ? (
+                          <>
+                            <span className="connected-status">✓ Connected</span>
+                            {store.id === 'epic' && (
+                              <button
+                                onClick={handleEpicConsoleSync}
+                                className="browser-sync-button"
+                                title="Copy console script and open Epic Games"
+                              >
+                                🎮 Sync Games
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDisconnectStore(store.id)}
+                              disabled={loading === store.id}
+                              className="disconnect-button"
+                            >
+                              {loading === store.id ? "Disconnecting..." : "Disconnect"}
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleLinkStore(store.id)}
+                            disabled={loading === store.id}
+                            className="connect-button"
+                          >
+                            {loading === store.id ? "Opening..." : "Connect"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
