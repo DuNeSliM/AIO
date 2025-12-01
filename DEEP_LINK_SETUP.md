@@ -2,24 +2,36 @@
 
 The app now uses `aio://` deep links to receive OAuth callbacks directly in the desktop app instead of the browser.
 
-## One-Time Setup (Windows)
+## Setup (Windows)
 
-After building/running the app for the first time, register the protocol:
+### Production Build (Recommended)
+**When you build and install the app using the installer, the `aio://` protocol is automatically registered!**
 
-### Option 1: Automatic (Run as Administrator)
+Simply run:
 ```powershell
 cd frontend
-.\register-protocol.ps1
+npm run tauri build
 ```
 
-### Option 2: Manual Registry
+Then install the generated `.msi` or `.exe` from `frontend/src-tauri/target/release/bundle/`. The installer will automatically register the protocol.
+
+### Development Mode (Manual Registration Required)
+If you're running in dev mode (`npm run tauri dev`), you need to manually register the protocol:
+
+#### Option 1: PowerShell Script (Run as Administrator)
+```powershell
+cd frontend
+.\register-protocol.ps1 -Dev
+```
+
+#### Option 2: Manual Registry
 1. Open Registry Editor (regedit)
 2. Navigate to: `HKEY_CURRENT_USER\Software\Classes`
 3. Create a new key named `aio`
 4. Set default value to: `URL:AIO Protocol`
 5. Create a string value `URL Protocol` (leave empty)
 6. Create subkeys: `aio\shell\open\command`
-7. Set command default value to: `"C:\path\to\aio-game-library.exe" "%1"`
+7. Set command default value to: `"C:\path\to\frontend\src-tauri\target\debug\AIO Game Library.exe" "%1"`
 
 ### Test It
 After registration, test with:

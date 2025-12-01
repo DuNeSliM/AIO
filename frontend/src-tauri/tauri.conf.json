@@ -59,6 +59,11 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
+      "externalBin": [],
+      "deeplink": {
+        "protocol": "aio",
+        "schemes": ["aio"]
+      },
       "windows": {
         "webviewInstallMode": {
           "type": "downloadBootstrapper"

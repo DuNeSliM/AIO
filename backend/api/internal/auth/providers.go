@@ -440,23 +440,22 @@ func (s *externalAuthService) getEpicUserInfo(ctx context.Context, accessToken s
 
 // GOG
 func (s *externalAuthService) getGOGAuthURL(state string) string {
-	clientID := os.Getenv("GOG_CLIENT_ID")
+	// GOG uses Galaxy's public client ID (same as community tools)
+	publicClientID := "46899977096215655"
 	redirectURI := getEnvOrDefault("GOG_REDIRECT_URI", "http://localhost:8080/auth/gog/callback")
-	return s.getOAuth2URL(clientID, "https://auth.gog.com/auth", redirectURI, state, "")
+	return fmt.Sprintf("https://auth.gog.com/auth?client_id=%s&redirect_uri=%s&response_type=code&state=%s&layout=client2",
+		publicClientID, url.QueryEscape(redirectURI), state)
 }
 
 func (s *externalAuthService) handleGOGCallback(ctx context.Context, code string) (*StoreAccountInfo, error) {
-	clientID := os.Getenv("GOG_CLIENT_ID")
-	clientSecret := os.Getenv("GOG_CLIENT_SECRET")
+	// GOG Galaxy public credentials
+	publicClientID := "46899977096215655"
+	publicClientSecret := "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9"
 	redirectURI := getEnvOrDefault("GOG_REDIRECT_URI", "http://localhost:8080/auth/gog/callback")
-
-	if clientID == "" || clientSecret == "" {
-		return nil, fmt.Errorf("GOG credentials not configured")
-	}
 
 	accessToken, refreshToken, expiresAt, err := s.exchangeOAuth2Code(ctx,
 		"https://auth.gog.com/token",
-		clientID, clientSecret, redirectURI, code)
+		publicClientID, publicClientSecret, redirectURI, code)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +476,7 @@ func (s *externalAuthService) handleGOGCallback(ctx context.Context, code string
 }
 
 func (s *externalAuthService) getGOGUserInfo(ctx context.Context, accessToken string) (map[string]interface{}, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/user/data/games", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/userData.json", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -488,6 +487,11 @@ func (s *externalAuthService) getGOGUserInfo(ctx context.Context, accessToken st
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GOG user info failed with status %d: %s", resp.StatusCode, string(body))
+	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
