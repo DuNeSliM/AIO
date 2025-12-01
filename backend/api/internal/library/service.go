@@ -38,6 +38,9 @@ type Service interface {
 	SearchGames(ctx context.Context, filter *models.SearchFilter) ([]*models.GameWithStores, error)
 	SearchAllStores(ctx context.Context, query string, limit int) (map[string][]stores.StoreGameInfo, error)
 	GetGameDetails(ctx context.Context, gameID int64) (*models.GameWithStores, error)
+
+	// Import helper (exposed for browser sync)
+	ImportGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error
 }
 
 type service struct {
@@ -253,6 +256,11 @@ func (s *service) SyncAllLibraries(ctx context.Context, userID int64) error {
 	}
 
 	return nil
+}
+
+// ImportGameFromStore imports a game from a store into the user's library (exposed for browser sync)
+func (s *service) ImportGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error {
+	return s.importGameFromStore(ctx, userID, store, storeGame)
 }
 
 func (s *service) importGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error {

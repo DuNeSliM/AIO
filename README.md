@@ -28,3 +28,4 @@ Backend: Go
 ## Done
 - Account creation and login
 - link Steam account and sync lib
+- 
