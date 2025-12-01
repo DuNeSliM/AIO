@@ -4,6 +4,9 @@ import { listen } from "@tauri-apps/api/event";
 import AuthPage from "./components/AuthPage";
 import StorePage from "./components/StorePage";
 import LibraryPage from "./components/LibraryPage";
+import Sidebar from "./components/Sidebar";
+import TopBar from "./components/TopBar";
+import GameDetails from "./components/GameDetails";
 
 function App() {
   const [currentPage, setCurrentPage] = useState<"auth" | "store" | "library">("auth");
@@ -103,10 +106,18 @@ function App() {
     setCurrentPage("auth");
   };
 
+  const [selectedGame, setSelectedGame] = useState<any | null>(null);
+
+  const handleSelectGame = (game: any) => {
+    setSelectedGame(game);
+  };
+
+  const handleCloseDetails = () => setSelectedGame(null);
+
   // Show auth page if not logged in
   if (!token) {
     return (
-      <div className="app">
+      <div className="app centered">
         <AuthPage onLogin={handleLogin} />
       </div>
     );
@@ -114,34 +125,27 @@ function App() {
 
   return (
     <div className="app">
-      <nav className="navbar">
-        <h1>🎮 AIO Game Library</h1>
-        <div className="nav-buttons">
-          <button 
-            onClick={() => setCurrentPage("library")}
-            className={currentPage === "library" ? "active" : ""}
-          >
-            📚 Library
-          </button>
-          <button 
-            onClick={() => setCurrentPage("store")}
-            className={currentPage === "store" ? "active" : ""}
-          >
-            🛒 Store
-          </button>
-        </div>
-        <button 
-          onClick={handleLogout}
-          className="logout"
-        >
-          Logout
-        </button>
-      </nav>
+      <Sidebar current={currentPage} onNavigate={(p) => setCurrentPage(p)} />
+      <div className="main-area">
+        <TopBar title={currentPage === "library" ? "Library" : currentPage === "store" ? "Store" : "AIO"} onLogout={handleLogout} />
 
-      <main className="content">
-        {currentPage === "store" && <StorePage token={token} />}
-        {currentPage === "library" && <LibraryPage token={token} />}
-      </main>
+        <main className="content">
+          {currentPage === "store" && <StorePage token={token} onSelectGame={handleSelectGame} />}
+          {currentPage === "library" && <LibraryPage token={token} onSelectGame={handleSelectGame} />}
+        </main>
+      </div>
+
+      <GameDetails
+        game={selectedGame}
+        onClose={handleCloseDetails}
+        onLaunch={(g) => {
+          // close details and call backend launch via existing pages
+          handleCloseDetails();
+        }}
+        onDownload={(g) => {
+          handleCloseDetails();
+        }}
+      />
     </div>
   );
 }

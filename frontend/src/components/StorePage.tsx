@@ -2,6 +2,7 @@ import { useState } from "react";
 
 interface StorePageProps {
   token: string;
+  onSelectGame?: (game: SearchResult) => void;
 }
 
 interface SearchResult {
@@ -16,7 +17,7 @@ interface SearchResult {
   store_url?: string;
 }
 
-export default function StorePage({ token }: StorePageProps) {
+export default function StorePage({ token, onSelectGame }: StorePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<Record<string, SearchResult[]>>({});
   const [loading, setLoading] = useState(false);
@@ -85,7 +86,7 @@ export default function StorePage({ token }: StorePageProps) {
             </h3>
             <div className="game-grid">
               {games.map((game) => (
-                <div key={game.store_game_id} className="game-card">
+                <div key={game.store_game_id} className="game-card" onClick={() => onSelectGame && onSelectGame(game)}>
                   {game.cover_image && (
                     <img src={game.cover_image} alt={game.name} className="game-cover" />
                   )}
