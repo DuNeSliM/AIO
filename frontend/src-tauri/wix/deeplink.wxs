@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <!-- Register aio:// protocol -->
+      <Component Id="ProtocolHandler" Guid="*">
+        <RegistryKey Root="HKCR" Key="aio">
+          <RegistryValue Type="string" Value="URL:AIO Protocol" />
+          <RegistryValue Type="string" Name="URL Protocol" Value="" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="aio\DefaultIcon">
+          <RegistryValue Type="string" Value="[INSTALLDIR]AIO Game Library.exe,0" />
+        </RegistryKey>
+        <RegistryKey Root="HKCR" Key="aio\shell\open\command">
+          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]AIO Game Library.exe&quot; &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+    <ComponentGroup Id="ProtocolHandlerGroup">
+      <ComponentRef Id="ProtocolHandler" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>

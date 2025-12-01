@@ -60,16 +60,13 @@
         "icons/icon.ico"
       ],
       "externalBin": [],
-      "deeplink": {
-        "protocol": "aio",
-        "schemes": ["aio"]
-      },
       "windows": {
         "webviewInstallMode": {
           "type": "downloadBootstrapper"
         },
         "wix": {
-          "language": "en-US"
+          "language": "en-US",
+          "fragmentPaths": ["./wix/deeplink.wxs"]
         }
       }
     },
