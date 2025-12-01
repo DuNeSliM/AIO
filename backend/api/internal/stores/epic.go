@@ -49,8 +49,6 @@ func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreToken
 	data.Set("grant_type", "authorization_code")
 	data.Set("code", code)
 
-	log.Printf("Epic OAuth Debug: clientID=%s, authHeader=Basic %s\n", c.clientID, auth)
-
 	// Use Epic Developer Portal OAuth endpoint
 	req, err := http.NewRequestWithContext(ctx, "POST",
 		"https://api.epicgames.dev/epic/oauth/v2/token",
@@ -86,8 +84,6 @@ func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreToken
 	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
-
-	log.Printf("Epic token exchange successful. Account ID: %s", tokenResp.AccountID)
 
 	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 
@@ -193,12 +189,9 @@ func (c *EpicClient) GetUserGames(ctx context.Context, accessToken string) ([]St
 
 	games, err := c.fetchOwnedGames(ctx, accessToken)
 	if err != nil {
-		log.Printf("Epic library sync not available: %v", err)
-		log.Printf("Note: Epic doesn't provide a library API for OAuth apps. Games must be added manually.")
 		return []StoreGameInfo{}, nil
 	}
 
-	log.Printf("Successfully loaded %d Epic games", len(games))
 	return games, nil
 }
 
@@ -255,28 +248,16 @@ func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([
 		body, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 
-		// Log response for debugging
-		log.Printf("Order history response: status=%d, content-type=%s, body-length=%d",
-			resp.StatusCode, resp.Header.Get("Content-Type"), len(body))
-
 		if resp.StatusCode == 302 || resp.StatusCode == 301 {
-			log.Printf("Got redirect response - OAuth token may not have access to order history")
 			return nil, fmt.Errorf("order history API redirected (needs browser session)")
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			maxLen := len(body)
-			if maxLen > 500 {
-				maxLen = 500
-			}
-			log.Printf("Order history API error: status=%d, body=%s", resp.StatusCode, string(body[:maxLen]))
 			return nil, fmt.Errorf("order history API returned %d", resp.StatusCode)
 		}
 
 		// Check if response is HTML (login page) instead of JSON
 		if strings.Contains(string(body), "<!DOCTYPE") || strings.Contains(string(body), "<html") {
-			log.Printf("Order history API returned HTML instead of JSON - OAuth token cannot access this endpoint")
-			log.Printf("This endpoint requires browser session cookies, not OAuth tokens")
 			return nil, fmt.Errorf("order history API requires browser session (not available via OAuth)")
 		}
 
@@ -290,11 +271,6 @@ func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([
 		}
 
 		if err := json.Unmarshal(body, &orderResp); err != nil {
-			maxLen := len(body)
-			if maxLen > 200 {
-				maxLen = 200
-			}
-			log.Printf("Failed to parse JSON response: %v. First chars: %s", err, string(body[:maxLen]))
 			return nil, fmt.Errorf("failed to decode order history: %w", err)
 		}
 
@@ -315,9 +291,6 @@ func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([
 			}
 		}
 
-		log.Printf("Page %d: Found %d orders, %d games in this page, %d unique games total",
-			pageCount, len(orderResp.Orders), gamesInPage, len(allGames))
-
 		// Check if there are more pages
 		if orderResp.NextPageToken == "" {
 			break
@@ -327,7 +300,6 @@ func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([
 
 		// Safety limit to prevent infinite loops
 		if pageCount > 100 {
-			log.Printf("Warning: Reached page limit of 100, stopping pagination")
 			break
 		}
 	}
@@ -338,7 +310,6 @@ func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([
 		games = append(games, game)
 	}
 
-	log.Printf("Successfully fetched %d unique games from Epic order history across %d pages", len(games), pageCount)
 	return games, nil
 }
 

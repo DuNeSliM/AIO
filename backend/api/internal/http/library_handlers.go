@@ -387,13 +387,9 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 	var games []string
 	var userID int64
 
-	log.Printf("EpicBrowserSync called with Content-Type: %s, Method: %s", c.ContentType(), c.Request.Method)
-
 	// Check if form data exists (from form submit to bypass CSP)
 	dataStr := c.PostForm("data")
 	if dataStr != "" {
-		log.Printf("Received form data, length: %d", len(dataStr))
-
 		// Parse the JSON from the form data
 		var req struct {
 			UserID interface{} `json:"userId"` // Can be string or int
@@ -406,8 +402,6 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 		}
 
 		if err := json.Unmarshal([]byte(dataStr), &req); err != nil {
-			log.Printf("Failed to parse form data JSON: %v", err)
-			log.Printf("Data string: %s", dataStr)
 			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte("<html><body><h1>❌ Error</h1><p>Invalid data format: "+err.Error()+"</p></body></html>"))
 			return
 		}
@@ -428,8 +422,6 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 			return
 		}
 
-		log.Printf("Parsed form data: userID=%d, games=%d", userID, len(req.Games))
-		userID = userID
 		for _, game := range req.Games {
 			games = append(games, game.Name)
 		}
@@ -442,7 +434,6 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
-			log.Printf("Failed to parse JSON request: %v", err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 			return
 		}
@@ -461,10 +452,6 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 		}
 		return
 	}
-
-	log.Printf("Received browser sync request for user %d with %d games", userID, len(games))
-
-	log.Printf("Received %d games from Epic browser sync for user %d", len(games), userID)
 
 	// Import games - we'll create a temporary store game list and process it
 	// through the same import logic that SyncStoreLibrary uses
@@ -485,15 +472,12 @@ func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
 
 		// Call the same import logic used by sync
 		if err := h.Service.ImportGameFromStore(c.Request.Context(), userID, "epic", &storeGameInfo); err != nil {
-			log.Printf("Failed to import game %s: %v", gameName, err)
 			skipped++
 			continue
 		}
 
 		imported++
 	}
-
-	log.Printf("Successfully imported %d/%d games from Epic browser sync (%d skipped)", imported, len(games), skipped)
 
 	// Return HTML for form submissions, JSON for API calls
 	isFormData := c.PostForm("data") != ""
