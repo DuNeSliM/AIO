@@ -302,9 +302,31 @@ func (h *LibraryHandlers) SyncStore(c *gin.Context) {
 func (h *LibraryHandlers) SyncAllStores(c *gin.Context) {
 	userID := getUserID(c)
 
+	// Get store accounts first to check what's connected
+	accounts, err := h.Service.GetUserStoreAccounts(c.Request.Context(), userID)
+	if err != nil {
+		log.Printf("SyncAllStores - failed to get store accounts: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get store accounts"})
+		return
+	}
+
+	log.Printf("SyncAllStores - User %d has %d store accounts", userID, len(accounts))
+	connectedCount := 0
+	for _, acc := range accounts {
+		if acc.IsConnected {
+			connectedCount++
+			log.Printf("  - %s: connected=%v, autoImport=%v", acc.Store, acc.IsConnected, acc.AutoImport)
+		}
+	}
+
+	if connectedCount == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No store accounts connected. Please link a store account first."})
+		return
+	}
+
 	if err := h.Service.SyncAllLibraries(c.Request.Context(), userID); err != nil {
 		log.Printf("SyncAllStores error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Sync failed: %v", err)})
 		return
 	}
 
@@ -312,6 +334,7 @@ func (h *LibraryHandlers) SyncAllStores(c *gin.Context) {
 	library, _ := h.Service.GetUserLibrary(c.Request.Context(), userID, &models.LibraryFilter{Limit: 1000})
 	totalGames := len(library)
 
+	log.Printf("SyncAllStores - Complete. Total games in library: %d", totalGames)
 	c.JSON(http.StatusOK, gin.H{"message": "all libraries synced", "total_synced": totalGames})
 }
 
