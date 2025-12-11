@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -33,24 +34,25 @@ func (c *EpicClient) GetName() string {
 }
 
 func (c *EpicClient) GetAuthURL(state string) string {
-	return fmt.Sprintf("https://www.epicgames.com/id/authorize?client_id=%s&response_type=code&scope=basic_profile&redirect_uri=%s&state=%s",
-		c.clientID, c.redirectURI, state)
+	// Use Epic Developer Portal's standard OAuth authorize endpoint
+	return fmt.Sprintf("https://www.epicgames.com/id/authorize?client_id=%s&response_type=code&redirect_uri=%s&state=%s",
+		c.clientID, url.QueryEscape(c.redirectURI), state)
 }
 
 func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreTokens, error) {
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	// Epic requires Basic Auth with base64 encoded client_id:client_secret
+	// Epic requires Basic Auth with base64 encoded client_id:client_secret (Playnite approach)
 	auth := base64.StdEncoding.EncodeToString([]byte(c.clientID + ":" + c.clientSecret))
 
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("code", code)
-	data.Set("redirect_uri", c.redirectURI)
 
-	log.Printf("Epic OAuth Debug: clientID=%s, redirectURI=%s, authHeader=Basic %s\n", c.clientID, c.redirectURI, auth)
-
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	// Use Epic Developer Portal OAuth endpoint
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		"https://api.epicgames.dev/epic/oauth/v2/token",
+		strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token request: %w", err)
 	}
@@ -64,10 +66,11 @@ func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreToken
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
-		return nil, fmt.Errorf("token exchange failed: %v", errResp)
+		log.Printf("Epic token exchange failed: %s", string(body))
+		return nil, fmt.Errorf("token exchange failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp struct {
@@ -75,9 +78,10 @@ func (c *EpicClient) ExchangeCode(ctx context.Context, code string) (*StoreToken
 		RefreshToken string `json:"refresh_token"`
 		ExpiresIn    int    `json:"expires_in"`
 		AccountID    string `json:"account_id"`
+		TokenType    string `json:"token_type"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to decode token response: %w", err)
 	}
 
@@ -100,7 +104,9 @@ func (c *EpicClient) RefreshToken(ctx context.Context, refreshToken string) (*St
 	data.Set("grant_type", "refresh_token")
 	data.Set("refresh_token", refreshToken)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		"https://api.epicgames.dev/epic/oauth/v2/token",
+		strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh request: %w", err)
 	}
@@ -114,10 +120,11 @@ func (c *EpicClient) RefreshToken(ctx context.Context, refreshToken string) (*St
 	}
 	defer resp.Body.Close()
 
+	body, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
-		return nil, fmt.Errorf("token refresh failed: %v", errResp)
+		log.Printf("Epic token refresh failed: %s", string(body))
+		return nil, fmt.Errorf("token refresh failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp struct {
@@ -127,7 +134,7 @@ func (c *EpicClient) RefreshToken(ctx context.Context, refreshToken string) (*St
 		AccountID    string `json:"account_id"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to decode refresh response: %w", err)
 	}
 
@@ -176,79 +183,131 @@ func (c *EpicClient) GetUserInfo(ctx context.Context, accessToken string) (*Stor
 }
 
 func (c *EpicClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
-	httpClient := &http.Client{Timeout: 30 * time.Second}
+	// Note: Epic's order history API requires browser session cookies, not OAuth tokens
+	// The OAuth token from Developer Portal doesn't have access to payment/order endpoints
+	// Users will need to add Epic games manually or we need a different approach
 
-	// Get user's account ID first
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v2/userInfo", nil)
+	games, err := c.fetchOwnedGames(ctx, accessToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create userInfo request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user info: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("epic userInfo failed with status %d", resp.StatusCode)
+		return []StoreGameInfo{}, nil
 	}
 
-	var userInfo struct {
-		AccountID string `json:"account_id"`
+	return games, nil
+}
+
+// fetchOwnedGames fetches all owned games from Epic's order history API
+// This uses the same endpoint that the Epic Games website uses
+func (c *EpicClient) fetchOwnedGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
+	httpClient := &http.Client{
+		Timeout: 60 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // Don't follow redirects to login page
+		},
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
-		return nil, fmt.Errorf("failed to decode user info: %w", err)
-	}
+	allGames := make(map[string]StoreGameInfo) // Use map to deduplicate by name
+	nextPageToken := ""
+	pageCount := 0
 
-	// Get user's library using the library items endpoint
-	req, err = http.NewRequestWithContext(ctx, "GET",
-		"https://library-service.live.use1a.on.epicgames.com/library/api/public/items?includeMetadata=true", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create library request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	log.Printf("Fetching Epic order history to get all owned games...")
 
-	resp, err = httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get library: %w", err)
-	}
-	defer resp.Body.Close()
+	for {
+		pageCount++
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("epic library failed with status %d", resp.StatusCode)
-	}
+		// Build the order history URL with pagination (same as the working JS code)
+		orderURL := fmt.Sprintf(
+			"https://www.epicgames.com/account/v2/payment/ajaxGetOrderHistory?sortDir=DESC&sortBy=DATE&nextPageToken=%s&locale=en-US",
+			url.QueryEscape(nextPageToken),
+		)
 
-	var library struct {
-		Records []struct {
-			AppName       string `json:"appName"`
-			ProductID     string `json:"productId"`
-			Namespace     string `json:"namespace"`
-			CatalogItemID string `json:"catalogItemId"`
-		} `json:"records"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&library); err != nil {
-		return nil, fmt.Errorf("failed to decode library: %w", err)
-	}
-
-	// Fetch game details for each item
-	games := make([]StoreGameInfo, 0, len(library.Records))
-	for _, item := range library.Records {
-		// Get game details from the catalog
-		gameInfo, err := c.getEpicGameDetails(ctx, item.Namespace, item.CatalogItemID)
+		req, err := http.NewRequestWithContext(ctx, "GET", orderURL, nil)
 		if err != nil {
-			// Skip games we can't fetch details for
-			games = append(games, StoreGameInfo{
-				StoreGameID: item.AppName,
-				Name:        item.AppName,
-			})
-			continue
+			return nil, fmt.Errorf("failed to create order history request: %w", err)
 		}
 
-		games = append(games, *gameInfo)
+		// Try to mimic browser request headers more closely
+		req.Header.Set("Accept", "application/json, text/plain, */*")
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		req.Header.Set("Referer", "https://www.epicgames.com/account/payment")
+		req.Header.Set("Origin", "https://www.epicgames.com")
+		req.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+		// Try both Authorization header and as a cookie
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.AddCookie(&http.Cookie{
+			Name:  "EPIC_BEARER_TOKEN",
+			Value: accessToken,
+		})
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch order history: %w", err)
+		}
+
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		if resp.StatusCode == 302 || resp.StatusCode == 301 {
+			return nil, fmt.Errorf("order history API redirected (needs browser session)")
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("order history API returned %d", resp.StatusCode)
+		}
+
+		// Check if response is HTML (login page) instead of JSON
+		if strings.Contains(string(body), "<!DOCTYPE") || strings.Contains(string(body), "<html") {
+			return nil, fmt.Errorf("order history API requires browser session (not available via OAuth)")
+		}
+
+		var orderResp struct {
+			Orders []struct {
+				Items []struct {
+					Description string `json:"description"`
+				} `json:"items"`
+			} `json:"orders"`
+			NextPageToken string `json:"nextPageToken"`
+		}
+
+		if err := json.Unmarshal(body, &orderResp); err != nil {
+			return nil, fmt.Errorf("failed to decode order history: %w", err)
+		}
+
+		// Extract game names from orders
+		gamesInPage := 0
+		for _, order := range orderResp.Orders {
+			for _, item := range order.Items {
+				if item.Description != "" {
+					// Deduplicate by name
+					if _, exists := allGames[item.Description]; !exists {
+						allGames[item.Description] = StoreGameInfo{
+							StoreGameID: item.Description, // We'll use name as ID for now
+							Name:        item.Description,
+						}
+						gamesInPage++
+					}
+				}
+			}
+		}
+
+		// Check if there are more pages
+		if orderResp.NextPageToken == "" {
+			break
+		}
+
+		nextPageToken = orderResp.NextPageToken
+
+		// Safety limit to prevent infinite loops
+		if pageCount > 100 {
+			break
+		}
+	}
+
+	// Convert map to slice
+	games := make([]StoreGameInfo, 0, len(allGames))
+	for _, game := range allGames {
+		games = append(games, game)
 	}
 
 	return games, nil

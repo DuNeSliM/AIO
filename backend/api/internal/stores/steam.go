@@ -110,34 +110,43 @@ func (c *SteamClient) GetUserInfo(ctx context.Context, accessToken string) (*Sto
 func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
 	// Steam requires an API key to fetch games
 	if c.apiKey == "" {
-		fmt.Println("WARNING: STEAM_API_KEY is not set!")
-		return []StoreGameInfo{}, nil // Return empty list instead of error if no API key
+		fmt.Println("❌ ERROR: STEAM_API_KEY is not set! Cannot fetch games from Steam.")
+		return nil, fmt.Errorf("STEAM_API_KEY is not configured")
 	}
 
 	steamID := accessToken
-	fmt.Printf("Steam GetUserGames: steamID=%s, apiKey=%s...\n", steamID, c.apiKey[:10])
+	fmt.Printf("🎮 Steam GetUserGames: steamID=%s, apiKey=%s...\n", steamID, c.apiKey[:10])
 
 	url := fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=%s&steamid=%s&include_appinfo=1&include_played_free_games=1",
 		c.apiKey, steamID)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
+		fmt.Printf("❌ Steam API request creation failed: %v\n", err)
 		return nil, err
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		fmt.Printf("❌ Steam API request failed: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("Steam API Response Status: %d\n", resp.StatusCode)
+	fmt.Printf("📡 Steam API Response Status: %d\n", resp.StatusCode)
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		fmt.Printf("❌ Failed to read Steam API response: %v\n", err)
 		return nil, err
 	}
-	fmt.Printf("Steam API Response Body: %s\n", string(bodyBytes))
+
+	if resp.StatusCode != 200 {
+		fmt.Printf("❌ Steam API Error Response (Status %d): %s\n", resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("Steam API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	fmt.Printf("✅ Steam API Response Body (first 500 chars): %s...\n", string(bodyBytes[:min(500, len(bodyBytes))]))
 
 	var result struct {
 		Response struct {
@@ -156,8 +165,12 @@ func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]S
 	}
 
 	if err := json.Unmarshal(bodyBytes, &result); err != nil {
+		fmt.Printf("❌ Failed to parse Steam API response: %v\n", err)
 		return nil, err
 	}
+
+	gameCount := len(result.Response.Games)
+	fmt.Printf("✅ Steam API returned %d games\n", gameCount)
 
 	games := make([]StoreGameInfo, 0, len(result.Response.Games))
 	for _, game := range result.Response.Games {
@@ -181,7 +194,15 @@ func (c *SteamClient) GetUserGames(ctx context.Context, accessToken string) ([]S
 		games = append(games, storeGame)
 	}
 
+	fmt.Printf("✅ Processed %d Steam games successfully\n", len(games))
 	return games, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (c *SteamClient) SearchGames(ctx context.Context, query string, limit int) ([]StoreGameInfo, error) {

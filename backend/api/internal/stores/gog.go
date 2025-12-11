@@ -31,68 +31,205 @@ func (c *GOGClient) GetName() string {
 }
 
 func (c *GOGClient) GetAuthURL(state string) string {
-	return fmt.Sprintf("https://auth.gog.com/auth?client_id=%s&redirect_uri=%s&response_type=code&state=%s",
-		c.clientID, c.redirectURI, state)
+	// GOG uses a public client_id for Galaxy - community tools use this same approach
+	// client_id "46899977096215655" is the GOG Galaxy client ID used by community tools
+	publicClientID := "46899977096215655"
+	return fmt.Sprintf("https://auth.gog.com/auth?client_id=%s&redirect_uri=%s&response_type=code&state=%s&layout=client2",
+		publicClientID, url.QueryEscape(c.redirectURI), state)
 }
 
 func (c *GOGClient) ExchangeCode(ctx context.Context, code string) (*StoreTokens, error) {
-	// TODO: Implement GOG OAuth token exchange
-	return nil, fmt.Errorf("gog integration not fully implemented")
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	// GOG Galaxy public client credentials (used by community tools)
+	publicClientID := "46899977096215655"
+	publicClientSecret := "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9"
+
+	data := url.Values{}
+	data.Set("client_id", publicClientID)
+	data.Set("client_secret", publicClientSecret)
+	data.Set("grant_type", "authorization_code")
+	data.Set("code", code)
+	data.Set("redirect_uri", c.redirectURI)
+
+	resp, err := httpClient.PostForm("https://auth.gog.com/token", data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("token exchange failed with status %d", resp.StatusCode)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		TokenType    string `json:"token_type"`
+		UserID       string `json:"user_id"`
+		SessionID    string `json:"session_id"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	return &StoreTokens{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
 func (c *GOGClient) RefreshToken(ctx context.Context, refreshToken string) (*StoreTokens, error) {
-	return nil, fmt.Errorf("gog integration not fully implemented")
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	// GOG Galaxy public client credentials
+	publicClientID := "46899977096215655"
+	publicClientSecret := "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9"
+
+	data := url.Values{}
+	data.Set("client_id", publicClientID)
+	data.Set("client_secret", publicClientSecret)
+	data.Set("grant_type", "refresh_token")
+	data.Set("refresh_token", refreshToken)
+
+	resp, err := httpClient.PostForm("https://auth.gog.com/token", data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("token refresh failed with status %d", resp.StatusCode)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		TokenType    string `json:"token_type"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode refresh response: %w", err)
+	}
+
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	return &StoreTokens{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresAt:    expiresAt,
+	}, nil
 }
 
 func (c *GOGClient) GetUserInfo(ctx context.Context, accessToken string) (*StoreUserInfo, error) {
-	// User info is fetched during OAuth - store client doesn't need this separately
-	return nil, fmt.Errorf("use OAuth callback for user info")
-}
-
-func (c *GOGClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/user/data/games", nil)
+	// Get user data from GOG's embed API
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/userData.json", nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create user info request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var result struct {
-		Owned []struct {
-			ID     int    `json:"id"`
-			Title  string `json:"title"`
-			Image  string `json:"image"`
-			URL    string `json:"url"`
-			IsGame bool   `json:"isGame"`
-		} `json:"owned"`
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("user info request failed with status %d", resp.StatusCode)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	var userInfo struct {
+		UserID   string `json:"userId"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Avatar   string `json:"avatar"`
 	}
 
-	games := make([]StoreGameInfo, 0, len(result.Owned))
-	for _, game := range result.Owned {
-		if !game.IsGame {
-			continue
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("failed to decode user info: %w", err)
+	}
+
+	return &StoreUserInfo{
+		StoreUserID: userInfo.UserID,
+		DisplayName: userInfo.Username,
+		AvatarURL:   userInfo.Avatar,
+	}, nil
+}
+
+func (c *GOGClient) GetUserGames(ctx context.Context, accessToken string) ([]StoreGameInfo, error) {
+	httpClient := &http.Client{Timeout: 60 * time.Second}
+
+	allGames := []StoreGameInfo{}
+	page := 1
+
+	// GOG uses pagination - fetch all pages
+	for {
+		// Use the getFilteredProducts endpoint that Galaxy uses
+		apiURL := fmt.Sprintf("https://embed.gog.com/account/getFilteredProducts?mediaType=1&page=%d", page)
+
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch games: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("GOG API returned status %d", resp.StatusCode)
 		}
 
-		games = append(games, StoreGameInfo{
-			StoreGameID: strconv.Itoa(game.ID),
-			Name:        game.Title,
-			CoverImage:  game.Image,
-			StoreURL:    game.URL,
-		})
+		var result struct {
+			Products []struct {
+				ID    int    `json:"id"`
+				Title string `json:"title"`
+				Image string `json:"image"`
+				URL   string `json:"url"`
+			} `json:"products"`
+			TotalPages int `json:"totalPages"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		// Add games from this page
+		for _, game := range result.Products {
+			allGames = append(allGames, StoreGameInfo{
+				StoreGameID: strconv.Itoa(game.ID),
+				Name:        game.Title,
+				CoverImage:  game.Image,
+				StoreURL:    game.URL,
+			})
+		}
+
+		// Check if there are more pages
+		if page >= result.TotalPages || len(result.Products) == 0 {
+			break
+		}
+
+		page++
+
+		// Safety limit
+		if page > 100 {
+			break
+		}
 	}
 
-	return games, nil
+	return allGames, nil
 }
 
 func (c *GOGClient) SearchGames(ctx context.Context, query string, limit int) ([]StoreGameInfo, error) {

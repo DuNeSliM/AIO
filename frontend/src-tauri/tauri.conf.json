@@ -16,7 +16,27 @@
       "all": false,
       "shell": {
         "all": false,
-        "open": true
+        "open": true,
+        "execute": true,
+        "sidecar": false,
+        "scope": [
+          {
+            "name": "browser",
+            "cmd": "cmd",
+            "args": [
+              "/C",
+              "start",
+              {
+                "validator": ".*"
+              }
+            ]
+          },
+          {
+            "name": "explorer",
+            "cmd": "explorer",
+            "args": true
+          }
+        ]
       },
       "protocol": {
         "asset": true,
@@ -39,12 +59,14 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
+      "externalBin": [],
       "windows": {
         "webviewInstallMode": {
           "type": "downloadBootstrapper"
         },
         "wix": {
-          "language": "en-US"
+          "language": "en-US",
+          "fragmentPaths": ["./wix/deeplink.wxs"]
         }
       }
     },

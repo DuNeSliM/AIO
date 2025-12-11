@@ -38,6 +38,9 @@ type Service interface {
 	SearchGames(ctx context.Context, filter *models.SearchFilter) ([]*models.GameWithStores, error)
 	SearchAllStores(ctx context.Context, query string, limit int) (map[string][]stores.StoreGameInfo, error)
 	GetGameDetails(ctx context.Context, gameID int64) (*models.GameWithStores, error)
+
+	// Import helper (exposed for browser sync)
+	ImportGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error
 }
 
 type service struct {
@@ -191,12 +194,10 @@ func (s *service) SyncStoreLibrary(ctx context.Context, userID int64, store stri
 	}
 
 	// Decrypt access token
-	log.Printf("DEBUG: Decrypting access token for %s, encrypted length: %d bytes", store, len(account.AccessToken))
 	accessToken, err := s.encryptor.Decrypt(account.AccessToken)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt access token: %w", err)
 	}
-	log.Printf("DEBUG: Decrypted token length: %d bytes", len(accessToken))
 
 	// Get store client
 	client, ok := s.storeManager.GetClient(store)
@@ -205,13 +206,10 @@ func (s *service) SyncStoreLibrary(ctx context.Context, userID int64, store stri
 	}
 
 	// Fetch user's games from store
-	log.Printf("Fetching games from %s for user %d", store, userID)
 	storeGames, err := client.GetUserGames(ctx, string(accessToken))
 	if err != nil {
 		return fmt.Errorf("failed to fetch games from %s: %w", store, err)
 	}
-
-	log.Printf("Fetched %d games from %s", len(storeGames), store)
 
 	// Process each game
 	for _, storeGame := range storeGames {
@@ -237,13 +235,8 @@ func (s *service) SyncAllLibraries(ctx context.Context, userID int64) error {
 		return err
 	}
 
-	log.Printf("SyncAllLibraries: Found %d store accounts for user %d", len(accounts), userID)
-
 	for _, account := range accounts {
-		log.Printf("Processing account: store=%s, connected=%v, auto_import=%v", account.Store, account.IsConnected, account.AutoImport)
-
 		if !account.IsConnected || !account.AutoImport {
-			log.Printf("Skipping %s: connected=%v, auto_import=%v", account.Store, account.IsConnected, account.AutoImport)
 			continue
 		}
 
@@ -253,6 +246,11 @@ func (s *service) SyncAllLibraries(ctx context.Context, userID int64) error {
 	}
 
 	return nil
+}
+
+// ImportGameFromStore imports a game from a store into the user's library (exposed for browser sync)
+func (s *service) ImportGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error {
+	return s.importGameFromStore(ctx, userID, store, storeGame)
 }
 
 func (s *service) importGameFromStore(ctx context.Context, userID int64, store string, storeGame *stores.StoreGameInfo) error {

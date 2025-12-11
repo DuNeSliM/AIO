@@ -2,6 +2,7 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"aoi/api/internal/library"
 	"aoi/api/internal/models"
+	"aoi/api/internal/stores"
 )
 
 type LibraryHandlers struct {
@@ -53,7 +55,7 @@ func (h *LibraryHandlers) GetLibrary(c *gin.Context) {
 
 	filter := &models.LibraryFilter{
 		Query:     c.Query("query"),
-		Limit:     getIntQuery(c, "limit", 50),
+		Limit:     getIntQuery(c, "limit", 1000),
 		Offset:    getIntQuery(c, "offset", 0),
 		SortBy:    c.Query("sort_by"),
 		SortOrder: c.Query("sort_order"),
@@ -300,9 +302,31 @@ func (h *LibraryHandlers) SyncStore(c *gin.Context) {
 func (h *LibraryHandlers) SyncAllStores(c *gin.Context) {
 	userID := getUserID(c)
 
+	// Get store accounts first to check what's connected
+	accounts, err := h.Service.GetUserStoreAccounts(c.Request.Context(), userID)
+	if err != nil {
+		log.Printf("SyncAllStores - failed to get store accounts: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get store accounts"})
+		return
+	}
+
+	log.Printf("SyncAllStores - User %d has %d store accounts", userID, len(accounts))
+	connectedCount := 0
+	for _, acc := range accounts {
+		if acc.IsConnected {
+			connectedCount++
+			log.Printf("  - %s: connected=%v, autoImport=%v", acc.Store, acc.IsConnected, acc.AutoImport)
+		}
+	}
+
+	if connectedCount == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No store accounts connected. Please link a store account first."})
+		return
+	}
+
 	if err := h.Service.SyncAllLibraries(c.Request.Context(), userID); err != nil {
 		log.Printf("SyncAllStores error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("%v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Sync failed: %v", err)})
 		return
 	}
 
@@ -310,6 +334,7 @@ func (h *LibraryHandlers) SyncAllStores(c *gin.Context) {
 	library, _ := h.Service.GetUserLibrary(c.Request.Context(), userID, &models.LibraryFilter{Limit: 1000})
 	totalGames := len(library)
 
+	log.Printf("SyncAllStores - Complete. Total games in library: %d", totalGames)
 	c.JSON(http.StatusOK, gin.H{"message": "all libraries synced", "total_synced": totalGames})
 }
 
@@ -378,6 +403,145 @@ func (h *LibraryHandlers) GetGameDetails(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, game)
+}
+
+// POST /api/stores/epic/browser-sync
+func (h *LibraryHandlers) EpicBrowserSync(c *gin.Context) {
+	var games []string
+	var userID int64
+
+	// Check if form data exists (from form submit to bypass CSP)
+	dataStr := c.PostForm("data")
+	if dataStr != "" {
+		// Parse the JSON from the form data
+		var req struct {
+			UserID interface{} `json:"userId"` // Can be string or int
+			Token  string      `json:"token"`
+			Games  []struct {
+				Name     string `json:"name"`
+				EpicID   string `json:"epicId"`
+				Platform string `json:"platform"`
+			} `json:"games"`
+		}
+
+		if err := json.Unmarshal([]byte(dataStr), &req); err != nil {
+			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte("<html><body><h1>❌ Error</h1><p>Invalid data format: "+err.Error()+"</p></body></html>"))
+			return
+		}
+
+		// Convert userId to int64
+		switch v := req.UserID.(type) {
+		case string:
+			id, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte("<html><body><h1>❌ Error</h1><p>Invalid userId</p></body></html>"))
+				return
+			}
+			userID = id
+		case float64:
+			userID = int64(v)
+		default:
+			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte("<html><body><h1>❌ Error</h1><p>Invalid userId type</p></body></html>"))
+			return
+		}
+
+		for _, game := range req.Games {
+			games = append(games, game.Name)
+		}
+	} else {
+		// JSON request
+		var req struct {
+			UserID int64    `json:"userId"`
+			Token  string   `json:"token"`
+			Games  []string `json:"games"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
+			return
+		}
+
+		userID = req.UserID
+		games = req.Games
+	}
+
+	// Simple validation - just check user ID is provided
+	if userID == 0 || len(games) == 0 {
+		isFormData := c.PostForm("data") != ""
+		if isFormData {
+			c.Data(http.StatusBadRequest, "text/html; charset=utf-8", []byte("<html><body><h1>❌ Error</h1><p>Missing userId or games</p></body></html>"))
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "missing userId or games"})
+		}
+		return
+	}
+
+	// Import games - we'll create a temporary store game list and process it
+	// through the same import logic that SyncStoreLibrary uses
+	imported := 0
+	skipped := 0
+
+	for _, gameName := range games {
+		if gameName == "" {
+			continue
+		}
+
+		// Try to import the game using the service's internal import logic
+		// We'll convert to StoreGameInfo format first
+		storeGameInfo := stores.StoreGameInfo{
+			StoreGameID: gameName,
+			Name:        gameName,
+		}
+
+		// Call the same import logic used by sync
+		if err := h.Service.ImportGameFromStore(c.Request.Context(), userID, "epic", &storeGameInfo); err != nil {
+			skipped++
+			continue
+		}
+
+		imported++
+	}
+
+	// Return HTML for form submissions, JSON for API calls
+	isFormData := c.PostForm("data") != ""
+	if isFormData {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.String(http.StatusOK, fmt.Sprintf(`
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Epic Games Sync Complete</title>
+	<style>
+		body { font-family: sans-serif; background: #1a1a1a; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+		.container { text-align: center; background: #2a2a2a; padding: 40px; border-radius: 8px; max-width: 500px; }
+		h1 { color: #4caf50; }
+		.stats { font-size: 20px; margin: 20px 0; }
+		.stats strong { color: #00a8ff; }
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>✅ Sync Complete!</h1>
+		<div class="stats">
+			Added <strong>%d new games</strong> from Epic<br>
+			<span style="font-size: 16px; color: #aaa;">Found %d total Epic games</span><br>
+			<span style="font-size: 14px; color: #888;">(%d already in your library)</span>
+		</div>
+		<p style="margin-top: 20px;">Check your AIO library - you now have all your Epic games!</p>
+		<p style="font-size: 12px; color: #666;">This window will close in 5 seconds...</p>
+	</div>
+	<script>setTimeout(() => window.close(), 5000);</script>
+</body>
+</html>
+		`, imported, len(games), skipped))
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"success":  true,
+			"imported": imported,
+			"skipped":  skipped,
+			"total":    len(games),
+		})
+	}
 }
 
 // Helper functions

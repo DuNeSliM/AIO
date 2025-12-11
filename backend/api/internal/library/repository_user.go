@@ -115,7 +115,7 @@ func (r *postgresRepository) GetUserLibrary(ctx context.Context, userID int64, f
 	queryBuilder.WriteString(fmt.Sprintf(" ORDER BY %s %s", sortBy, sortOrder))
 
 	// Pagination
-	limit := 50
+	limit := 1000 // Increased default limit
 	if filter.Limit > 0 {
 		limit = filter.Limit
 	}

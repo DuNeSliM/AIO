@@ -271,14 +271,17 @@ func (s *externalAuthService) exchangeOAuth2Code(ctx context.Context, tokenURL, 
 
 // Epic Games requires Basic Auth (not form-based client credentials)
 func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, clientID, clientSecret, redirectURI, code string) (string, string, time.Time, error) {
+	// Use Basic Auth with Playnite's launcher credentials
 	auth := base64.StdEncoding.EncodeToString([]byte(clientID + ":" + clientSecret))
 
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
 	data.Set("code", code)
-	data.Set("redirect_uri", redirectURI)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.epicgames.dev/epic/oauth/v2/token", strings.NewReader(data.Encode()))
+	// Use Epic Developer Portal OAuth endpoint
+	req, err := http.NewRequestWithContext(ctx, "POST",
+		"https://api.epicgames.dev/epic/oauth/v2/token",
+		strings.NewReader(data.Encode()))
 	if err != nil {
 		return "", "", time.Time{}, err
 	}
@@ -293,7 +296,6 @@ func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, client
 	log.Printf("  Content-Type: application/x-www-form-urlencoded")
 	log.Printf("Body: %s", data.Encode())
 	log.Printf("ClientID: %s", clientID)
-	log.Printf("RedirectURI: %s", redirectURI)
 	log.Printf("================================")
 
 	resp, err := s.httpClient.Do(req)
@@ -302,19 +304,24 @@ func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, client
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
-		// Check for Epic's SCOPE_CONSENT error
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Epic token exchange failed with status %d: %s", resp.StatusCode, string(body))
+
+		// Check for Epic's error response
 		var epicError struct {
 			ErrorCode        string `json:"errorCode"`
+			ErrorMessage     string `json:"errorMessage"`
 			CorrectiveAction string `json:"correctiveAction"`
 			ContinuationURL  string `json:"continuationUrl"`
 		}
 
-		if json.Unmarshal(body, &epicError) == nil && epicError.CorrectiveAction == "SCOPE_CONSENT" {
-			// Return a special error with the continuation URL
-			return "", "", time.Time{}, fmt.Errorf("SCOPE_CONSENT_REQUIRED:%s", epicError.ContinuationURL)
+		if json.Unmarshal(body, &epicError) == nil {
+			if epicError.CorrectiveAction == "SCOPE_CONSENT" {
+				return "", "", time.Time{}, fmt.Errorf("SCOPE_CONSENT_REQUIRED:%s", epicError.ContinuationURL)
+			}
+			return "", "", time.Time{}, fmt.Errorf("epic token exchange failed: %s - %s", epicError.ErrorCode, epicError.ErrorMessage)
 		}
 
 		return "", "", time.Time{}, fmt.Errorf("token exchange failed: %s", string(body))
@@ -324,11 +331,17 @@ func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, client
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 		ExpiresIn    int    `json:"expires_in"`
+		ExpiresAt    string `json:"expires_at"`
+		TokenType    string `json:"token_type"`
+		AccountID    string `json:"account_id"`
+		ClientID     string `json:"client_id"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(body, &result); err != nil {
 		return "", "", time.Time{}, err
 	}
+
+	log.Printf("Epic token exchange successful. Account ID: %s, Token Type: %s", result.AccountID, result.TokenType)
 
 	expiresAt := time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
 	return result.AccessToken, result.RefreshToken, expiresAt, nil
@@ -338,9 +351,10 @@ func (s *externalAuthService) exchangeEpicOAuth2Code(ctx context.Context, client
 func (s *externalAuthService) getEpicAuthURL(state string) string {
 	clientID := os.Getenv("EPIC_CLIENT_ID")
 	redirectURI := getEnvOrDefault("EPIC_REDIRECT_URI", "http://localhost:8080/auth/epic/callback")
-	// Try without explicit scope - let Epic use default scopes from the client policy
-	return fmt.Sprintf("%s?client_id=%s&response_type=code&redirect_uri=%s&state=%s",
-		"https://www.epicgames.com/id/authorize", clientID, url.QueryEscape(redirectURI), state)
+
+	// Use Epic Developer Portal's standard OAuth authorize endpoint
+	return fmt.Sprintf("https://www.epicgames.com/id/authorize?client_id=%s&response_type=code&redirect_uri=%s&state=%s",
+		clientID, url.QueryEscape(redirectURI), state)
 }
 
 func (s *externalAuthService) handleEpicCallback(ctx context.Context, code string) (*StoreAccountInfo, error) {
@@ -368,10 +382,10 @@ func (s *externalAuthService) handleEpicCallback(ctx context.Context, code strin
 	userInfoJSON, _ := json.Marshal(userInfo)
 	log.Printf("Epic userInfo response: %s", string(userInfoJSON))
 
-	// Epic uses "sub" for account ID (standard OpenID Connect)
+	// Epic Developer Portal uses "sub" for account ID (OpenID Connect standard)
 	accountID, ok := userInfo["sub"].(string)
 	if !ok {
-		// Fallback to account_id if sub is not present
+		// Fallback to account_id
 		accountID, ok = userInfo["account_id"].(string)
 		if !ok {
 			return nil, fmt.Errorf("no account identifier in Epic userInfo response")
@@ -381,13 +395,9 @@ func (s *externalAuthService) handleEpicCallback(ctx context.Context, code strin
 	// Epic uses "preferred_username" for display name
 	displayName, ok := userInfo["preferred_username"].(string)
 	if !ok {
-		// Try other common fields
-		displayName, ok = userInfo["display_name"].(string)
+		displayName, ok = userInfo["displayName"].(string)
 		if !ok {
-			displayName, ok = userInfo["displayName"].(string)
-			if !ok {
-				displayName = accountID // fallback to account ID
-			}
+			displayName = accountID // fallback to account ID
 		}
 	}
 
@@ -402,7 +412,8 @@ func (s *externalAuthService) handleEpicCallback(ctx context.Context, code strin
 }
 
 func (s *externalAuthService) getEpicUserInfo(ctx context.Context, accessToken string) (map[string]interface{}, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v1/userInfo", nil)
+	// Use Epic Developer Portal userInfo endpoint
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.epicgames.dev/epic/oauth/v2/userInfo", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -414,6 +425,11 @@ func (s *externalAuthService) getEpicUserInfo(ctx context.Context, accessToken s
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("epic userInfo failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, err
@@ -424,23 +440,22 @@ func (s *externalAuthService) getEpicUserInfo(ctx context.Context, accessToken s
 
 // GOG
 func (s *externalAuthService) getGOGAuthURL(state string) string {
-	clientID := os.Getenv("GOG_CLIENT_ID")
+	// GOG uses Galaxy's public client ID (same as community tools)
+	publicClientID := "46899977096215655"
 	redirectURI := getEnvOrDefault("GOG_REDIRECT_URI", "http://localhost:8080/auth/gog/callback")
-	return s.getOAuth2URL(clientID, "https://auth.gog.com/auth", redirectURI, state, "")
+	return fmt.Sprintf("https://auth.gog.com/auth?client_id=%s&redirect_uri=%s&response_type=code&state=%s&layout=client2",
+		publicClientID, url.QueryEscape(redirectURI), state)
 }
 
 func (s *externalAuthService) handleGOGCallback(ctx context.Context, code string) (*StoreAccountInfo, error) {
-	clientID := os.Getenv("GOG_CLIENT_ID")
-	clientSecret := os.Getenv("GOG_CLIENT_SECRET")
+	// GOG Galaxy public credentials
+	publicClientID := "46899977096215655"
+	publicClientSecret := "9d85c43b1482497dbbce61f6e4aa173a433796eeae2ca8c5f6129f2dc4de46d9"
 	redirectURI := getEnvOrDefault("GOG_REDIRECT_URI", "http://localhost:8080/auth/gog/callback")
-
-	if clientID == "" || clientSecret == "" {
-		return nil, fmt.Errorf("GOG credentials not configured")
-	}
 
 	accessToken, refreshToken, expiresAt, err := s.exchangeOAuth2Code(ctx,
 		"https://auth.gog.com/token",
-		clientID, clientSecret, redirectURI, code)
+		publicClientID, publicClientSecret, redirectURI, code)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +476,7 @@ func (s *externalAuthService) handleGOGCallback(ctx context.Context, code string
 }
 
 func (s *externalAuthService) getGOGUserInfo(ctx context.Context, accessToken string) (map[string]interface{}, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/user/data/games", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://embed.gog.com/userData.json", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +487,11 @@ func (s *externalAuthService) getGOGUserInfo(ctx context.Context, accessToken st
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("GOG user info failed with status %d: %s", resp.StatusCode, string(body))
+	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
