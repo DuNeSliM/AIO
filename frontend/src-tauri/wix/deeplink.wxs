@@ -5,14 +5,14 @@
       <!-- Register aio:// protocol -->
       <Component Id="ProtocolHandler" Guid="*">
         <RegistryKey Root="HKCR" Key="aio">
-          <RegistryValue Type="string" Value="URL:AIO Protocol" />
+          <RegistryValue Type="string" Value="URL:Gamedivers Protocol" />
           <RegistryValue Type="string" Name="URL Protocol" Value="" />
         </RegistryKey>
         <RegistryKey Root="HKCR" Key="aio\DefaultIcon">
-          <RegistryValue Type="string" Value="[INSTALLDIR]AIO Game Library.exe,0" />
+          <RegistryValue Type="string" Value="[INSTALLDIR]Gamedivers.exe,0" />
         </RegistryKey>
         <RegistryKey Root="HKCR" Key="aio\shell\open\command">
-          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]AIO Game Library.exe&quot; &quot;%1&quot;" />
+          <RegistryValue Type="string" Value="&quot;[INSTALLDIR]Gamedivers.exe&quot; &quot;%1&quot;" />
         </RegistryKey>
       </Component>
     </DirectoryRef>

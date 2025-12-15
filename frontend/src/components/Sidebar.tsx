@@ -9,8 +9,8 @@ export default function Sidebar({ current, onNavigate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="logo">AIO</div>
-        <h2>AIO Library</h2>
+        <div className="logo">Gamedivers</div>
+        <h2>Gamedivers</h2>
       </div>
 
       <nav className="side-nav">

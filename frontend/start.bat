@@ -1,6 +1,6 @@
 @echo off
 echo ========================================
-echo  AIO Game Library - Test Frontend
+echo  Gamedivers - Test Frontend
 echo ========================================
 echo.
 
