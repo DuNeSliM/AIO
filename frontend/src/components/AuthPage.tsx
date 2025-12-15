@@ -126,7 +126,7 @@ export default function AuthPage({ onLogin }: AuthPageProps) {
   return (
     <div className="auth-page">
       <div className="auth-container">
-        <h1>🎮 AIO Game Library</h1>
+        <h1>🎮 Gamedivers</h1>
         
         {message && (
           <div className={`message-box ${message.includes("success") ? "success" : "error"}`}>

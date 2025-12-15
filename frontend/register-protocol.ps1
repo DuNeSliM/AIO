@@ -1,4 +1,4 @@
-# Register aio:// protocol for AIO Game Library
+# Register aio:// protocol for Gamedivers
 # Run this script to register the protocol
 
 param(
@@ -6,9 +6,9 @@ param(
 )
 
 # Try to find the executable (check both debug and release)
-# The executable name has spaces: "AIO Game Library.exe"
-$debugPath = "$PSScriptRoot\src-tauri\target\debug\AIO Game Library.exe"
-$releasePath = "$PSScriptRoot\src-tauri\target\release\AIO Game Library.exe"
+# The executable name has spaces: "Gamedivers.exe"
+$debugPath = "$PSScriptRoot\src-tauri\target\debug\Gamedivers.exe"
+$releasePath = "$PSScriptRoot\src-tauri\target\release\Gamedivers.exe"
 
 if ($Dev) {
     Write-Host "Registering for DEVELOPMENT mode" -ForegroundColor Yellow
@@ -49,7 +49,7 @@ Write-Host "Creating registry entries..." -ForegroundColor Cyan
 
 # Create main protocol key
 New-Item -Path $registryPath -Force | Out-Null
-Set-ItemProperty -Path $registryPath -Name "(Default)" -Value "URL:AIO Protocol"
+Set-ItemProperty -Path $registryPath -Name "(Default)" -Value "URL:Gamedivers Protocol"
 Set-ItemProperty -Path $registryPath -Name "URL Protocol" -Value ""
 
 # Create command key
@@ -59,4 +59,4 @@ Set-ItemProperty -Path "$registryPath\shell\open\command" -Name "(Default)" -Val
 Write-Host "`nProtocol registered successfully!" -ForegroundColor Green
 Write-Host "App path: $appPath" -ForegroundColor Gray
 Write-Host "`nTest with: start aio://auth-callback?token=test&store=steam" -ForegroundColor Yellow
-Write-Host "This should open your AIO app!`n" -ForegroundColor Cyan
+Write-Host "This should open your Gamedivers app!`n" -ForegroundColor Cyan

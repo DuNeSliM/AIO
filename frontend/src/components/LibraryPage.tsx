@@ -221,7 +221,7 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
   console.log(\`\n✅ Total unique games: \${uniqueGames.length}\`);
   
   // Send to backend using a form POST that opens result in new tab
-  console.log("📤 Syncing " + uniqueGames.length + " games to AIO...");
+    console.log("📤 Syncing " + uniqueGames.length + " games to Gamedivers...");
   
   const syncData = {
     userId: userId,
@@ -244,7 +244,7 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
   form.appendChild(input);
   document.body.appendChild(form);
   
-  console.log("\\n📋 Submitting to AIO...");
+    console.log("\n📋 Submitting to Gamedivers...");
   form.submit();
   
   console.log("\\n✅ Sync request sent!");
