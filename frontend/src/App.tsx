@@ -125,9 +125,8 @@ function App() {
 
   return (
     <div className="app">
-      <Sidebar current={currentPage} onNavigate={(p) => setCurrentPage(p)} />
       <div className="main-area">
-        <TopBar title={currentPage === "library" ? "Library" : currentPage === "store" ? "Store" : "AIO"} onLogout={handleLogout} />
+        <Sidebar current={currentPage} onNavigate={(p) => setCurrentPage(p)} onLogout={handleLogout}/>
 
         <main className="content">
           {currentPage === "store" && <StorePage token={token} onSelectGame={handleSelectGame} />}

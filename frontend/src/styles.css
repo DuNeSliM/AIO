@@ -31,6 +31,7 @@ body {
 
 .sidebar {
   width: 220px;
+  height: 100vh;
   background: #071025;
   border-right: 1px solid rgba(255,255,255,0.04);
   padding: 1.2rem;
@@ -87,6 +88,7 @@ body {
 
 .topbar {
   height: 72px;
+  width: 100vh;
   padding: 0 1.5rem;
   display: flex;
   align-items: center;
@@ -95,12 +97,12 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.03);
 }
 
-.topbar h3 {
+.side-footer h3 {
   margin: 0;
   color: #e6eefc;
 }
 
-.topbar .mini {
+.side-footer .mini {
   padding: 0.4rem 0.6rem;
   border-radius: 6px;
   border: none;
@@ -152,6 +154,7 @@ body {
 .sidebar .logo { background: linear-gradient(135deg,var(--accent-dark),var(--copper)); }
 .side-nav button { color: var(--muted); }
 .side-nav button.active { background: rgba(255,122,0,0.12); color: var(--text-light); }
+.side-nav button.inactive:hover { background: rgba(255, 122, 0, 0.06); }
 
 /* Topbar */
 .topbar { border-bottom-color: rgba(255,122,0,0.06); }
