@@ -702,6 +702,75 @@ textarea {
   color: #eaf0ff;
 }
 
+/* Library filters */
+.library-filters {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.filter-group label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.filter-input,
+.filter-select {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--text-light);
+  outline: none;
+}
+
+.filter-input::placeholder {
+  color: rgba(255,255,255,0.45);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  border-color: rgba(255, 122, 0, 0.45);
+  box-shadow: 0 0 0 3px rgba(255, 122, 0, 0.12);
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.filter-actions .secondary-button {
+  padding: 0.65rem 1rem;
+}
+
+@media (max-width: 980px) {
+  .filter-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filter-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
 .library-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
