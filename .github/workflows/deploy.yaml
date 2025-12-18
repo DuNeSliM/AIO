@@ -3,7 +3,8 @@ name: Build & Deploy (k3s)
 on:
   push:
     branches: ["main"]
-
+  pull_request:
+    branches: ["main"]
 permissions:
   contents: read
   packages: write
