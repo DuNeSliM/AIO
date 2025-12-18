@@ -9,7 +9,7 @@ export default function Sidebar({ current, onNavigate }: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="logo">Gamedivers</div>
+        <div className="logo">G</div>
         <h2>Gamedivers</h2>
       </div>
 
@@ -17,8 +17,6 @@ export default function Sidebar({ current, onNavigate }: SidebarProps) {
         <button className={current === "library" ? "active" : ""} onClick={() => onNavigate("library")}>📚 Library</button>
         <button className={current === "store" ? "active" : ""} onClick={() => onNavigate("store")}>🛒 Store</button>
       </nav>
-
-      <div className="side-footer">Built with ❤️ • Tauri</div>
     </aside>
   );
 }
