@@ -50,6 +50,14 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
   const [message, setMessage] = useState("");
   const [apiUrl] = useState("http://localhost:8080");
 
+  // Make certain messages auto-dismiss after a short delay (e.g. sync success)
+  const setTransientMessage = (text: string, timeoutMs = 5000) => {
+    setMessage(text);
+    window.setTimeout(() => {
+      setMessage((current) => (current === text ? "" : current));
+    }, timeoutMs);
+  };
+
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("alpha");
@@ -404,7 +412,7 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
             if (newGameCount > currentGameCount) {
               clearInterval(pollInterval);
               setGames(normalizedGames);
-              setMessage(`✅ Library updated! Added ${newGameCount - currentGameCount} new games from Epic.`);
+              setTransientMessage(`✅ Library updated! Added ${newGameCount - currentGameCount} new games from Epic.`, 5000);
               console.log(`Epic sync detected: ${currentGameCount} → ${newGameCount} games`);
             }
           }
@@ -508,7 +516,7 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
     if (mockSyncEnabled) {
       const mockGames = getMockGames();
       setGames(mockGames);
-      setMessage(`(Mock) Successfully synced! Found ${mockGames.length} games.`);
+      setTransientMessage(`(Mock) Successfully synced! Found ${mockGames.length} games.`, 5000);
       setLoading("");
       return;
     }
@@ -526,7 +534,7 @@ export default function LibraryPage({ token, onSelectGame }: LibraryPageProps) {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage(`Successfully synced! Found ${result.total_synced || 0} games.`);
+        setTransientMessage(`Successfully synced! Found ${result.total_synced || 0} games.`, 5000);
         await fetchLibrary();
       } else {
         setMessage(`Sync failed: ${result.error || "Unknown error"}`);
