@@ -20,8 +20,11 @@ export default function Sidebar({ current, onNavigate, onLogout }: SidebarProps)
       </nav>
 
       <div className="side-footer">
-        Built with ❤️ • Tauri
-        <button className="mini" onClick={onLogout}>Logout</button>
+        <button className="logout-button" onClick={onLogout} title="Logout">
+          <span className="logout-text">Logout</span>
+        </button>
+
+        <div className="side-footer-meta">Built with ❤️ • Tauri</div>
       </div>
     </aside>
   );

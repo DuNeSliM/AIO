@@ -84,6 +84,78 @@ body {
   margin-top: auto;
   font-size: 0.8rem;
   color: #99a7bf;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.side-footer-meta {
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+.logout-button {
+  /* layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* sizing */
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+
+  /* default: neutral */
+  border-radius: 6px; /* rectangular */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: var(--muted);
+
+  cursor: pointer;
+  user-select: none;
+
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+.logout-button .logout-text {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.logout-button:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 122, 0, 0.10);
+  border-color: rgba(255, 122, 0, 0.35);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+  color: var(--text-light);
+}
+
+.logout-button:active {
+  transform: translateY(0px);
+}
+
+.logout-button:focus-visible {
+  outline: none;
+  color: var(--text-light);
+  border-color: rgba(255, 122, 0, 0.35);
+  box-shadow:
+    0 0 0 3px rgba(255, 122, 0, 0.18),
+    0 10px 22px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logout-button {
+    transition: none;
+  }
+  .logout-button:hover,
+  .logout-button:active {
+    transform: none;
+  }
 }
 
 .topbar {
@@ -100,15 +172,6 @@ body {
 .side-footer h3 {
   margin: 0;
   color: #e6eefc;
-}
-
-.side-footer .mini {
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: #c9d6e8;
-  cursor: pointer;
 }
 
 /* Game details modal tweaks */
@@ -993,4 +1056,3 @@ textarea {
 .empty-state button {
   margin-top: 1.5rem;
 }
-
