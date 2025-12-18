@@ -1,0 +1,77 @@
+name: Build & Deploy (k3s)
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NAMESPACE: gamedivers
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase owner for GHCR
+        shell: bash
+        run: |
+          echo "OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend/api
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/gamedivers-go-api:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/gamedivers-go-api:latest
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:latest
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
+
+      - name: Configure kubeconfig (ServiceAccount)
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+          kubectl -n $NAMESPACE auth can-i patch deployment
+          kubectl -n $NAMESPACE get ns
+
+      - name: Apply manifests (kustomize)
+        shell: bash
+        run: |
+          kubectl apply -k k8s/
+
+      - name: Rollout new images
+        shell: bash
+        run: |
+          kubectl -n $NAMESPACE set image deployment/go-api go-api=ghcr.io/${{ env.OWNER_LC }}/gamedivers-go-api:${{ github.sha }}
+          kubectl -n $NAMESPACE set image deployment/website web=ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
+
+          kubectl -n $NAMESPACE rollout status deployment/go-api --timeout=180s
+          kubectl -n $NAMESPACE rollout status deployment/website --timeout=180s
