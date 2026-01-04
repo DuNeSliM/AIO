@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import gettingStarted from "../docs/getting-started.md?raw";
+import gettingStarted from "../docs/getting_started.md?raw";
 import roadmap from "../docs/roadmap.md?raw";
 
 type Doc = { id: string; title: string; content: string };
