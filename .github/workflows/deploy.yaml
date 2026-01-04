@@ -42,7 +42,7 @@ jobs:
       - name: Build & push Web image
         uses: docker/build-push-action@v6
         with:
-          context: ./web
+          context: ./gamedivers-site
           push: true
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
