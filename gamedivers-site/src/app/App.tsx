@@ -1,10 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import AppShell from "./app/layout/AppShell";
+import AppShell from "./layout/AppShell";
 
-import Home from "./app/pages/Home";
-import Download from "./app/pages/Download";
-import Docs from "./app/pages/Docs";
-import Board from "./app/pages/Board";
+import Home from "./pages/Home";
+import Download from "./pages/Download";
+import Docs from "./pages/Docs";
+import Board from "./pages/Board";
 
 export default function App() {
   return (
