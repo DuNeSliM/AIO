@@ -7,8 +7,18 @@ spec:
   interval: 1m
   path: ./k8s
   prune: true
-  wait: false
   timeout: 5m
+  wait: false
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: go-api
+      namespace: gamedivers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: web
+      namespace: gamedivers
+
   targetNamespace: gamedivers
   serviceAccountName: gamedivers-reconciler
   sourceRef:
