@@ -1,0 +1,69 @@
+name: Build & Propose Deploy (Flux)
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - "k8s/**"
+      - "clusters/**"
+      - "**/*.md"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  build-and-propose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend/api
+          push: true
+          tags: |
+            ghcr.io/duneslim/aio-go-api:${{ github.sha }}
+            ghcr.io/duneslim/aio-go-api:latest
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./gamedivers-site
+          push: true
+          tags: |
+            ghcr.io/duneslim/aio-web:${{ github.sha }}
+            ghcr.io/duneslim/aio-web:latest
+
+      - name: Update image tags in k8s/kustomization.yaml
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yq
+
+          yq -i '
+            (.images[] | select(.name == "ghcr.io/duneslim/aio-go-api").newTag) = "'"${GITHUB_SHA}"'" |
+            (.images[] | select(.name == "ghcr.io/duneslim/aio-web").newTag) = "'"${GITHUB_SHA}"'"
+          ' k8s/kustomization.yaml
+
+      - name: Create PR for deploy
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: deploy/${{ github.sha }}
+          title: Deploy ${{ github.sha }} (Flux)
+          commit-message: "chore(deploy): bump images to ${{ github.sha }}"
+          body: |
+            Flux will deploy this after merge.
+            - API: ghcr.io/duneslim/aio-go-api:${{ github.sha }}
+            - Web: ghcr.io/duneslim/aio-web:${{ github.sha }}
+          labels: deploy

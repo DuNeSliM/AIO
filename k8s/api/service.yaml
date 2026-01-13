@@ -1,11 +1,7 @@
-# service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: go-api
-  namespace: go-api
-  labels:
-    app: go-api
 spec:
   type: ClusterIP
   selector:

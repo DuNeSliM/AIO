@@ -1,21 +1,17 @@
-# ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: go-api
-  namespace: go-api
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+  name: web
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
-    - host: api.example.com
+    - host: gamedivers.de
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: go-api
+                name: web
                 port:
                   number: 80
