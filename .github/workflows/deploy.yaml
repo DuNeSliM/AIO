@@ -1,20 +1,23 @@
-name: Build & Deploy (k3s)
+name: Build & Propose Deploy (Flux)
 
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
+    paths-ignore:
+      - "k8s/**"
+      - "clusters/**"
+      - "**/*.md"
+  workflow_dispatch: {}
+
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   packages: write
 
-env:
-  NAMESPACE: gamedivers
-
 jobs:
-  build-and-deploy:
+  build-and-propose:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -48,31 +51,25 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
             ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:latest
 
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Update image tags in k8s/kustomization.yaml
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yq
+
+          yq -i '
+            (.images[] | select(.name == "ghcr.io/'"${OWNER_LC}"'/gamedivers-go-api").newTag) = "'"${GITHUB_SHA}"'" |
+            (.images[] | select(.name == "ghcr.io/'"${OWNER_LC}"'/gamedivers-website").newTag) = "'"${GITHUB_SHA}"'"
+          ' k8s/kustomization.yaml
+
+      - name: Create PR for deploy
+        uses: peter-evans/create-pull-request@v6
         with:
-          version: v1.29.0
-
-      - name: Configure kubeconfig (ServiceAccount)
-        shell: bash
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
-
-          kubectl -n $NAMESPACE auth can-i patch deployment
-          kubectl -n $NAMESPACE get ns
-
-      - name: Apply manifests (kustomize)
-        shell: bash
-        run: |
-          kubectl apply -k k8s/
-
-      - name: Rollout new images
-        shell: bash
-        run: |
-          kubectl -n $NAMESPACE set image deployment/go-api go-api=ghcr.io/${{ env.OWNER_LC }}/gamedivers-go-api:${{ github.sha }}
-          kubectl -n $NAMESPACE set image deployment/website web=ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
-
-          kubectl -n $NAMESPACE rollout status deployment/go-api --timeout=180s
-          kubectl -n $NAMESPACE rollout status deployment/website --timeout=180s
+          branch: deploy/${{ github.sha }}
+          title: Deploy ${{ github.sha }} to k3s (Flux)
+          commit-message: "chore(deploy): bump images to ${{ github.sha }}"
+          body: |
+            Flux will deploy this after merge.
+            - API: ghcr.io/${{ env.OWNER_LC }}/gamedivers-go-api:${{ github.sha }}
+            - Web: ghcr.io/${{ env.OWNER_LC }}/gamedivers-website:${{ github.sha }}
+          labels: deploy
