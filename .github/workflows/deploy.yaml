@@ -33,8 +33,8 @@ jobs:
           context: ./backend/api
           push: true
           tags: |
-            ghcr.io/duneslim/aio-go-api:${{ github.sha }}
-            ghcr.io/duneslim/aio-go-api:latest
+            ghcr.io/duneslim/gamedivers-api:${{ github.sha }}
+            ghcr.io/duneslim/gamedivers-api:latest
 
       - name: Build & push Web image
         uses: docker/build-push-action@v6
@@ -42,9 +42,8 @@ jobs:
           context: ./gamedivers-site
           push: true
           tags: |
-            ghcr.io/duneslim/aio-web:${{ github.sha }}
-            ghcr.io/duneslim/aio-web:latest
-
+            ghcr.io/duneslim/gamedivers-website:${{ github.sha }}
+            ghcr.io/duneslim/gamedivers-website:latest
       - name: Update image tags in k8s/kustomization.yaml
         shell: bash
         run: |
@@ -52,8 +51,8 @@ jobs:
           sudo apt-get install -y yq jq
 
           yq -y -i '
-            (.images[] | select(.name == "ghcr.io/duneslim/aio-go-api").newTag) = "'"${GITHUB_SHA}"'" |
-            (.images[] | select(.name == "ghcr.io/duneslim/aio-web").newTag) = "'"${GITHUB_SHA}"'"
+            (.images[] | select(.name == "ghcr.io/duneslim/gamedivers-api").newTag) = "'"${GITHUB_SHA}"'" |
+            (.images[] | select(.name == "ghcr.io/duneslim/gamedivers-website").newTag) = "'"${GITHUB_SHA}"'"
           ' k8s/kustomization.yaml
 
       - name: Create PR for deploy
@@ -64,6 +63,6 @@ jobs:
           commit-message: "chore(deploy): bump images to ${{ github.sha }}"
           body: |
             Flux will deploy this after merge.
-            - API: ghcr.io/duneslim/aio-go-api:${{ github.sha }}
-            - Web: ghcr.io/duneslim/aio-web:${{ github.sha }}
+            - API: ghcr.io/duneslim/gamedivers-api:${{ github.sha }}
+            - Web: ghcr.io/duneslim/gamedivers-website:${{ github.sha }}
           labels: deploy
