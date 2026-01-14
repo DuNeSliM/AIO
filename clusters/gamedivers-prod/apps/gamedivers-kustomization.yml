@@ -5,7 +5,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  path: ./k8s
+  path: ../../k8s
   prune: true
   timeout: 5m
   wait: false
