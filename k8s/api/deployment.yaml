@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: go-api
+  name: gamedivers-api
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: go-api
+      app: gamedivers-api
   template:
     metadata:
       labels:
-        app: go-api
+        app: gamedivers-api
     spec:
       securityContext:
         runAsNonRoot: true
