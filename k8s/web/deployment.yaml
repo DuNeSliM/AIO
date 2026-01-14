@@ -17,8 +17,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: web
-          image: ghcr.io/duneslim/aio-web:latest
+        - name: gamedivers-website
+          image: ghcr.io/duneslim/gamedivers-website:latest
           ports:
             - containerPort: 80
 

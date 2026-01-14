@@ -20,8 +20,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: go-api
-          image: ghcr.io/duneslim/aio-go-api:latest
+        - name: gamedivers-api
+          image: ghcr.io/duneslim/gamedivers-api:latest
           ports:
             - containerPort: 8080
           readinessProbe:
