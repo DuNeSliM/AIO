@@ -21,7 +21,7 @@ export default function AppShell({ children }: PropsWithChildren) {
           <div className="logo" />
           <div className="brandText">
             <div className="title">GameDivers</div>
-            <div className="subtitle">Downloads • Docs • Team board(not in use)</div>
+            <div className="subtitle">Releases • Docs • Team board(not in use)</div>
           </div>
         </div>
 
