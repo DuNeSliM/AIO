@@ -1,7 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: go-api
+  name: gamedivers-api
 spec:
   ingressClassName: traefik
   rules:
@@ -12,6 +12,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: go-api
+                name: gamedivers-api
                 port:
                   number: 80
