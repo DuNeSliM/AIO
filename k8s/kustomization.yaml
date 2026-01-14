@@ -17,9 +17,9 @@ commonLabels:
   app.kubernetes.io/part-of: aio
 
 images:
-  - name: ghcr.io/duneslim/aio-go-api
-    newName: ghcr.io/duneslim/aio-go-api
+  - name: ghcr.io/duneslim/gamedivers-api
+    newName: ghcr.io/duneslim/gamedivers-api
     newTag: latest
-  - name: ghcr.io/duneslim/aio-web
-    newName: ghcr.io/duneslim/aio-web
+  - name: ghcr.io/duneslim/gamedivers-website
+    newName: ghcr.io/duneslim/gamedivers-website
     newTag: latest
