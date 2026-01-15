@@ -1,19 +1,19 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
-namespace: go-api
-
+namespace: gamedivers
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - service.yaml    # or service-lb.yaml
-  - ingress.yaml
-  - secret-auth.yaml
-
+  - api/deployment.yaml
+  - api/service.yaml
+  - api/ingress.yaml
+  - web/deployment.yaml
+  - web/service.yaml
+  - web/ingress.yaml
 commonLabels:
-  app: go-api
-
+  app.kubernetes.io/part-of: aio
 images:
-  - name: ghcr.io/AIO/go-api
-    newName: ghcr.io/AIO/go-api
-    newTag: latest
+  - name: ghcr.io/duneslim/gamedivers-api
+    newName: ghcr.io/duneslim/gamedivers-api
+    newTag: 2181e9e56a0a32af391510b5243c49524f6cfaf9
+  - name: ghcr.io/duneslim/gamedivers-website
+    newName: ghcr.io/duneslim/gamedivers-website
+    newTag: 2181e9e56a0a32af391510b5243c49524f6cfaf9

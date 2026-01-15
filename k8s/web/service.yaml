@@ -1,13 +1,11 @@
-# service-lb.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: go-api
-  namespace: go-api
+  name: gamedivers-website
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
-    app: go-api
+    app: gamedivers-website
   ports:
     - name: http
       port: 80
