@@ -19,7 +19,7 @@ RUN go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
 
 # ---------- runtime stage ----------
-FROM alpine:3.20
+FROM alpine:latest
 
 # CA certs for HTTPS (Steam calls)
 RUN apk add --no-cache ca-certificates
