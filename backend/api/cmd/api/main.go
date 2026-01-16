@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"gamedivers.de/api/internal/adapters/db/sqlite"
-	"gamedivers.de/api/internal/adapters/http"
+	"gamedivers.de/api/internal/adapters/db/postgres"
+	httpapi "gamedivers.de/api/internal/adapters/http"
 	"gamedivers.de/api/internal/adapters/http/handlers"
 	"gamedivers.de/api/internal/adapters/stores/steam"
 	"gamedivers.de/api/internal/config"
@@ -25,7 +25,7 @@ func main() {
 
 	cfg := config.Load()
 
-	db, err := sqlite.Open(cfg.DBPath)
+	db, err := postgres.Open(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
@@ -38,7 +38,7 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
-	repo := &sqlite.Repo{DB: db}
+	repo := &postgres.Repo{DB: db}
 	steamClient := steam.New()
 
 	pricing := &service.PricingService{
@@ -70,7 +70,7 @@ func main() {
 	go updater.Run(ctx)
 
 	go func() {
-		log.Printf("listening on :%s (db=%s)", cfg.Port, cfg.DBPath)
+		log.Printf("listening on :%s (db=%s)", cfg.Port, cfg.DatabaseURL)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}

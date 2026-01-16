@@ -14,12 +14,11 @@ import (
 type Repo struct{ DB *sql.DB }
 
 func Open(dsn string) (*sql.DB, error) {
-	// PreferSimpleProtocol helps when your migrations contain multiple statements.
 	cfg, err := pgx.ParseConfig(dsn)
 	if err != nil {
 		return nil, err
 	}
-	cfg.PreferSimpleProtocol = true
+	cfg.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	db := stdlib.OpenDB(*cfg)
 
