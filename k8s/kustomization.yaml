@@ -5,9 +5,13 @@ resources:
   - api/deployment.yaml
   - api/service.yaml
   - api/ingress.yaml
+  - api/secret.yaml
   - web/deployment.yaml
   - web/service.yaml
   - web/ingress.yaml
+  - postgres/secret.yaml
+  - postgres/service.yaml
+  - postgres/statefulset.yaml
 commonLabels:
   app.kubernetes.io/part-of: aio
 images:
