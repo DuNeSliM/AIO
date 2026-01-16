@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 	"time"
@@ -8,24 +9,32 @@ import (
 
 type Config struct {
 	Port          string
-	DBPath        string
+	DatabaseURL   string
 	PriceTTL      time.Duration
 	DailyInterval time.Duration
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
-	dbPath := getenv("DB_PATH", "data.sqlite")
+	dsn := mustGetenv("DATABASE_URL")
 
 	ttlHours := getenvInt("PRICE_TTL_HOURS", 12)
 	dailyHours := getenvInt("DAILY_UPDATE_HOURS", 24)
 
 	return Config{
 		Port:          port,
-		DBPath:        dbPath,
+		DatabaseURL:   dsn,
 		PriceTTL:      time.Duration(ttlHours) * time.Hour,
 		DailyInterval: time.Duration(dailyHours) * time.Hour,
 	}
+}
+
+func mustGetenv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("%s is required", key)
+	}
+	return v
 }
 
 func getenv(key, def string) string {

@@ -40,14 +40,3 @@ CREATE TABLE IF NOT EXISTS tracked_games (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tracked_added ON tracked_games(added_at);
-
-CREATE TABLE IF NOT EXISTS user_watchlist (
-  user_id TEXT NOT NULL,
-  store_id TEXT NOT NULL,
-  external_game_id TEXT NOT NULL,
-  cc TEXT NOT NULL,
-  added_at INTEGER NOT NULL,
-  PRIMARY KEY (user_id, store_id, external_game_id, cc)
-);
-
-CREATE INDEX IF NOT EXISTS idx_watch_store_game ON user_watchlist(store_id, external_game_id, cc);

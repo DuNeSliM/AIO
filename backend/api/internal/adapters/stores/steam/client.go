@@ -54,7 +54,7 @@ func (c *Client) FetchDEPrice(ctx context.Context, externalGameID string) (*stor
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("User-Agent", "game-price-tracker/1.0 (contact: you@example.com)")
+	req.Header.Set("User-Agent", "gamedivers/1.0 (contact: you@example.com)")
 
 	resp, err := c.http.Do(req)
 	if err != nil {

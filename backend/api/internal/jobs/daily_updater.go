@@ -20,7 +20,6 @@ func (u *DailyUpdater) Run(ctx context.Context) {
 	ticker := time.NewTicker(u.Interval)
 	defer ticker.Stop()
 
-	// run once at startup
 	u.runOnce(ctx)
 
 	for {

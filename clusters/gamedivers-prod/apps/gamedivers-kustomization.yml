@@ -24,3 +24,8 @@ spec:
   sourceRef:
     kind: GitRepository
     name: gamedivers-repo
+
+  decryption:
+  provider: sops
+  secretRef:
+    name: sops-age
