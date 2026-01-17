@@ -3,29 +3,22 @@ package config
 import (
 	"log"
 	"os"
-	"strconv"
-	"time"
 )
 
 type Config struct {
-	Port          string
-	DatabaseURL   string
-	PriceTTL      time.Duration
-	DailyInterval time.Duration
+	Port string
+
+	// IsThereAnyDeal API key
+	ITADAPIKey string
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
-	dsn := mustGetenv("DATABASE_URL")
-
-	ttlHours := getenvInt("PRICE_TTL_HOURS", 12)
-	dailyHours := getenvInt("DAILY_UPDATE_HOURS", 24)
+	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
 
 	return Config{
-		Port:          port,
-		DatabaseURL:   dsn,
-		PriceTTL:      time.Duration(ttlHours) * time.Hour,
-		DailyInterval: time.Duration(dailyHours) * time.Hour,
+		Port:       port,
+		ITADAPIKey: itadAPIKey,
 	}
 }
 
@@ -42,16 +35,4 @@ func getenv(key, def string) string {
 		return v
 	}
 	return def
-}
-
-func getenvInt(key string, def int) int {
-	v := os.Getenv(key)
-	if v == "" {
-		return def
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil {
-		return def
-	}
-	return n
 }
