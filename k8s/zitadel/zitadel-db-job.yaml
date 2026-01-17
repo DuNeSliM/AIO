@@ -14,12 +14,12 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: postgres-auth
+                  name: postgres-zitadel-auth
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: postgres-auth
+                  name: postgres-zitadel-auth
                   key: POSTGRES_PASSWORD
             - name: ZITADEL_DB
               value: zitadel
