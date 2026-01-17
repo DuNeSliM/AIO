@@ -12,6 +12,7 @@ resources:
   - postgres/secret.yaml
   - postgres/service.yaml
   - postgres/statefulset.yaml
+  - postgres/networkpolicy.yaml
 commonLabels:
   app.kubernetes.io/part-of: aio
 images:
