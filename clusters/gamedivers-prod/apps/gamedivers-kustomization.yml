@@ -26,6 +26,6 @@ spec:
     name: gamedivers-repo
 
   decryption:
-  provider: sops
-  secretRef:
-    name: sops-age
+    provider: sops
+    secretRef:
+      name: sops-age
