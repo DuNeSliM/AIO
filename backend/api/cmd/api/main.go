@@ -70,7 +70,7 @@ func main() {
 	go updater.Run(ctx)
 
 	go func() {
-		log.Printf("listening on :%s (db=%s)", cfg.Port, cfg.DatabaseURL)
+		log.Printf("listening on :%s", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}
