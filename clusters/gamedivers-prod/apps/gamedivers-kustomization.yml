@@ -12,11 +12,11 @@ spec:
   healthChecks:
     - apiVersion: apps/v1
       kind: Deployment
-      name: go-api
+      name: gamedivers-api
       namespace: gamedivers
     - apiVersion: apps/v1
       kind: Deployment
-      name: web
+      name: gamedivers-website
       namespace: gamedivers
 
   targetNamespace: gamedivers
