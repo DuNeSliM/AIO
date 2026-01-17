@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-init-zitadel
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init-zitadel-db
+          image: postgres:18.1-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-auth
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-auth
+                  key: POSTGRES_PASSWORD
+            - name: ZITADEL_DB
+              value: zitadel
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Creating ZITADEL database if it does not exist..."
+              PGPASSWORD="$POSTGRES_PASSWORD" psql -h postgres -U "$POSTGRES_USER" -d postgres <<'SQL'
+              DO $$
+              BEGIN
+                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'zitadel') THEN
+                  EXECUTE 'CREATE DATABASE zitadel OWNER ' || quote_ident(current_user);
+                END IF;
+              END $$;
+              SQL
+
+              echo "Creating ZITADEL schema if it does not exist..."
+              PGPASSWORD="$POSTGRES_PASSWORD" psql -h postgres -U "$POSTGRES_USER" -d "$ZITADEL_DB" <<'SQL'
+              CREATE SCHEMA IF NOT EXISTS zitadel AUTHORIZATION current_user;
+              SQL
