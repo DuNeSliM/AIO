@@ -23,6 +23,11 @@ spec:
         - name: wait-for-postgres
           image: postgres:18.1-alpine
           command: ["sh","-c","until pg_isready -h postgres -p 5432; do sleep 2; done"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
       containers:
         - name: gamedivers-api
           image: ghcr.io/duneslim/gamedivers-api:latest
