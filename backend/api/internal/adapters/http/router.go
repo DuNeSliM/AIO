@@ -9,12 +9,28 @@ import (
 	"gamedivers.de/api/internal/adapters/http/handlers"
 )
 
-func Router(ph *handlers.PriceHandler) *chi.Mux {
+func Router(itadh *handlers.ITADHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+
+	// CORS middleware for frontend
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -22,10 +38,32 @@ func Router(ph *handlers.PriceHandler) *chi.Mux {
 	})
 
 	r.Route("/v1", func(r chi.Router) {
-		r.Get("/steam/apps/{appid}/price", ph.GetSteamDEPrice)
+		// IsThereAnyDeal endpoints - provides prices from all stores including Steam
+		r.Route("/itad", func(r chi.Router) {
+			// Search for games
+			r.Get("/search", itadh.Search)
 
-		r.Post("/users/{userId}/watchlist/steam/{appid}", ph.AddSteamWatch)
-		r.Delete("/users/{userId}/watchlist/steam/{appid}", ph.RemoveSteamWatch)
+			// Get all available stores
+			r.Get("/stores", itadh.GetStores)
+
+			// Get price overview for multiple games
+			r.Get("/overview", itadh.GetOverview)
+
+			// Game-specific endpoints
+			r.Route("/games/{gameId}", func(r chi.Router) {
+				// Get combined game details (info + prices + history)
+				r.Get("/", itadh.GetGameDetails)
+
+				// Get just game info
+				r.Get("/info", itadh.GetGameInfo)
+
+				// Get current prices across stores
+				r.Get("/prices", itadh.GetGamePrices)
+
+				// Get historical lowest price
+				r.Get("/historylow", itadh.GetHistoricalLow)
+			})
+		})
 	})
 
 	return r
