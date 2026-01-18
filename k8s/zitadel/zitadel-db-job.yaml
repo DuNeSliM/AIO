@@ -7,10 +7,22 @@ spec:
   backoffLimit: 3
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
       restartPolicy: OnFailure
       containers:
         - name: init-zitadel-db
           image: postgres:18.1-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: POSTGRES_USER
               valueFrom:
@@ -24,6 +36,11 @@ spec:
                   key: POSTGRES_PASSWORD
             - name: ZITADEL_DB
               value: zitadel
+            - name: TMPDIR
+              value: /tmp
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           command:
             - sh
             - -c
@@ -43,3 +60,6 @@ spec:
               PGPASSWORD="$POSTGRES_PASSWORD" psql -h postgres -U "$POSTGRES_USER" -d "$ZITADEL_DB" <<'SQL'
               CREATE SCHEMA IF NOT EXISTS zitadel AUTHORIZATION current_user;
               SQL
+      volumes:
+        - name: tmp
+          emptyDir: {}
