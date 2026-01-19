@@ -18,7 +18,7 @@ commonLabels:
 images:
   - name: ghcr.io/duneslim/gamedivers-api
     newName: ghcr.io/duneslim/gamedivers-api
-    newTag: df7bb4f4de95e209673707fb5770c56ca213021d
+    newTag: 6743086377a5af608f770d3f05f4d45619457b22
   - name: ghcr.io/duneslim/gamedivers-website
     newName: ghcr.io/duneslim/gamedivers-website
-    newTag: df7bb4f4de95e209673707fb5770c56ca213021d
+    newTag: 6743086377a5af608f770d3f05f4d45619457b22
