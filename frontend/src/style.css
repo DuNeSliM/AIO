@@ -1,0 +1,107 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+  color: #fff;
+  padding: 2rem;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+h1 {
+  margin-bottom: 1rem;
+  font-size: 2rem;
+}
+
+h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.1rem;
+  color: #888;
+}
+
+p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.user-info {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.user-info p {
+  margin: 0.3rem 0;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+button {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #4338ca;
+}
+
+button#logoutBtn {
+  background: #dc2626;
+}
+
+button#logoutBtn:hover {
+  background: #b91c1c;
+}
+
+button#accountBtn {
+  background: #059669;
+}
+
+button#accountBtn:hover {
+  background: #047857;
+}
+
+.config, .token-info {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+strong {
+  color: #a5b4fc;
+}
