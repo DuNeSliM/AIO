@@ -13,17 +13,22 @@ type Config struct {
 
 	// ZITADEL issuer URL for JWT validation
 	ZitadelIssuer string
+
+	// ZITADEL client ID (audience) for JWT validation
+	ZitadelAudience string
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
 	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
 	zitadelIssuer := getenv("ZITADEL_ISSUER", "https://auth.gamedivers.de")
+	zitadelAudience := getenv("ZITADEL_AUDIENCE", "") // Client ID for audience validation
 
 	return Config{
-		Port:          port,
-		ITADAPIKey:    itadAPIKey,
-		ZitadelIssuer: zitadelIssuer,
+		Port:            port,
+		ITADAPIKey:      itadAPIKey,
+		ZitadelIssuer:   zitadelIssuer,
+		ZitadelAudience: zitadelAudience,
 	}
 }
 

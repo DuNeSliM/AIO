@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 
@@ -24,17 +25,20 @@ type UserClaims struct {
 
 // AuthMiddleware handles JWT validation against ZITADEL
 type AuthMiddleware struct {
-	jwks   *keyfunc.JWKS
-	issuer string
+	jwks     *keyfunc.JWKS
+	issuer   string
+	audience string
 }
 
 // NewAuthMiddleware creates a new auth middleware that validates JWTs from ZITADEL
-func NewAuthMiddleware(issuerURL string) (*AuthMiddleware, error) {
+// issuerURL: The ZITADEL issuer URL (e.g., https://auth.gamedivers.de)
+// audience: The expected audience claim (client ID) for token validation
+func NewAuthMiddleware(issuerURL, audience string) (*AuthMiddleware, error) {
 	jwksURL := strings.TrimSuffix(issuerURL, "/") + "/oauth/v2/keys"
 
 	jwks, err := keyfunc.Get(jwksURL, keyfunc.Options{
 		RefreshErrorHandler: func(err error) {
-			// Log JWKS refresh errors silently
+			log.Printf("[AUTH] JWKS refresh error: %v", err)
 		},
 	})
 	if err != nil {
@@ -42,8 +46,9 @@ func NewAuthMiddleware(issuerURL string) (*AuthMiddleware, error) {
 	}
 
 	return &AuthMiddleware{
-		jwks:   jwks,
-		issuer: issuerURL,
+		jwks:     jwks,
+		issuer:   issuerURL,
+		audience: audience,
 	}, nil
 }
 
@@ -64,11 +69,23 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 
 		tokenString := parts[1]
 
-		token, err := jwt.Parse(tokenString, m.jwks.Keyfunc,
+		// Parse and validate token with issuer, audience, and algorithm checks
+		parserOpts := []jwt.ParserOption{
 			jwt.WithIssuer(m.issuer),
 			jwt.WithValidMethods([]string{"RS256"}),
-		)
-		if err != nil || !token.Valid {
+			jwt.WithExpirationRequired(),
+		}
+		if m.audience != "" {
+			parserOpts = append(parserOpts, jwt.WithAudience(m.audience))
+		}
+
+		token, err := jwt.Parse(tokenString, m.jwks.Keyfunc, parserOpts...)
+		if err != nil {
+			log.Printf("[AUTH] Token validation failed: %v", err)
+			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
+			return
+		}
+		if !token.Valid {
 			http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 			return
 		}
@@ -109,10 +126,18 @@ func (m *AuthMiddleware) Optional(next http.Handler) http.Handler {
 		}
 
 		tokenString := parts[1]
-		token, err := jwt.Parse(tokenString, m.jwks.Keyfunc,
+
+		// Parse and validate token with issuer, audience, and algorithm checks
+		parserOpts := []jwt.ParserOption{
 			jwt.WithIssuer(m.issuer),
 			jwt.WithValidMethods([]string{"RS256"}),
-		)
+			jwt.WithExpirationRequired(),
+		}
+		if m.audience != "" {
+			parserOpts = append(parserOpts, jwt.WithAudience(m.audience))
+		}
+
+		token, err := jwt.Parse(tokenString, m.jwks.Keyfunc, parserOpts...)
 		if err != nil || !token.Valid {
 			next.ServeHTTP(w, r)
 			return

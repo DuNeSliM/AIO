@@ -24,7 +24,7 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize auth middleware (ZITADEL JWT validation)
-	authMw, err := middleware.NewAuthMiddleware(cfg.ZitadelIssuer)
+	authMw, err := middleware.NewAuthMiddleware(cfg.ZitadelIssuer, cfg.ZitadelAudience)
 	if err != nil {
 		log.Fatalf("failed to init auth middleware: %v", err)
 	}
