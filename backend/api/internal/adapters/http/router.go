@@ -4,17 +4,18 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"gamedivers.de/api/internal/adapters/http/handlers"
+	"gamedivers.de/api/internal/adapters/http/middleware"
 )
 
-func Router(itadh *handlers.ITADHandler) *chi.Mux {
+func Router(itadh *handlers.ITADHandler, authMw *middleware.AuthMiddleware) *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(middleware.RealIP)
-	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
+	r.Use(chimiddleware.RealIP)
+	r.Use(chimiddleware.RequestID)
+	r.Use(chimiddleware.Logger)
+	r.Use(chimiddleware.Recoverer)
 
 	// CORS middleware for frontend
 	r.Use(func(next http.Handler) http.Handler {
@@ -38,8 +39,17 @@ func Router(itadh *handlers.ITADHandler) *chi.Mux {
 	})
 
 	r.Route("/v1", func(r chi.Router) {
-		// IsThereAnyDeal endpoints - provides prices from all stores including Steam
+		// Auth endpoints (protected)
+		authHandler := handlers.NewAuthHandler()
+		r.Route("/auth", func(r chi.Router) {
+			r.Use(authMw.Authenticate)
+			r.Get("/me", authHandler.GetMe)
+		})
+
+		// IsThereAnyDeal endpoints - protected by auth
 		r.Route("/itad", func(r chi.Router) {
+			r.Use(authMw.Authenticate)
+
 			// Search for games
 			r.Get("/search", itadh.Search)
 

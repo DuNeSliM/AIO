@@ -11,6 +11,7 @@ import (
 
 	httpapi "gamedivers.de/api/internal/adapters/http"
 	"gamedivers.de/api/internal/adapters/http/handlers"
+	"gamedivers.de/api/internal/adapters/http/middleware"
 	"gamedivers.de/api/internal/adapters/stores/itad"
 	"gamedivers.de/api/internal/config"
 	"github.com/joho/godotenv"
@@ -22,13 +23,19 @@ func main() {
 
 	cfg := config.Load()
 
+	// Initialize auth middleware (ZITADEL JWT validation)
+	authMw, err := middleware.NewAuthMiddleware(cfg.ZitadelIssuer)
+	if err != nil {
+		log.Fatalf("failed to init auth middleware: %v", err)
+	}
+
 	// Initialize ITAD client with API key
 	itadClient := itad.New(cfg.ITADAPIKey)
 	itadHandler := &handlers.ITADHandler{
 		Client: itadClient,
 	}
 
-	router := httpapi.Router(itadHandler)
+	router := httpapi.Router(itadHandler, authMw)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
