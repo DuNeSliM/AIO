@@ -26,11 +26,24 @@ spec:
           secretKeyRef:
             name: postgres-zitadel-auth
             key: POSTGRES_PASSWORD
+      - name: ZITADEL_DEFAULTINSTANCE_SMTPCONFIGURATION_SMTP_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: zitadel-smtp-secret
+            key: SMTP_PASSWORD
 
     zitadel:
       masterkeySecretName: zitadel-masterkey
 
       configmapConfig:
+        DefaultInstance:
+          SMTPConfiguration:
+            SMTP:
+              Host: smtp.gmail.com:587
+              User: dev.gamedivers@gmail.com
+              Tls: true
+            From: dev.gamedivers@gmail.com
+            FromName: Gamedivers Auth
         ExternalDomain: auth.gamedivers.de
         ExternalSecure: true
         ExternalPort: 443

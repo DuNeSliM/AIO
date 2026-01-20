@@ -45,6 +45,7 @@ vendor/
 # Rust / Tauri
 # ==========================
 frontend/src-tauri/target/
+Cargo.lock
 
 # ==========================
 # .NET / C#
@@ -128,3 +129,4 @@ coverage/
 .nuxt/
 .output/
 .vercel/
+Cargo.lock
