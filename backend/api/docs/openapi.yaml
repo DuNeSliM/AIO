@@ -1,0 +1,179 @@
+openapi: 3.0.3
+info:
+  title: AIO ITAD API
+  version: "1.0.0"
+  description: |
+    Backend API for IsThereAnyDeal proxy endpoints.
+servers:
+  - url: http://localhost:8080
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: ok
+  /v1/itad/search:
+    get:
+      summary: Search games
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+        "400":
+          description: Missing or invalid query
+  /v1/itad/stores:
+    get:
+      summary: Get stores
+      parameters:
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            default: DE
+      responses:
+        "200":
+          description: Stores list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+  /v1/itad/overview:
+    get:
+      summary: Price overview for multiple games
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+              format: uuid
+          style: form
+          explode: true
+          description: Repeat the id query param for multiple games
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            default: DE
+      responses:
+        "200":
+          description: Overview response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+        "400":
+          description: Missing id parameter(s)
+  /v1/itad/games/{gameId}:
+    get:
+      summary: Get combined game details (info + prices + history low)
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+        - $ref: "#/components/parameters/Country"
+      responses:
+        "200":
+          description: Combined response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  info:
+                    $ref: "#/components/schemas/ProxyResponse"
+                  prices:
+                    $ref: "#/components/schemas/ProxyResponse"
+                  historyLow:
+                    $ref: "#/components/schemas/ProxyResponse"
+  /v1/itad/games/{gameId}/info:
+    get:
+      summary: Get game info
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+      responses:
+        "200":
+          description: Game info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+  /v1/itad/games/{gameId}/prices:
+    get:
+      summary: Get game prices
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+        - $ref: "#/components/parameters/Country"
+      responses:
+        "200":
+          description: Prices response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+  /v1/itad/games/{gameId}/historylow:
+    get:
+      summary: Get historical low price
+      parameters:
+        - $ref: "#/components/parameters/GameId"
+        - $ref: "#/components/parameters/Country"
+      responses:
+        "200":
+          description: History low response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyResponse"
+components:
+  parameters:
+    GameId:
+      name: gameId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Country:
+      name: country
+      in: query
+      required: false
+      schema:
+        type: string
+        minLength: 2
+        maxLength: 2
+        default: DE
+  schemas:
+    ProxyResponse:
+      description: Raw JSON response from IsThereAnyDeal API
+      type: object
+      additionalProperties: true
