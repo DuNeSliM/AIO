@@ -128,3 +128,4 @@ coverage/
 .nuxt/
 .output/
 .vercel/
+Cargo.lock
