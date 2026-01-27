@@ -272,6 +272,225 @@ func (h *GameHandler) GetEpicLibrary(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// StartGOGGame starts a synced GOG Galaxy game by its game name
+// POST /v1/games/gog/:gamename/start
+// gamename should be the game name as it appears in GOG Galaxy (e.g., "Captain Blood Demo")
+func (h *GameHandler) StartGOGGame(w http.ResponseWriter, r *http.Request) {
+	gameName := chi.URLParam(r, "gamename")
+	log.Printf("[GOG Galaxy] Received request to start game: %s", gameName)
+
+	if gameName == "" {
+		log.Printf("[GOG Galaxy] ERROR: Missing gamename parameter")
+		http.Error(w, "missing gamename", http.StatusBadRequest)
+		return
+	}
+
+	// Start the GOG game
+	if err := startGOGApp(gameName); err != nil {
+		log.Printf("[GOG Galaxy] ERROR starting game %s: %v", gameName, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"message": err.Error(),
+			"game_name": gameName,
+		})
+		return
+	}
+
+	log.Printf("[GOG Galaxy] Successfully started game: %s", gameName)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"message": "Game started successfully",
+		"game_name": gameName,
+	})
+}
+
+// startGOGApp launches a GOG Galaxy game
+// Reads the GOG Galaxy configuration files to find the correct game ID and launches the game
+func startGOGApp(gameName string) error {
+	log.Printf("[GOG Galaxy] Starting app: %s", gameName)
+
+	// Try to find the game in GOG Galaxy configuration
+	gameInstallPath, err := findGOGGamePath(gameName)
+	if err != nil {
+		log.Printf("[GOG Galaxy] ERROR finding game path: %v", err)
+		return err
+	}
+
+	if gameInstallPath == "" {
+		log.Printf("[GOG Galaxy] Game not found: %s", gameName)
+		return NewStartGameError("GOG Galaxy game not found: " + gameName)
+	}
+
+	log.Printf("[GOG Galaxy] Found game at: %s", gameInstallPath)
+
+	// Find the executable in the game directory
+	exePath := findGameExecutable(gameInstallPath)
+	if exePath == "" {
+		log.Printf("[GOG Galaxy] No executable found in: %s", gameInstallPath)
+		return NewStartGameError("Game executable not found in: " + gameInstallPath)
+	}
+
+	log.Printf("[GOG Galaxy] Found executable: %s", exePath)
+
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		// Execute the game directly
+		log.Printf("[GOG Galaxy] Executing: %s", exePath)
+		cmd = exec.Command(exePath)
+
+	case "darwin":
+		// On macOS
+		log.Printf("[GOG Galaxy] Launching on macOS")
+		cmd = exec.Command("open", exePath)
+
+	case "linux":
+		// On Linux
+		log.Printf("[GOG Galaxy] Launching on Linux")
+		cmd = exec.Command(exePath)
+
+	default:
+		log.Printf("[GOG Galaxy] Unsupported OS: %s", runtime.GOOS)
+		return ErrUnsupportedOS
+	}
+
+	// Set working directory to the game folder for relative path dependencies
+	cmd.Dir = gameInstallPath
+
+	log.Printf("[GOG Galaxy] Executing command: %v with WorkDir: %s", cmd, gameInstallPath)
+	err = cmd.Start()
+	if err != nil {
+		log.Printf("[GOG Galaxy] ERROR executing command: %v", err)
+	}
+	return err
+}
+
+// findGameExecutable looks for the main executable in a game directory
+func findGameExecutable(gamePath string) string {
+	log.Printf("[GOG Galaxy] Searching for executable in: %s", gamePath)
+
+	entries, err := ioutil.ReadDir(gamePath)
+	if err != nil {
+		log.Printf("[GOG Galaxy] ERROR reading game directory: %v", err)
+		return ""
+	}
+
+	// Look for common executable names and extensions
+	exePatterns := []string{".exe", ".bat", ".cmd"}
+	priorityNames := []string{"start", "launch", "run", "game"}
+
+	// First pass: look for files with priority names
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			nameLower := strings.ToLower(entry.Name())
+			for _, priority := range priorityNames {
+				for _, ext := range exePatterns {
+					if nameLower == priority+ext {
+						fullPath := filepath.Join(gamePath, entry.Name())
+						log.Printf("[GOG Galaxy] Found priority executable: %s", fullPath)
+						return fullPath
+					}
+				}
+			}
+		}
+	}
+
+	// Second pass: look for any .exe file
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".exe") {
+			// Skip some common non-game executables
+			nameLower := strings.ToLower(entry.Name())
+			if !strings.Contains(nameLower, "uninstall") &&
+				!strings.Contains(nameLower, "setup") &&
+				!strings.Contains(nameLower, "config") {
+				fullPath := filepath.Join(gamePath, entry.Name())
+				log.Printf("[GOG Galaxy] Found executable: %s", fullPath)
+				return fullPath
+			}
+		}
+	}
+
+	log.Printf("[GOG Galaxy] No executable found in game directory")
+	return ""
+}
+
+// GOGGame represents a GOG Galaxy game configuration
+type GOGGame struct {
+	ProductID   string `json:"productId"`
+	GameID      string `json:"gameId"`
+	GameTitle   string `json:"gameTitle"`
+	LocalTitle  string `json:"localTitle"`
+	ExecutablePath string `json:"executablePath"`
+}
+
+// findGOGGamePath searches for a GOG Galaxy game installation directory
+func findGOGGamePath(gameName string) (string, error) {
+	gameNameLower := strings.ToLower(gameName)
+	log.Printf("[GOG Galaxy] Looking for game path: %s (lowercase: %s)", gameName, gameNameLower)
+
+	// GOG Galaxy typically installs games in these locations
+	gogInstallPaths := []string{
+		filepath.Join("C:\\", "Program Files", "GOG Galaxy", "Games"),
+		filepath.Join("C:\\", "Program Files (x86)", "GOG Galaxy", "Games"),
+		filepath.Join("C:\\", "Games"),
+		filepath.Join("C:\\", "GOG Games"),
+	}
+
+	// Also check user's custom installation path from registry or config
+	username := os.Getenv("USERNAME")
+	userPath := filepath.Join("C:\\Users", username, "Games")
+	gogInstallPaths = append(gogInstallPaths, userPath)
+
+	log.Printf("[GOG Galaxy] Searching for installed games in %d locations", len(gogInstallPaths))
+
+	for _, basePath := range gogInstallPaths {
+		log.Printf("[GOG Galaxy] Checking path: %s", basePath)
+		
+		entries, err := ioutil.ReadDir(basePath)
+		if err != nil {
+			log.Printf("[GOG Galaxy] Path not found or error reading: %s - %v", basePath, err)
+			continue
+		}
+
+		log.Printf("[GOG Galaxy] Found %d items in %s", len(entries), basePath)
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				dirName := entry.Name()
+				dirNameLower := strings.ToLower(dirName)
+				log.Printf("[GOG Galaxy] Checking installed game directory: %s", dirName)
+
+				// Match by directory name (case-insensitive)
+				if dirNameLower == gameNameLower ||
+					strings.Contains(dirNameLower, gameNameLower) ||
+					strings.Contains(gameNameLower, dirNameLower) {
+					fullPath := filepath.Join(basePath, dirName)
+					log.Printf("[GOG Galaxy] MATCH FOUND! Path: %s", fullPath)
+					return fullPath, nil
+				}
+			}
+		}
+	}
+
+	log.Printf("[GOG Galaxy] No match found for game: %s", gameName)
+	return "", nil
+}
+
+// GetGOGLibrary retrieves the user's GOG Galaxy library
+// GET /v1/games/gog/library
+func (h *GameHandler) GetGOGLibrary(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(map[string]any{
+		"error": "GOG Galaxy library endpoint not yet implemented. Requires GOG Galaxy integration.",
+	})
+}
+
 var ErrUnsupportedOS = NewStartGameError("unsupported operating system")
 
 type StartGameError struct {

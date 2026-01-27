@@ -61,7 +61,7 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 				r.Get("/prices", itadh.GetGamePrices)
 
 				// Get historical lowest price
-				r.Get("/historylow", itadh.GetHistoricalLow)				curl -X POST http://localhost:8080/v1/games/epic/Bloons%20TD%206/start
+				r.Get("/historylow", itadh.GetHistoricalLow)
 			})
 		})
 
@@ -73,6 +73,9 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 			// Start an Epic Games game by app name
 			r.Post("/epic/{appname}/start", gameHandler.StartEpicGame)
 
+			// Start a GOG Galaxy game by game name
+			r.Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
+
 			// Get installed/synced games
 			r.Get("/installed", gameHandler.GetInstalledGames)
 
@@ -81,6 +84,9 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 
 			// Get Epic Games library (placeholder)
 			r.Get("/epic/library", gameHandler.GetEpicLibrary)
+
+			// Get GOG Galaxy library (placeholder)
+			r.Get("/gog/library", gameHandler.GetGOGLibrary)
 		})
 	})
 
