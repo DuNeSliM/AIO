@@ -61,7 +61,7 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 				r.Get("/prices", itadh.GetGamePrices)
 
 				// Get historical lowest price
-				r.Get("/historylow", itadh.GetHistoricalLow)
+				r.Get("/historylow", itadh.GetHistoricalLow)				curl -X POST http://localhost:8080/v1/games/epic/Bloons%20TD%206/start
 			})
 		})
 
@@ -70,11 +70,17 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 			// Start a Steam game by app ID
 			r.Post("/steam/{appid}/start", gameHandler.StartSteamGame)
 
+			// Start an Epic Games game by app name
+			r.Post("/epic/{appname}/start", gameHandler.StartEpicGame)
+
 			// Get installed/synced games
 			r.Get("/installed", gameHandler.GetInstalledGames)
 
 			// Get Steam library (placeholder)
 			r.Get("/steam/library", gameHandler.GetSteamLibrary)
+
+			// Get Epic Games library (placeholder)
+			r.Get("/epic/library", gameHandler.GetEpicLibrary)
 		})
 	})
 
