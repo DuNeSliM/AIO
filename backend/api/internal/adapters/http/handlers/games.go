@@ -35,6 +35,7 @@ type StartGameResponse struct {
 
 // StartSteamGame starts a synced Steam game by its app ID
 // POST /v1/games/steam/:appid/start
+// Example: curl -X POST http://localhost:8080/v1/games/steam/1145350/start (Hades 2)
 func (h *GameHandler) StartSteamGame(w http.ResponseWriter, r *http.Request) {
 	appID := chi.URLParam(r, "appid")
 	if appID == "" {
@@ -117,7 +118,7 @@ func (h *GameHandler) GetInstalledGames(w http.ResponseWriter, r *http.Request) 
 
 // StartEpicGame starts a synced Epic Games game by its app name
 // POST /v1/games/epic/:appname/start
-// appname should be the app name as it appears in Epic Games Launcher (e.g., "Fortnite", "Bloons-TD-6")
+// Example: curl -X POST http://localhost:8080/v1/games/epic/Bloons%20TD%206/start
 func (h *GameHandler) StartEpicGame(w http.ResponseWriter, r *http.Request) {
 	appName := chi.URLParam(r, "appname")
 	log.Printf("[Epic Games] Received request to start game: %s", appName)
@@ -274,7 +275,7 @@ func (h *GameHandler) GetEpicLibrary(w http.ResponseWriter, r *http.Request) {
 
 // StartGOGGame starts a synced GOG Galaxy game by its game name
 // POST /v1/games/gog/:gamename/start
-// gamename should be the game name as it appears in GOG Galaxy (e.g., "Captain Blood Demo")
+// Example: curl -X POST http://localhost:8080/v1/games/gog/Captain%20Blood%20Demo/start
 func (h *GameHandler) StartGOGGame(w http.ResponseWriter, r *http.Request) {
 	gameName := chi.URLParam(r, "gamename")
 	log.Printf("[GOG Galaxy] Received request to start game: %s", gameName)
