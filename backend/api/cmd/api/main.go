@@ -28,7 +28,12 @@ func main() {
 		Client: itadClient,
 	}
 
-	router := httpapi.Router(itadHandler)
+	// Initialize game handler
+	gameHandler := &handlers.GameHandler{
+		Repo: nil, // TODO: Inject repo dependency
+	}
+
+	router := httpapi.Router(itadHandler, gameHandler)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

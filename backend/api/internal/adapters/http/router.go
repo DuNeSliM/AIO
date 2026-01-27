@@ -9,7 +9,7 @@ import (
 	"gamedivers.de/api/internal/adapters/http/handlers"
 )
 
-func Router(itadh *handlers.ITADHandler) *chi.Mux {
+func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
@@ -63,6 +63,18 @@ func Router(itadh *handlers.ITADHandler) *chi.Mux {
 				// Get historical lowest price
 				r.Get("/historylow", itadh.GetHistoricalLow)
 			})
+		})
+
+		// Game launch endpoints
+		r.Route("/games", func(r chi.Router) {
+			// Start a Steam game by app ID
+			r.Post("/steam/{appid}/start", gameHandler.StartSteamGame)
+
+			// Get installed/synced games
+			r.Get("/installed", gameHandler.GetInstalledGames)
+
+			// Get Steam library (placeholder)
+			r.Get("/steam/library", gameHandler.GetSteamLibrary)
 		})
 	})
 
