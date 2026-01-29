@@ -2,10 +2,12 @@ import React, { useEffect } from 'react'
 import GameList from '../components/GameList'
 import { useGames } from '../hooks/useGames'
 import { useSteamAuth } from '../hooks/useSteamAuth'
+import { useI18n } from '../i18n/i18n.jsx'
 
 export default function GameLibrary(){
   const { games, totalGames, loading, syncing, error, search, setSearch, sortBy, setSortBy, reload, loadSteamLibrary, loadEpicLibrary } = useGames()
   const steamAuth = useSteamAuth()
+  const { t } = useI18n()
 
   useEffect(() => {
     if (steamAuth.isLoggedIn && steamAuth.steamId) {
@@ -27,20 +29,20 @@ export default function GameLibrary(){
     <div className="page-library">
       <header className="page-header">
         <div>
-          <h1>Game Library</h1>
-          {steamAuth.isLoggedIn && <p className="steam-status">✓ Steam: {steamAuth.username}</p>}
+          <h1>{t('library.title')}</h1>
+          {steamAuth.isLoggedIn && <p className="steam-status">{t('library.steamConnected', { username: steamAuth.username })}</p>}
         </div>
         <div className="sync-actions">
           {steamAuth.isLoggedIn && (
             <button onClick={() => loadSteamLibrary(steamAuth.steamId)} disabled={loading || syncing}>
-              {syncing ? '...' : '🔄 Steam'}
+              {syncing ? '...' : t('library.syncSteam')}
             </button>
           )}
           <button onClick={() => loadEpicLibrary()} disabled={loading || syncing}>
-            {syncing ? '...' : '🔄 Epic (lokal)'}
+            {syncing ? '...' : t('library.syncEpic')}
           </button>
           <button onClick={reload} disabled={loading || syncing}>
-            ↻ Reload
+            {t('library.reload')}
           </button>
         </div>
       </header>
@@ -49,7 +51,7 @@ export default function GameLibrary(){
         <div className="search-box">
           <input
             type="text"
-            placeholder="🔍 Spiel suchen..."
+            placeholder={t('library.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
@@ -62,34 +64,34 @@ export default function GameLibrary(){
             className={`sort-tab ${sortBy === 'recent' ? 'active' : ''}`}
             onClick={() => setSortBy('recent')}
           >
-            ⏱ Zuletzt gespielt
+            {t('library.recent')}
           </button>
           <button
             className={`sort-tab ${sortBy === 'a-z' ? 'active' : ''}`}
             onClick={() => setSortBy('a-z')}
           >
-            A → Z
+            {t('library.az')}
           </button>
           <button
             className={`sort-tab ${sortBy === 'z-a' ? 'active' : ''}`}
             onClick={() => setSortBy('z-a')}
           >
-            Z → A
+            {t('library.za')}
           </button>
         </div>
       </div>
 
       <section>
-        {loading && <div className="loading">Lade Spiele...</div>}
+        {loading && <div className="loading">{t('library.loading')}</div>}
         {error && <div className="error">Fehler: {error}</div>}
         {!loading && !error && games.length === 0 && (
           <div className="empty">
-            Keine Spiele gefunden. Starte den Epic Games Launcher oder melde dich mit Steam an.
+            {t('library.empty')}
           </div>
         )}
         {!loading && !error && games.length > 0 && (
           <>
-            <div className="game-count">{games.length} von {totalGames} Spielen</div>
+            <div className="game-count">{t('library.count', { count: games.length, total: totalGames })}</div>
             <GameList games={games} />
           </>
         )}

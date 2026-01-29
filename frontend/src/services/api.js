@@ -36,6 +36,24 @@ export async function fetchEpicLibrary(){
   return []
 }
 
+// ITAD search
+export async function searchItad(query, limit = 10){
+  const url = `${API_BASE}/v1/itad/search?q=${encodeURIComponent(query)}&limit=${limit}`
+  const res = await tryJson(url)
+  if (!res) throw new Error('API nicht erreichbar')
+  if (res && res.data) return res
+  if (Array.isArray(res)) return res
+  return { data: [] }
+}
+
+// ITAD prices for a game
+export async function getItadPrices(gameId, country = 'DE'){
+  const url = `${API_BASE}/v1/itad/games/${encodeURIComponent(gameId)}/prices?country=${country}`
+  const res = await tryJson(url)
+  if (!res) throw new Error('API nicht erreichbar')
+  return res || null
+}
+
 // Launch game via Tauri command or backend endpoint
 export async function launchGame(platform, id, appName){
   try{

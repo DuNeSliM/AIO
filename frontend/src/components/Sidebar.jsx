@@ -1,5 +1,6 @@
 import React from 'react'
 import { useSteamAuth } from '../hooks/useSteamAuth'
+import { useI18n } from '../i18n/i18n.jsx'
 
 const LibraryIcon = () => (
   <>
@@ -36,9 +37,9 @@ const SettingsIcon = () => (
   </>
 )
 
-const SidebarIcon = ({icon, label, onClick}) => (
+const SidebarIcon = ({icon, label, onClick, className}) => (
   <button 
-    className="sidebar-icon" 
+    className={`sidebar-icon ${className || ''}`}
     title={label} 
     onClick={onClick}
   >
@@ -51,8 +52,9 @@ const SidebarIcon = ({icon, label, onClick}) => (
   </button>
 )
 
-export default function Sidebar() {
+export default function Sidebar({ activePage = 'library', onNavigate }) {
   const steamAuth = useSteamAuth()
+  const { t } = useI18n()
 
   return (
     <aside className="sidebar">
@@ -65,20 +67,20 @@ export default function Sidebar() {
         )}
       </div>
       <nav className="sidebar-nav">
-        <SidebarIcon icon={<LibraryIcon />} label="Library" onClick={() => {}} />
-        <SidebarIcon icon={<StoreIcon />} label="Store" onClick={() => {}} />
-        <SidebarIcon icon={<DownloadIcon />} label="Downloads" onClick={() => {}} />
-        <SidebarIcon icon={<SettingsIcon />} label="Settings" onClick={() => {}} />
+        <SidebarIcon icon={<LibraryIcon />} label={t('nav.library')} onClick={() => onNavigate?.('library')} className={activePage === 'library' ? 'active' : ''} />
+        <SidebarIcon icon={<StoreIcon />} label={t('nav.store')} onClick={() => onNavigate?.('store')} className={activePage === 'store' ? 'active' : ''} />
+        <SidebarIcon icon={<DownloadIcon />} label={t('nav.downloads')} onClick={() => {}} />
+        <SidebarIcon icon={<SettingsIcon />} label={t('nav.settings')} onClick={() => onNavigate?.('settings')} className={activePage === 'settings' ? 'active' : ''} />
       </nav>
       <div className="sidebar-bottom">
         {!steamAuth.isLoggedIn ? (
           <button className="steam-login-btn" onClick={steamAuth.login}>
             <span className="steam-icon">🎮</span>
-            Steam Login
+            {t('auth.steamLogin')}
           </button>
         ) : (
           <button className="steam-logout-btn" onClick={steamAuth.logout}>
-            Logout Steam
+            {t('auth.steamLogout')}
           </button>
         )}
         <button
@@ -87,7 +89,7 @@ export default function Sidebar() {
           style={{marginTop: '8px'}}
         >
           <span className="steam-icon">🎯</span>
-          Epic
+          {t('epic.localSync')}
         </button>
         <small>v0.1</small>
       </div>
