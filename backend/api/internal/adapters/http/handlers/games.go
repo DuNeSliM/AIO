@@ -211,6 +211,18 @@ type EpicManifest struct {
 	InstallPath string `json:"InstallLocation"`
 }
 
+// EpicLibraryItem represents a game entry derived from local Epic manifest files
+type EpicLibraryItem struct {
+	ID          string `json:"id"`
+	AppName     string `json:"appName"`
+	Name        string `json:"name"`
+	Platform    string `json:"platform"`
+	InstallPath string `json:"installPath,omitempty"`
+	Image       string `json:"image,omitempty"`
+	LastPlayed  int64  `json:"lastPlayed,omitempty"`
+	Playtime    int64  `json:"playtime,omitempty"`
+}
+
 // findEpicGameAppID searches Epic Games manifest files to find the app ID for a given app name
 func findEpicGameAppID(appName string) (string, error) {
 	// Epic Games manifest directory
@@ -263,14 +275,83 @@ func findEpicGameAppID(appName string) (string, error) {
 	return "", nil
 }
 
+// readEpicManifests loads all Epic Games manifests from the local machine
+func readEpicManifests() ([]EpicManifest, error) {
+	programData := os.Getenv("PROGRAMDATA")
+	if programData == "" {
+		return []EpicManifest{}, nil
+	}
+
+	manifestDir := filepath.Join(programData, "Epic", "EpicGamesLauncher", "Data", "Manifests")
+	entries, err := ioutil.ReadDir(manifestDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []EpicManifest{}, nil
+		}
+		return nil, err
+	}
+
+	manifests := make([]EpicManifest, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".item") {
+			continue
+		}
+
+		filePath := filepath.Join(manifestDir, entry.Name())
+		data, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			continue
+		}
+
+		var manifest EpicManifest
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			continue
+		}
+
+		if manifest.AppName == "" && manifest.DisplayName == "" {
+			continue
+		}
+
+		manifests = append(manifests, manifest)
+	}
+
+	return manifests, nil
+}
+
 // GetEpicLibrary retrieves the user's Epic Games library
 // GET /v1/games/epic/library
 func (h *GameHandler) GetEpicLibrary(w http.ResponseWriter, r *http.Request) {
+	manifests, err := readEpicManifests()
+	if err != nil {
+		log.Printf("[Epic Games] ERROR reading manifests: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": "Failed to read Epic Games manifests",
+		})
+		return
+	}
+
+	response := make([]EpicLibraryItem, 0, len(manifests))
+	for _, manifest := range manifests {
+		name := manifest.DisplayName
+		if name == "" {
+			name = manifest.AppName
+		}
+
+		response = append(response, EpicLibraryItem{
+			ID:          manifest.AppName,
+			AppName:     manifest.AppName,
+			Name:        name,
+			Platform:    "epic",
+			InstallPath: manifest.InstallPath,
+			LastPlayed:  0,
+			Playtime:    0,
+		})
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]any{
-		"error": "Epic Games library endpoint not yet implemented. Requires Epic Games Launcher integration.",
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 // StartGOGGame starts a synced GOG Galaxy game by its game name

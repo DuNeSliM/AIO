@@ -33,7 +33,21 @@ func main() {
 		Repo: nil, // TODO: Inject repo dependency
 	}
 
-	router := httpapi.Router(itadHandler, gameHandler)
+	// Initialize Steam handler
+	steamHandler := handlers.NewSteamHandler(
+		cfg.SteamAPIKey,
+		cfg.SteamCallbackURL,
+		nil, // TODO: Inject repo dependency
+	)
+
+	// Initialize Epic Games handler
+	epicHandler := handlers.NewEpicHandler(
+		cfg.EpicClientID,
+		cfg.EpicClientSecret,
+		cfg.EpicCallbackURL,
+	)
+
+	router := httpapi.Router(itadHandler, gameHandler, steamHandler, epicHandler)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

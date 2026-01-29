@@ -9,7 +9,7 @@ import (
 	"gamedivers.de/api/internal/adapters/http/handlers"
 )
 
-func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi.Mux {
+func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
@@ -87,6 +87,36 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler) *chi
 
 			// Get GOG Galaxy library (placeholder)
 			r.Get("/gog/library", gameHandler.GetGOGLibrary)
+		})
+
+		// Steam authentication and library
+		r.Route("/steam", func(r chi.Router) {
+			// Initiate Steam login
+			r.Get("/login", steamHandler.LoginRedirect)
+
+			// Steam OpenID callback
+			r.Get("/callback", steamHandler.Callback)
+
+			// Get Steam library for authenticated user
+			r.Get("/library", steamHandler.GetLibrary)
+
+			// Sync Steam library to database
+			r.Post("/sync", steamHandler.SyncLibrary)
+		})
+
+		// Epic Games authentication and library
+		r.Route("/epic", func(r chi.Router) {
+			// Initiate Epic Games login
+			r.Get("/login", epicHandler.LoginRedirect)
+
+			// Epic OAuth callback
+			r.Get("/callback", epicHandler.Callback)
+
+			// Get Epic Games library for authenticated user
+			r.Get("/library", epicHandler.GetLibrary)
+
+			// Sync Epic Games library to database
+			r.Post("/sync", epicHandler.SyncLibrary)
 		})
 	})
 
