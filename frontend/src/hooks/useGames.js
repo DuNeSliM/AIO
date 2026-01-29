@@ -73,6 +73,10 @@ export function useGames(){
       case 'z-a':
         result.sort((a, b) => b.name.localeCompare(a.name))
         break
+      case 'playtime':
+        // Sort by playtime (most played first)
+        result.sort((a, b) => (b.playtime || 0) - (a.playtime || 0))
+        break
       case 'recent':
         // Sort by last played (most recent first)
         result.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0))

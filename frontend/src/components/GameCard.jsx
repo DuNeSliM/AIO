@@ -10,7 +10,7 @@ function LaunchButton({onClick, loading}){
   )
 }
 
-export default function GameCard({game}){
+export default function GameCard({game, viewMode='grid'}){
   const {name, platform, image, id, appId, appName, gameName, lastPlayed, playtime} = game
   const [launching, setLaunching] = useState(false)
 
@@ -30,7 +30,7 @@ export default function GameCard({game}){
   }
 
   return (
-    <article className="game-card">
+    <article className={`game-card ${viewMode === 'list' ? 'list' : ''}`}>
       <div className="game-thumb">
         {image ? <img src={image} alt={name} /> : <div className="thumb-placeholder" />}
       </div>

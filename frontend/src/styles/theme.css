@@ -52,12 +52,19 @@ body.theme-light .search-input{background:#ffffff;border-color:#d5d5dc;color:#0b
 .search-input:focus{outline:none;border-color:var(--brand-orange);box-shadow:0 0 0 2px rgba(255,122,0,0.1)}
 .search-input::placeholder{color:var(--muted)}
 .search-count{font-size:12px;color:var(--brand-orange);padding:0 8px}
-.sort-tabs{display:flex;gap:8px;overflow-x:auto}
+.sort-tabs{display:flex;gap:8px;align-items:center}
+.sort-dropdown{padding:10px 14px;background:#161616;border:1px solid #444;border-radius:6px;color:var(--text);cursor:pointer;font-size:13px;font-weight:600;transition:all 0.2s}
+body.theme-light .sort-dropdown{background:#ffffff;border-color:#ccc;color:#0b0b0b}
+.sort-dropdown:hover{border-color:var(--brand-orange);color:var(--brand-orange)}
+.sort-dropdown:focus{outline:none;border-color:var(--brand-orange);box-shadow:0 0 0 2px rgba(255,122,0,0.1)}
+.view-toggle{display:flex;gap:8px;margin-left:auto}
 .sort-tab{padding:8px 12px;background:#161616;border:1px solid #333;border-radius:6px;color:var(--muted);cursor:pointer;white-space:nowrap;font-size:12px;font-weight:600;transition:all 0.2s}
 body.theme-light .sort-tab{background:#ffffff;border-color:#d5d5dc;color:#444}
 .sort-tab:hover{border-color:var(--brand-orange);color:var(--brand-orange)}
 .sort-tab.active{background:var(--brand-orange);border-color:var(--brand-orange);color:var(--brand-dark)}
 .game-count{font-size:12px;color:var(--muted);margin-bottom:12px;text-align:right}
+.game-list.list{display:flex;flex-direction:column}
+.game-card.list{width:100%}
 
 /* Store page */
 .store-page{display:flex;flex-direction:column;gap:16px}

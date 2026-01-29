@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import GameList from '../components/GameList'
 import { useGames } from '../hooks/useGames'
 import { useSteamAuth } from '../hooks/useSteamAuth'
@@ -8,6 +8,7 @@ export default function GameLibrary(){
   const { games, totalGames, loading, syncing, error, search, setSearch, sortBy, setSortBy, reload, loadSteamLibrary, loadEpicLibrary } = useGames()
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('libraryView') || 'grid')
 
   useEffect(() => {
     if (steamAuth.isLoggedIn && steamAuth.steamId) {
@@ -18,6 +19,10 @@ export default function GameLibrary(){
   useEffect(() => {
     loadEpicLibrary()
   }, [loadEpicLibrary])
+
+  useEffect(() => {
+    localStorage.setItem('libraryView', viewMode)
+  }, [viewMode])
 
   useEffect(() => {
     const handler = () => loadEpicLibrary()
@@ -60,24 +65,26 @@ export default function GameLibrary(){
         </div>
 
         <div className="sort-tabs">
-          <button
-            className={`sort-tab ${sortBy === 'recent' ? 'active' : ''}`}
-            onClick={() => setSortBy('recent')}
-          >
-            {t('library.recent')}
-          </button>
-          <button
-            className={`sort-tab ${sortBy === 'a-z' ? 'active' : ''}`}
-            onClick={() => setSortBy('a-z')}
-          >
-            {t('library.az')}
-          </button>
-          <button
-            className={`sort-tab ${sortBy === 'z-a' ? 'active' : ''}`}
-            onClick={() => setSortBy('z-a')}
-          >
-            {t('library.za')}
-          </button>
+          <select className="sort-dropdown" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="recent">{t('library.recent')}</option>
+            <option value="a-z">{t('library.az')}</option>
+            <option value="z-a">{t('library.za')}</option>
+            <option value="playtime">{t('library.playtime')}</option>
+          </select>
+          <div className="view-toggle">
+            <button
+              className={`sort-tab ${viewMode === 'grid' ? 'active' : ''}`}
+              onClick={() => setViewMode('grid')}
+            >
+              {t('library.viewGrid')}
+            </button>
+            <button
+              className={`sort-tab ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+            >
+              {t('library.viewList')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -92,7 +99,7 @@ export default function GameLibrary(){
         {!loading && !error && games.length > 0 && (
           <>
             <div className="game-count">{t('library.count', { count: games.length, total: totalGames })}</div>
-            <GameList games={games} />
+            <GameList games={games} viewMode={viewMode} />
           </>
         )}
       </section>
