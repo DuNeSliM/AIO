@@ -86,13 +86,12 @@ export default function Sidebar({ activePage = 'library', onNavigate }) {
         <button
           className="steam-login-btn"
           onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}
-          style={{marginTop: '8px'}}
         >
           <span className="steam-icon">🎯</span>
           {t('epic.localSync')}
         </button>
-        <small>v0.1</small>
       </div>
+      <div className="sidebar-version">v0.1</div>
     </aside>
   )
 }

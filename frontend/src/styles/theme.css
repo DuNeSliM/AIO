@@ -18,7 +18,9 @@ body,html,#root{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif
 .app-root{display:flex;height:100vh}
 .sidebar{width:88px;background:linear-gradient(180deg,var(--brand-dark),#1a1a1a);display:flex;flex-direction:column;align-items:center;padding:12px}
 body.theme-light .sidebar{background:linear-gradient(180deg,#ffffff,#e9e9ef)}
-.logo{color:var(--brand-orange);font-weight:700;margin-bottom:12px}
+.sidebar-top{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+.logo{color:var(--brand-orange);font-weight:700;text-align:center;white-space:nowrap}
+.user-badge{width:100%;max-width:75px;font-size:11px;color:var(--muted);background:rgba(255,122,0,0.08);border:1px solid rgba(255,122,0,0.15);border-radius:4px;padding:6px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;word-break:break-word}
 .sidebar-nav{display:flex;flex-direction:column;gap:12px;margin-top:8px}
 .sidebar-icon{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted);cursor:pointer;background:none;border:none;padding:8px;border-radius:6px;transition:all 0.2s;font-family:inherit}
 .sidebar-icon:hover{color:var(--brand-orange)}
@@ -73,6 +75,18 @@ body.theme-light .info-label{color:#999}
 .game-list.list .platform{padding:3px 6px;font-size:10px}
 .platform-steam{background:rgba(0,128,255,0.15);color:#0080ff;border-color:rgba(0,128,255,0.3)}
 .platform-epic{background:rgba(147,112,219,0.15);color:#9370db;border-color:rgba(147,112,219,0.3)}
+
+/* Sidebar Buttons */
+.sidebar-bottom{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
+.steam-login-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px 8px;background:linear-gradient(135deg,#0080ff,#0066cc);border:none;border-radius:6px;color:#ffffff;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,128,255,0.2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steam-login-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,128,255,0.3);background:linear-gradient(135deg,#0099ff,#0077dd)}
+.steam-login-btn:active{transform:translateY(0);box-shadow:0 2px 6px rgba(0,128,255,0.2)}
+.steam-login-btn .steam-icon{font-size:14px}
+.steam-logout-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:10px 8px;background:linear-gradient(135deg,#0080ff,#0066cc);border:none;border-radius:6px;color:#ffffff;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,128,255,0.2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.steam-logout-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,128,255,0.3);background:linear-gradient(135deg,#0099ff,#0077dd)}
+.steam-logout-btn:active{transform:translateY(0);box-shadow:0 2px 6px rgba(0,128,255,0.2)}
+.sidebar-version{font-size:10px;color:var(--text);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,122,0,0.1);text-align:center;width:100%;font-weight:600;letter-spacing:0.5px}
+body.theme-light .sidebar-version{border-top-color:rgba(255,122,0,0.15)}
 .library-controls{display:flex;flex-direction:column;gap:12px;margin-bottom:20px;padding:0 0 12px 0;border-bottom:1px solid #222}
 .search-box{display:flex;gap:8px;align-items:center;position:relative}
 .search-input{flex:1;padding:10px 12px;background:#161616;border:1px solid #333;border-radius:6px;color:var(--text);font-size:14px}
