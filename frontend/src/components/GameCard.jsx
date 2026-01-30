@@ -31,26 +31,30 @@ export default function GameCard({game, viewMode='grid'}){
 
   return (
     <article className={`game-card ${viewMode === 'list' ? 'list' : ''}`}>
-      <div className="game-thumb">
-        {image ? <img src={image} alt={name} /> : <div className="thumb-placeholder" />}
+      <div className="game-card-image">
+        <div className="game-thumb">
+          {image ? <img src={image} alt={name} /> : <div className="thumb-placeholder" />}
+        </div>
+        <div className="game-card-overlay">
+          <LaunchButton onClick={start} loading={launching} />
+        </div>
       </div>
       <div className="game-meta">
-        <h3>{name}</h3>
+        <div className="game-meta-header">
+          <h3>{name}</h3>
+          <span className={`platform platform-${platform.toLowerCase()}`}>{platform}</span>
+        </div>
         <div className="game-info">
-          <div className="info-row">
-            <span className="info-label">Zuletzt gespielt:</span>
-            <span className="info-value">{getLastPlayedDate(lastPlayed)}</span>
-          </div>
-          {playtime > 0 && (
+          {lastPlayed && (
             <div className="info-row">
-              <span className="info-label">Spielzeit:</span>
-              <span className="info-value">{getPlaytimeHours(playtime)}</span>
+              <span className="info-label">Zuletzt:</span>
+              <span className="info-value">{getLastPlayedDate(lastPlayed)}</span>
             </div>
           )}
-        </div>
-        <div className="game-meta-bottom">
-          <span className="platform">{platform}</span>
-          <LaunchButton onClick={start} loading={launching} />
+          <div className="info-row">
+            <span className="info-label">Zeit:</span>
+            <span className="info-value">{getPlaytimeHours(playtime)}</span>
+          </div>
         </div>
       </div>
     </article>
