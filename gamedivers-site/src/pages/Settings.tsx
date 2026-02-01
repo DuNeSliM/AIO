@@ -12,33 +12,57 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="hud-glass rounded-xl p-6">
-        <p className="hud-label">{t('settings.title')}</p>
-        <h1 className="text-2xl tone-primary">{t('settings.title')}</h1>
-        <p className="text-sm tone-muted">{t('settings.subtitle')}</p>
+      <header className="term-frame term-frame--orange">
+        <div className="term-panel rounded-[15px] p-6">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <p className="term-label">{t('settings.title')}</p>
+          <h1 className="text-2xl tone-primary">{t('settings.title')}</h1>
+          <p className="text-sm term-subtle">{t('settings.subtitle')}</p>
+        </div>
       </header>
 
-      <div className="hud-panel rounded-xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-lg tone-primary">{t('settings.theme')}</div>
-            <div className="text-xs tone-muted">{t('settings.themeHint')}</div>
+      <div className="term-frame">
+        <div className="term-panel rounded-[15px] p-5">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
-          <button className="btn-primary" onClick={onToggleTheme}>
-            {isDark ? t('settings.dark') : t('settings.light')}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-lg tone-primary">{t('settings.theme')}</div>
+              <div className="text-xs term-subtle">{t('settings.themeHint')}</div>
+            </div>
+            <button className="term-btn-primary" onClick={onToggleTheme}>
+              {isDark ? t('settings.dark') : t('settings.light')}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="hud-panel rounded-xl p-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-lg tone-primary">{t('settings.language')}</div>
-            <div className="text-xs tone-muted">{t('settings.languageHint')}</div>
+      <div className="term-frame">
+        <div className="term-panel rounded-[15px] p-5">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
-          <button className="btn-ghost" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
-            {lang === 'de' ? 'Deutsch' : 'English'}
-          </button>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-lg tone-primary">{t('settings.language')}</div>
+              <div className="text-xs term-subtle">{t('settings.languageHint')}</div>
+            </div>
+            <button className="term-btn-secondary" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
+              {lang === 'de' ? 'Deutsch' : 'English'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

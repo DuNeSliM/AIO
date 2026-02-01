@@ -16,8 +16,8 @@ export default function GameList({ games = [], viewMode = 'grid' }: GameListProp
           : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
       }
     >
-      {games.map((game) => (
-        <GameCard key={game.id ?? game.name} game={game} viewMode={viewMode} />
+      {games.map((game, index) => (
+        <GameCard key={game.id ?? game.name} game={game} viewMode={viewMode} index={index} />
       ))}
     </div>
   )

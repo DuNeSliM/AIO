@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { searchItad, getItadPrices } from '../services/api'
 import { useI18n } from '../i18n/i18n'
 import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem } from '../types'
@@ -33,6 +33,7 @@ export default function Store() {
   const [prices, setPrices] = useState<ItadPricesResponse | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
   const [region, setRegion] = useState(() => localStorage.getItem('storeRegion') || 'DE')
+  const [logs, setLogs] = useState<string[]>([])
   const {
     items,
     addItem,
@@ -55,6 +56,9 @@ export default function Store() {
 
   const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
   const lastCheckedLabel = lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : t('store.wishlist.never')
+  const pushLog = useCallback((entry: string) => {
+    setLogs((prev) => [entry, ...prev].slice(0, 4))
+  }, [])
 
   const onSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -74,6 +78,7 @@ export default function Store() {
             ? data.results
             : []
       setResults(normalized)
+      pushLog(`SCAN COMPLETE: ${normalized.length} RESULTS`)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setError(message)
@@ -86,6 +91,7 @@ export default function Store() {
     setSelected(game)
     setLoading(true)
     setError(null)
+    pushLog(`UPLINK COMPARE: ${game.title}`)
     try {
       const data = await getItadPrices(game.id, region)
       setPrices(data)
@@ -95,6 +101,12 @@ export default function Store() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const onPing = async () => {
+    pushLog('PING UPLINK: START')
+    await checkPrices()
+    pushLog('PING UPLINK: COMPLETE')
   }
 
   const priceItem = Array.isArray(prices)
@@ -110,135 +122,212 @@ export default function Store() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="hud-glass rounded-xl p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="hud-label">{t('store.title')}</p>
-            <h1 className="text-2xl tone-primary">{t('store.title')}</h1>
-            <p className="text-sm tone-muted">{t('store.subtitle')}</p>
+      <header className="term-frame term-frame--orange">
+        <div className="term-panel rounded-[15px] p-6">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
+          <div className="term-label">{t('store.title')}</div>
+          <h1 className="mt-3 text-2xl tone-primary">{t('store.title')}</h1>
+          <p className="mt-2 text-sm term-subtle">{t('store.subtitle')}</p>
         </div>
       </header>
 
-      <form className="hud-panel flex flex-wrap items-center gap-3 rounded-xl p-5" onSubmit={onSearch}>
-        <input
-          className="input-hud flex-1"
-          type="text"
-          placeholder={t('store.searchPlaceholder')}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <span className="hud-label">{t('store.region')}</span>
-        <select
-          className="btn-soft text-sm"
-          value={region}
-          onChange={(event) => {
-            const value = event.target.value
-            setRegion(value)
-            localStorage.setItem('storeRegion', value)
-          }}
-        >
-          <option value="DE">DE</option>
-          <option value="US">US</option>
-          <option value="GB">UK</option>
-          <option value="FR">FR</option>
-          <option value="ES">ES</option>
-          <option value="IT">IT</option>
-          <option value="NL">NL</option>
-          <option value="PL">PL</option>
-          <option value="SE">SE</option>
-          <option value="NO">NO</option>
-          <option value="FI">FI</option>
-          <option value="DK">DK</option>
-          <option value="CA">CA</option>
-          <option value="AU">AU</option>
-        </select>
-        <button type="submit" className="btn-primary" disabled={loading}>
-          {t('store.search')}
-        </button>
+      <section className="term-frame">
+        <div className="term-panel rounded-[15px] p-4">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span className="term-chip">SHIP: AIO-01</span>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
+                UPLINK
+                <div className="term-meter" style={{ '--term-meter': '70%' } as CSSProperties} />
+              </div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
+                POWER
+                <div className="term-meter" style={{ '--term-meter': '82%' } as CSSProperties} />
+              </div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
+                HULL
+                <div className="term-meter" style={{ '--term-meter': '64%' } as CSSProperties} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="term-chip">REGION: {region}</span>
+              <span className="term-chip">
+                <span className="term-signal" />
+                LINK: STABLE
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <form className="term-frame" onSubmit={onSearch}>
+        <div className="term-panel flex flex-wrap items-center gap-3 rounded-[15px] p-5">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <input
+            className="term-console flex-1"
+            type="text"
+            placeholder={t('store.searchPlaceholder')}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <span className="term-label">{t('store.region')}</span>
+          <select
+            className="term-select"
+            value={region}
+            onChange={(event) => {
+              const value = event.target.value
+              setRegion(value)
+              localStorage.setItem('storeRegion', value)
+              pushLog(`UPLINK: REGION SET -> ${value}`)
+            }}
+          >
+            <option value="DE">DE</option>
+            <option value="US">US</option>
+            <option value="GB">UK</option>
+            <option value="FR">FR</option>
+            <option value="ES">ES</option>
+            <option value="IT">IT</option>
+            <option value="NL">NL</option>
+            <option value="PL">PL</option>
+            <option value="SE">SE</option>
+            <option value="NO">NO</option>
+            <option value="FI">FI</option>
+            <option value="DK">DK</option>
+            <option value="CA">CA</option>
+            <option value="AU">AU</option>
+          </select>
+          <button type="submit" className="term-btn-primary" disabled={loading}>
+            {t('store.search')}
+          </button>
+        </div>
       </form>
+
+      <div className="term-panel rounded-[15px] p-4">
+        <div className="term-label">NAV TELEMETRY</div>
+        <div className="mt-3 flex flex-wrap items-center gap-6 text-xs uppercase tracking-[0.2em] text-white/50">
+          <span>RESULTS: {hasSearched ? results.length : 0}</span>
+          <span>WATCHLIST LAST PING: {lastCheckedLabel}</span>
+          <span>SELECTED: {selected?.title ? 'LOCKED' : 'NONE'}</span>
+        </div>
+      </div>
 
       {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
 
-      {hasSearched && !loading && results.length === 0 && <div className="text-sm tone-muted">{t('store.empty')}</div>}
+      {hasSearched && !loading && results.length === 0 && <div className="text-sm term-subtle">{t('store.empty')}</div>}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {results.map((game) => (
-          <div
-            key={game.id}
-            className={`flex flex-col gap-4 rounded-xl border p-4 ${
-              selected?.id === game.id ? 'border-ember/70 bg-panel/90' : 'border-neon/15 bg-panel/60'
-            }`}
-          >
-            <div>
-              <p className="hud-label">Search hit</p>
-              <div className="text-lg tone-primary">{game.title}</div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-primary" onClick={() => onCompare(game)} disabled={loading}>
-                {selected?.id === game.id && loading ? '...' : t('store.compare')}
-              </button>
-              {wishlistIds.has(game.id) ? (
-                <button className="btn-ghost" onClick={() => removeItem(game.id)}>
-                  {t('store.wishlist.remove')}
+          <div key={game.id} className={`term-frame ${selected?.id === game.id ? 'term-frame--orange' : ''}`}>
+            <div className="term-panel rounded-[15px] p-4">
+              <div className="term-corners">
+                <span />
+                <span />
+                <span />
+                <span />
+              </div>
+              <div>
+                <p className="term-label">SEARCH HIT</p>
+                <div className="text-lg tone-primary">{game.title}</div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="term-btn-primary" onClick={() => onCompare(game)} disabled={loading}>
+                  {selected?.id === game.id && loading ? '...' : t('store.compare')}
                 </button>
-              ) : (
-                <button className="btn-ghost" onClick={() => addItem({ id: game.id, title: game.title })}>
-                  {t('store.wishlist.add')}
-                </button>
-              )}
+                {wishlistIds.has(game.id) ? (
+                  <button
+                    className="term-btn-secondary"
+                    onClick={() => {
+                      removeItem(game.id)
+                      pushLog(`WATCHLIST: JETTISON -> ${game.title}`)
+                    }}
+                  >
+                    {t('store.wishlist.remove')}
+                  </button>
+                ) : (
+                  <button
+                    className="term-btn-secondary"
+                    onClick={() => {
+                      addItem({ id: game.id, title: game.title })
+                      pushLog(`WATCHLIST: ADD -> ${game.title}`)
+                    }}
+                  >
+                    {t('store.wishlist.add')}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <section className="hud-panel rounded-xl p-6">
+      <section className="term-frame">
+        <div className="term-panel rounded-[15px] p-6">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="hud-label">{t('store.wishlist.title')}</p>
+            <p className="term-label">{t('store.wishlist.title')}</p>
             <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
-            <div className="text-xs tone-muted">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
+            <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
           </div>
-          <button className="btn-primary" onClick={() => void checkPrices()} disabled={checking || items.length === 0}>
+          <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
             {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
           </button>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="tone-muted">{t('store.wishlist.notifications')}</span>
+            <span className="term-subtle">{t('store.wishlist.notifications')}</span>
             <button
-              className="btn-ghost"
+              className="term-btn-secondary"
               onClick={() => (notificationsEnabled ? disableNotifications() : void enableNotifications())}
               disabled={!notificationsSupported}
             >
               {notificationsEnabled ? t('store.wishlist.disable') : t('store.wishlist.enable')}
             </button>
-            {!notificationsSupported && <span className="text-xs tone-muted">{t('store.wishlist.notSupported')}</span>}
+            {!notificationsSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
           </div>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="tone-muted">{t('store.wishlist.onedrive')}</span>
+            <span className="term-subtle">{t('store.wishlist.onedrive')}</span>
             {onedriveStatus === 'connected' ? (
-              <button className="btn-ghost" onClick={() => void disconnectOnedrive()}>
+              <button className="term-btn-secondary" onClick={() => void disconnectOnedrive()}>
                 {t('store.wishlist.disconnect')}
               </button>
             ) : onedriveStatus === 'permission-required' ? (
-              <button className="btn-ghost" onClick={() => void requestOnedriveAccess()}>
+              <button className="term-btn-secondary" onClick={() => void requestOnedriveAccess()}>
                 {t('store.wishlist.grant')}
               </button>
             ) : (
-              <button className="btn-ghost" onClick={() => void connectOnedrive()} disabled={!onedriveSupported}>
+              <button className="term-btn-secondary" onClick={() => void connectOnedrive()} disabled={!onedriveSupported}>
                 {t('store.wishlist.connect')}
               </button>
             )}
-            {!onedriveSupported && <span className="text-xs tone-muted">{t('store.wishlist.notSupported')}</span>}
-            {onedriveSupported && onedriveStatus === 'connected' && (
-              <span className="text-xs text-neon/80">{t('store.wishlist.connected')}</span>
-            )}
+            {!onedriveSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
+            {onedriveSupported && onedriveStatus === 'connected' && <span className="term-chip">{t('store.wishlist.connected')}</span>}
           </div>
         </div>
 
-        {items.length === 0 && <div className="mt-4 text-sm tone-muted">{t('store.wishlist.empty')}</div>}
+        {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
 
         {items.length > 0 && (
           <div className="mt-4 grid gap-3">
@@ -246,15 +335,15 @@ export default function Store() {
               <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4">
                 <div className="flex flex-col gap-2">
                   <div className="text-base tone-primary">{item.title}</div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs tone-muted">
+                  <div className="flex flex-wrap items-center gap-2 text-xs term-subtle">
                     <span>
                       {item.lastPrice !== undefined
                         ? formatPrice({ amount: item.lastPrice, currency: item.currency })
                         : '-'}
                     </span>
-                    {item.onSale && <span className="chip border-ember/40 text-ember">{t('store.wishlist.onSale')}</span>}
+                    {item.onSale && <span className="term-chip border-ember/40 text-ember">{t('store.wishlist.onSale')}</span>}
                     {item.belowThreshold && (
-                      <span className="chip border-neon/40 text-neon">{t('store.wishlist.belowTarget')}</span>
+                      <span className="term-chip border-neon/40 text-neon">{t('store.wishlist.belowTarget')}</span>
                     )}
                   </div>
                 </div>
@@ -269,9 +358,15 @@ export default function Store() {
                     onChange={(event) =>
                       updateThreshold(item.id, event.target.value ? Number(event.target.value) : null)
                     }
-                    className="input-hud w-32"
+                    className="term-console w-32"
                   />
-                  <button className="btn-ghost" onClick={() => removeItem(item.id)}>
+                  <button
+                    className="term-btn-secondary"
+                    onClick={() => {
+                      removeItem(item.id)
+                      pushLog(`WATCHLIST: JETTISON -> ${item.title}`)
+                    }}
+                  >
                     {t('store.wishlist.remove')}
                   </button>
                 </div>
@@ -282,61 +377,88 @@ export default function Store() {
 
         {alerts.length > 0 && (
           <div className="mt-6 rounded-lg border border-neon/15 bg-black/20 p-4">
-            <div className="hud-label">{t('store.wishlist.alerts')}</div>
-          <div className="mt-2 flex flex-col gap-2 text-xs tone-muted">
-            {alerts.map((alert) => (
-              <div key={alert.id} className="flex items-center justify-between gap-4">
-                <span>{alert.message}</span>
+            <div className="term-label">{t('store.wishlist.alerts')}</div>
+            <div className="mt-2 flex flex-col gap-2 text-xs term-subtle">
+              {alerts.map((alert) => (
+                <div key={alert.id} className="flex items-center justify-between gap-4">
+                  <span>{alert.message}</span>
                   <span>{new Date(alert.createdAt).toLocaleTimeString()}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
+        </div>
       </section>
 
       {selected && (
-        <section className="hud-panel rounded-xl p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="hud-label">{t('store.compare')}</p>
-              <h2 className="text-xl tone-primary">{selected.title}</h2>
+        <section className="term-frame term-frame--orange">
+          <div className="term-panel rounded-[15px] p-6">
+            <div className="term-corners">
+              <span />
+              <span />
+              <span />
+              <span />
             </div>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-              <div className="hud-label">{t('store.steam')}</div>
-              <div className="text-2xl tone-primary">{formatPrice(steamBest?.price)}</div>
-              {steamBest?.cut && steamBest.cut > 0 && <div className="text-sm text-ember">-{steamBest.cut}%</div>}
-              {steamBest?.url && (
-                <a className="btn-ghost mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
-                  {t('store.offer')}
-                </a>
-              )}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="term-label">{t('store.compare')}</p>
+                <h2 className="text-xl tone-primary">{selected.title}</h2>
+              </div>
             </div>
-            <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-              <div className="hud-label">{t('store.epic')}</div>
-              <div className="text-2xl tone-primary">{formatPrice(epicBest?.price)}</div>
-              {epicBest?.cut && epicBest.cut > 0 && <div className="text-sm text-ember">-{epicBest.cut}%</div>}
-              {epicBest?.url && (
-                <a className="btn-ghost mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
-                  {t('store.offer')}
-                </a>
-              )}
-            </div>
-            <div className="rounded-lg border border-ember/40 bg-black/30 p-4 shadow-ember">
-              <div className="hud-label">{t('store.cheapest')}</div>
-              <div className="text-2xl tone-primary">{formatPrice(overallBest?.price)}</div>
-              {overallBest?.shop?.name && <div className="text-sm tone-muted">{overallBest.shop.name}</div>}
-              {overallBest?.url && (
-                <a className="btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
-                  {t('store.offer')}
-                </a>
-              )}
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
+                <div className="term-label">{t('store.steam')}</div>
+                <div className="text-2xl tone-primary">{formatPrice(steamBest?.price)}</div>
+                {steamBest?.cut && steamBest.cut > 0 && <div className="text-sm text-ember">-{steamBest.cut}%</div>}
+                {steamBest?.url && (
+                  <a className="term-btn-secondary mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
+                    {t('store.offer')}
+                  </a>
+                )}
+              </div>
+              <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
+                <div className="term-label">{t('store.epic')}</div>
+                <div className="text-2xl tone-primary">{formatPrice(epicBest?.price)}</div>
+                {epicBest?.cut && epicBest.cut > 0 && <div className="text-sm text-ember">-{epicBest.cut}%</div>}
+                {epicBest?.url && (
+                  <a className="term-btn-secondary mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
+                    {t('store.offer')}
+                  </a>
+                )}
+              </div>
+              <div className="rounded-lg border border-ember/40 bg-black/30 p-4 shadow-ember">
+                <div className="term-label">{t('store.cheapest')}</div>
+                <div className="text-2xl tone-primary">{formatPrice(overallBest?.price)}</div>
+                {overallBest?.shop?.name && <div className="text-sm tone-muted">{overallBest.shop.name}</div>}
+                {overallBest?.url && (
+                  <a className="term-btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
+                    {t('store.offer')}
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </section>
       )}
+
+      <section className="term-frame">
+        <div className="term-panel rounded-[15px] p-5">
+          <div className="term-corners">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+          <div className="term-label">SYSTEM LOG</div>
+          <div className="mt-3 flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
+            {logs.length === 0 && <span>NO RECENT EVENTS</span>}
+            {logs.map((entry, index) => (
+              <span key={`${entry}-${index}`}>{entry}</span>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   )
 }
