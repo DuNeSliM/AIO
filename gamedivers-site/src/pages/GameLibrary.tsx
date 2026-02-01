@@ -49,70 +49,77 @@ export default function GameLibrary() {
   }, [loadEpicLibrary])
 
   return (
-    <div className="page-library">
-      <header className="page-header">
-        <div>
-          <h1>{t('library.title')}</h1>
-          {steamAuth.isLoggedIn && (
-            <p className="steam-status">{t('library.steamConnected', { username: steamAuth.username ?? '' })}</p>
-          )}
-        </div>
-        <div className="sync-actions">
-          {steamAuth.isLoggedIn && (
-            <button onClick={() => loadSteamLibrary(steamAuth.steamId ?? '')} disabled={loading || syncing}>
-              {syncing ? '...' : t('library.syncSteam')}
+    <div className="flex flex-col gap-6">
+      <header className="hud-glass rounded-xl p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="hud-label">{t('library.title')}</p>
+            <h1 className="text-2xl tone-primary">{t('library.title')}</h1>
+            {steamAuth.isLoggedIn && (
+              <p className="text-sm tone-muted">{t('library.steamConnected', { username: steamAuth.username ?? '' })}</p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {steamAuth.isLoggedIn && (
+              <button className="btn-primary" onClick={() => loadSteamLibrary(steamAuth.steamId ?? '')} disabled={loading || syncing}>
+                {syncing ? '...' : t('library.syncSteam')}
+              </button>
+            )}
+            <button className="btn-soft" onClick={() => loadEpicLibrary()} disabled={loading || syncing}>
+              {syncing ? '...' : t('library.syncEpic')}
             </button>
-          )}
-          <button onClick={() => loadEpicLibrary()} disabled={loading || syncing}>
-            {syncing ? '...' : t('library.syncEpic')}
-          </button>
-          <button onClick={reload} disabled={loading || syncing}>
-            {t('library.reload')}
-          </button>
+            <button className="btn-ghost" onClick={reload} disabled={loading || syncing}>
+              {t('library.reload')}
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="library-controls">
-        <div className="search-box">
-          <input
-            type="text"
-            placeholder={t('library.searchPlaceholder')}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="search-input"
-          />
-          {search && <span className="search-count">{games.length} gefunden</span>}
-        </div>
+      <div className="hud-panel rounded-xl p-5">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-1 items-center gap-3">
+            <input
+              type="text"
+              placeholder={t('library.searchPlaceholder')}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="input-hud"
+            />
+            {search && <span className="chip">{games.length} gefunden</span>}
+          </div>
 
-        <div className="sort-tabs">
-          <select
-            className="sort-dropdown"
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value as SortBy)}
-          >
-            <option value="recent">{t('library.recent')}</option>
-            <option value="a-z">{t('library.az')}</option>
-            <option value="z-a">{t('library.za')}</option>
-            <option value="playtime">{t('library.playtime')}</option>
-          </select>
-          <div className="view-toggle">
-            <button className={`sort-tab ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}>
-              {t('library.viewGrid')}
-            </button>
-            <button className={`sort-tab ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}>
-              {t('library.viewList')}
-            </button>
+          <div className="flex items-center gap-3">
+            <select
+              className="btn-soft text-sm"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SortBy)}
+            >
+              <option value="recent">{t('library.recent')}</option>
+              <option value="a-z">{t('library.az')}</option>
+              <option value="z-a">{t('library.za')}</option>
+              <option value="playtime">{t('library.playtime')}</option>
+            </select>
+            <div className="flex gap-2">
+              <button className={`btn-soft ${viewMode === 'grid' ? 'border-neon/60 text-neon' : ''}`} onClick={() => setViewMode('grid')}>
+                {t('library.viewGrid')}
+              </button>
+              <button className={`btn-soft ${viewMode === 'list' ? 'border-neon/60 text-neon' : ''}`} onClick={() => setViewMode('list')}>
+                {t('library.viewList')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <section>
-        {loading && <div className="loading">{t('library.loading')}</div>}
-        {error && <div className="error">Fehler: {error}</div>}
-        {!loading && !error && games.length === 0 && <div className="empty">{t('library.empty')}</div>}
+      <section className="flex flex-col gap-4">
+        {loading && <div className="text-sm tone-muted">{t('library.loading')}</div>}
+        {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
+        {!loading && !error && games.length === 0 && <div className="text-sm tone-muted">{t('library.empty')}</div>}
         {!loading && !error && games.length > 0 && (
           <>
-            <div className="game-count">{t('library.count', { count: games.length, total: totalGames })}</div>
+            <div className="text-xs uppercase tracking-[0.2em] tone-muted">
+              {t('library.count', { count: games.length, total: totalGames })}
+            </div>
             <GameList games={games} viewMode={viewMode} />
           </>
         )}

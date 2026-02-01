@@ -26,13 +26,15 @@ export default function App() {
 
   return (
     <I18nProvider>
-      <div className="app-root">
-        <Sidebar activePage={page} onNavigate={setPage} />
-        <main className="app-main">
-          {page === 'store' && <Store />}
-          {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
-          {page !== 'store' && page !== 'settings' && <GameLibrary />}
-        </main>
+      <div className="hud-shell">
+        <div className="relative z-10 flex min-h-screen">
+          <Sidebar activePage={page} onNavigate={setPage} />
+          <main className="flex-1 px-6 py-8 lg:px-10">
+            {page === 'store' && <Store />}
+            {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
+            {page !== 'store' && page !== 'settings' && <GameLibrary />}
+          </main>
+        </div>
       </div>
     </I18nProvider>
   )

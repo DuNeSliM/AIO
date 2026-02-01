@@ -11,33 +11,32 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
   const isDark = theme === 'dark'
 
   return (
-    <div className="settings-page">
-      <header className="page-header">
-        <div>
-          <h1>{t('settings.title')}</h1>
-          <p className="steam-status">{t('settings.subtitle')}</p>
-        </div>
+    <div className="flex flex-col gap-6">
+      <header className="hud-glass rounded-xl p-6">
+        <p className="hud-label">{t('settings.title')}</p>
+        <h1 className="text-2xl tone-primary">{t('settings.title')}</h1>
+        <p className="text-sm tone-muted">{t('settings.subtitle')}</p>
       </header>
 
-      <div className="settings-card">
-        <div className="settings-row">
+      <div className="hud-panel rounded-xl p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="settings-title">{t('settings.theme')}</div>
-            <div className="settings-sub">{t('settings.themeHint')}</div>
+            <div className="text-lg tone-primary">{t('settings.theme')}</div>
+            <div className="text-xs tone-muted">{t('settings.themeHint')}</div>
           </div>
-          <button className="settings-toggle" onClick={onToggleTheme}>
+          <button className="btn-primary" onClick={onToggleTheme}>
             {isDark ? t('settings.dark') : t('settings.light')}
           </button>
         </div>
       </div>
 
-      <div className="settings-card">
-        <div className="settings-row">
+      <div className="hud-panel rounded-xl p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="settings-title">{t('settings.language')}</div>
-            <div className="settings-sub">{t('settings.languageHint')}</div>
+            <div className="text-lg tone-primary">{t('settings.language')}</div>
+            <div className="text-xs tone-muted">{t('settings.languageHint')}</div>
           </div>
-          <button className="settings-toggle" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
+          <button className="btn-ghost" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
             {lang === 'de' ? 'Deutsch' : 'English'}
           </button>
         </div>

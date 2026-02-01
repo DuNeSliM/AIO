@@ -49,3 +49,15 @@ export type ItadPricesResponse =
   | {
       games?: Record<string, ItadPriceItem>
     }
+
+export type WishlistItem = {
+  id: string
+  title: string
+  addedAt: number
+  threshold?: number
+  currency?: string
+  lastPrice?: number
+  onSale?: boolean
+  belowThreshold?: boolean
+  lastCheckedAt?: number
+}

@@ -10,7 +10,7 @@ type LaunchButtonProps = {
 
 function LaunchButton({ onClick, loading }: LaunchButtonProps) {
   return (
-    <button className="btn-launch" onClick={onClick} disabled={loading}>
+    <button className="btn-primary text-xs" onClick={onClick} disabled={loading}>
       {loading ? 'Starte...' : 'Start'}
     </button>
   )
@@ -41,26 +41,43 @@ export default function GameCard({ game, viewMode = 'grid' }: GameCardProps) {
   }
 
   return (
-    <article className={`game-card ${viewMode === 'list' ? 'list' : ''}`}>
-      <div className="game-thumb">
-        {image ? <img src={image} alt={name} /> : <div className="thumb-placeholder" />}
+    <article
+      className={`group flex gap-4 rounded-xl border border-neon/10 bg-panel/70 p-4 shadow-glow transition hover:border-neon/40 ${
+        viewMode === 'list' ? 'items-center' : 'flex-col'
+      }`}
+    >
+      <div className={viewMode === 'list' ? 'flex h-16 w-24 shrink-0 items-center' : 'w-full'}>
+        {image ? (
+          <img
+            src={image}
+            alt={name}
+            className={`rounded-lg object-cover ${viewMode === 'list' ? 'h-16 w-24' : 'h-36 w-full'}`}
+          />
+        ) : (
+          <div
+            className={`rounded-lg bg-white/5 ${viewMode === 'list' ? 'h-16 w-24' : 'h-36 w-full'}`}
+          />
+        )}
       </div>
-      <div className="game-meta">
-        <h3>{name}</h3>
-        <div className="game-info">
-          <div className="info-row">
-            <span className="info-label">Zuletzt gespielt:</span>
-            <span className="info-value">{getLastPlayedDate(lastPlayed)}</span>
+      <div className="flex flex-1 flex-col gap-3">
+        <div>
+          <p className="hud-label">Game</p>
+          <h3 className="text-lg tone-primary">{name}</h3>
+        </div>
+        <div className="space-y-1 text-xs tone-muted">
+          <div className="flex items-center justify-between">
+            <span>Zuletzt gespielt</span>
+            <span className="tone-soft">{getLastPlayedDate(lastPlayed)}</span>
           </div>
           {(playtime ?? 0) > 0 && (
-            <div className="info-row">
-              <span className="info-label">Spielzeit:</span>
-              <span className="info-value">{getPlaytimeHours(playtime)}</span>
+            <div className="flex items-center justify-between">
+              <span>Spielzeit</span>
+              <span className="tone-soft">{getPlaytimeHours(playtime)}</span>
             </div>
           )}
         </div>
-        <div className="game-meta-bottom">
-          <span className="platform">{platform}</span>
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-[0.2em] tone-muted">{platform}</span>
           <LaunchButton onClick={start} loading={launching} />
         </div>
       </div>

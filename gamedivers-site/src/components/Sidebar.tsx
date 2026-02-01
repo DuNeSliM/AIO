@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
@@ -41,20 +42,26 @@ const SettingsIcon = () => (
 )
 
 type SidebarIconProps = {
-  icon: JSX.Element
+  icon: ReactNode
   label: string
   onClick: () => void
   className?: string
 }
 
 const SidebarIcon = ({ icon, label, onClick, className }: SidebarIconProps) => (
-  <button className={`sidebar-icon ${className || ''}`} title={label} onClick={onClick}>
-    <div className="icon-box">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <button
+    className={`group flex flex-col items-center gap-2 text-xs uppercase tracking-[0.2em] transition ${
+      className || ''
+    }`}
+    title={label}
+    onClick={onClick}
+  >
+    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-neon/20 bg-panel/80 text-neon shadow-glow transition group-hover:-translate-y-0.5 group-hover:border-neon/60">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         {icon}
       </svg>
     </div>
-    <span className="icon-label">{label}</span>
+    <span className="text-[10px] tone-muted group-hover:text-neon">{label}</span>
   </button>
 )
 
@@ -68,56 +75,52 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   const { t } = useI18n()
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-top">
-        <div className="logo">AIO</div>
+    <aside className="flex w-24 flex-col items-center gap-8 border-r border-neon/10 bg-panel/60 px-3 py-6 backdrop-blur">
+      <div className="flex flex-col items-center gap-3">
+        <div className="font-display text-xl text-ember">AIO</div>
+        <div className="hud-divider w-10" />
         {steamAuth.isLoggedIn && (
-          <div className="user-badge" title={steamAuth.username ?? undefined}>
+          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={steamAuth.username ?? undefined}>
             {steamAuth.username}
           </div>
         )}
       </div>
-      <nav className="sidebar-nav">
+      <nav className="flex flex-col gap-5">
         <SidebarIcon
           icon={<LibraryIcon />}
           label={t('nav.library')}
           onClick={() => onNavigate?.('library')}
-          className={activePage === 'library' ? 'active' : ''}
+          className={activePage === 'library' ? 'text-neon' : 'tone-muted'}
         />
         <SidebarIcon
           icon={<StoreIcon />}
           label={t('nav.store')}
           onClick={() => onNavigate?.('store')}
-          className={activePage === 'store' ? 'active' : ''}
+          className={activePage === 'store' ? 'text-neon' : 'tone-muted'}
         />
         <SidebarIcon icon={<DownloadIcon />} label={t('nav.downloads')} onClick={() => {}} />
         <SidebarIcon
           icon={<SettingsIcon />}
           label={t('nav.settings')}
           onClick={() => onNavigate?.('settings')}
-          className={activePage === 'settings' ? 'active' : ''}
+          className={activePage === 'settings' ? 'text-neon' : 'tone-muted'}
         />
       </nav>
-      <div className="sidebar-bottom">
+      <div className="mt-auto flex w-full flex-col gap-3">
         {!steamAuth.isLoggedIn ? (
-          <button className="steam-login-btn" onClick={steamAuth.login}>
+          <button className="btn-primary w-full text-xs" onClick={steamAuth.login}>
             {t('auth.steamLogin')}
           </button>
         ) : (
-          <button className="steam-logout-btn" onClick={steamAuth.logout}>
+          <button className="btn-ghost w-full text-xs" onClick={steamAuth.logout}>
             {t('auth.steamLogout')}
           </button>
         )}
-        <button
-          className="steam-login-btn"
-          onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}
-          style={{ marginTop: '8px' }}
-        >
+        <button className="btn-soft w-full text-xs" onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}>
           {t('epic.localSync')}
         </button>
-        <small>v0.1</small>
+        <small className="text-center text-[10px] tone-muted">v0.1</small>
       </div>
     </aside>
   )
 }
-

@@ -7,9 +7,15 @@ type GameListProps = {
 }
 
 export default function GameList({ games = [], viewMode = 'grid' }: GameListProps) {
-  if (!games.length) return <div className="empty">No games found</div>
+  if (!games.length) return <div className="text-sm tone-muted">No games found</div>
   return (
-    <div className={`game-list ${viewMode === 'list' ? 'list' : 'grid'}`}>
+    <div
+      className={
+        viewMode === 'list'
+          ? 'flex flex-col gap-4'
+          : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+      }
+    >
       {games.map((game) => (
         <GameCard key={game.id ?? game.name} game={game} viewMode={viewMode} />
       ))}
