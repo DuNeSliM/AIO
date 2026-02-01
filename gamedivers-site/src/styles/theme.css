@@ -169,6 +169,51 @@
   .term-cardHeader {
     @apply pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-black/60 to-transparent;
   }
+
+  .term-xpbar {
+    @apply relative h-3 w-full overflow-hidden rounded-full border border-neon/30 bg-black/60;
+  }
+
+  .term-xpbar::after {
+    content: '';
+    @apply absolute inset-0;
+    width: var(--term-xp, 0%);
+    background: linear-gradient(90deg, rgba(72, 242, 255, 0.6), rgba(255, 122, 0, 0.9));
+    box-shadow: 0 0 12px rgba(72, 242, 255, 0.3);
+  }
+
+  .term-xpbar--pulse {
+    animation: term-pulse 0.6s ease-out;
+  }
+
+  .term-toast {
+    @apply rounded-lg border border-ember/40 bg-black/80 px-4 py-3 text-xs uppercase tracking-[0.2em] text-ember shadow-ember;
+  }
+
+  .term-mission {
+    @apply rounded-lg border border-neon/20 bg-black/40 px-4 py-3;
+  }
+
+  .term-scanOverlay {
+    @apply absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-[15px] bg-black/70 text-xs uppercase tracking-[0.2em] text-neon;
+  }
+
+  .term-scanOverlay::before {
+    content: '';
+    @apply absolute inset-0;
+    background:
+      linear-gradient(180deg, rgba(0, 255, 255, 0.18), transparent 30%, rgba(0, 0, 0, 0.7)),
+      repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0px, rgba(255, 255, 255, 0.05) 1px, transparent 2px, transparent 4px);
+  }
+
+  .term-scanline {
+    @apply absolute left-0 top-0 h-1 w-full bg-neon/60;
+    animation: term-scanline 1.2s linear infinite;
+  }
+
+  .term-banner {
+    @apply absolute left-4 top-4 z-10 rounded-full border border-ember/40 bg-black/70 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-ember;
+  }
   .hud-frame {
     @apply relative rounded-2xl p-[1px];
     background: linear-gradient(135deg, rgba(72, 242, 255, 0.4), rgba(72, 242, 255, 0.06), rgba(255, 122, 0, 0.18));
@@ -365,6 +410,14 @@
     animation: none;
   }
 
+  .term-xpbar--pulse {
+    animation: none;
+  }
+
+  .term-scanline {
+    animation: none;
+  }
+
   .hud-panel::before {
     animation: none;
     transform: translateX(-120%);
@@ -390,6 +443,27 @@
   }
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes term-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(72, 242, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px rgba(72, 242, 255, 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(72, 242, 255, 0);
+  }
+}
+
+@keyframes term-scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
   }
 }
 

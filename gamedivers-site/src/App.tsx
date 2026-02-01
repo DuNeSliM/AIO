@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import GameLibrary from './pages/GameLibrary'
 import Store from './pages/Store'
 import Settings from './pages/Settings'
+import CommanderHud from './components/CommanderHud'
 import { I18nProvider } from './i18n/i18n'
 import type { Page, Theme } from './types'
 
@@ -30,6 +31,9 @@ export default function App() {
         <div className="relative z-10 flex min-h-screen">
           <Sidebar activePage={page} onNavigate={setPage} />
           <main className="flex-1 px-6 py-8 lg:px-10">
+            <div className="mb-6">
+              <CommanderHud />
+            </div>
             {page === 'store' && <Store />}
             {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
             {page !== 'store' && page !== 'settings' && <GameLibrary />}

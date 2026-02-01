@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { launchGame } from '../services/api'
 import { getLastPlayedDate, getPlaytimeHours } from '../utils/gameFormat'
 import type { Game, ViewMode } from '../types'
+import { award, recordLaunchUnplayed } from '../utils/gameify'
 
 type LaunchButtonProps = {
   onClick: () => void
@@ -31,6 +32,10 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
   const start = async () => {
     setLaunching(true)
     try {
+      award(20, 15)
+      if (!lastPlayed || lastPlayed === 0) {
+        recordLaunchUnplayed()
+      }
       const identifier = appId || appName || gameName || id
       await launchGame(platform ?? 'unknown', identifier ?? '', appName ?? gameName)
       console.log(`Started ${name} (${platform})`)
