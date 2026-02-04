@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { launchGame } from '../services/api'
 import { getLastPlayedDate, getPlaytimeHours } from '../utils/gameFormat'
 import type { Game, ViewMode } from '../types'
-import { award, recordLaunchUnplayed } from '../utils/gameify'
+import { addEventLog, award, recordLaunchUnplayed } from '../utils/gameify'
 
 type LaunchButtonProps = {
   onClick: () => void
@@ -12,7 +12,7 @@ type LaunchButtonProps = {
 function LaunchButton({ onClick, loading }: LaunchButtonProps) {
   return (
     <button className="term-btn-primary text-xs" onClick={onClick} disabled={loading}>
-      {loading ? '...' : 'LAUNCH'}
+      {loading ? '...' : 'Start'}
     </button>
   )
 }
@@ -36,6 +36,7 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
       if (!lastPlayed || lastPlayed === 0) {
         recordLaunchUnplayed()
       }
+      addEventLog(`LAUNCH: ${name}`)
       const identifier = appId || appName || gameName || id
       await launchGame(platform ?? 'unknown', identifier ?? '', appName ?? gameName)
       console.log(`Started ${name} (${platform})`)
@@ -75,23 +76,23 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
         </div>
         <div className="flex flex-1 flex-col gap-3">
           <div>
-            <p className="term-label">ASSET ID: {assetId}</p>
+            <p className="term-label">ID: {assetId}</p>
             <h3 className="text-lg tone-primary">{name}</h3>
           </div>
           <div className="space-y-1 text-xs term-subtle">
             <div className="flex items-center justify-between">
-              <span>LAST LAUNCH</span>
+              <span>Last played</span>
               <span className="tone-soft">{getLastPlayedDate(lastPlayed)}</span>
             </div>
             {(playtime ?? 0) > 0 && (
               <div className="flex items-center justify-between">
-                <span>FLIGHT TIME</span>
+                <span>Playtime</span>
                 <span className="tone-soft">{getPlaytimeHours(playtime)}</span>
               </div>
             )}
           </div>
           <div className="flex items-center justify-between">
-            <span className="term-chip">NODE: {nodeLabel}</span>
+            <span className="term-chip">Store: {nodeLabel}</span>
             <LaunchButton onClick={start} loading={launching} />
           </div>
         </div>

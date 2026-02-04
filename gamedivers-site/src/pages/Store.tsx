@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { searchItad, getItadPrices } from '../services/api'
 import { useI18n } from '../i18n/i18n'
 import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem } from '../types'
 import { useWishlist } from '../hooks/useWishlist'
 import {
+  addEventLog,
   award,
   loadCounters,
   loadMissionProgress,
@@ -48,37 +49,18 @@ export default function Store() {
   const [prices, setPrices] = useState<ItadPricesResponse | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
   const [region, setRegion] = useState(() => localStorage.getItem('storeRegion') || 'DE')
-  const [logs, setLogs] = useState<string[]>([])
   const [scanning, setScanning] = useState(false)
-  const [telemetry, setTelemetry] = useState('LOCKING UPLINK')
+  const [telemetry, setTelemetry] = useState('LOCKING MARKET')
   const [prefersReduced, setPrefersReduced] = useState(false)
-  const [toasts, setToasts] = useState<string[]>([])
   const [counters, setCounters] = useState(() => loadCounters())
   const [missionProgress, setMissionProgress] = useState(() => loadMissionProgress().progress)
   const [priceCache, setPriceCache] = useState<Record<string, { steam?: number; epic?: number; currency?: string }>>({})
-  const [wishlistMeta, setWishlistMeta] = useState<Record<string, { priority: string; mode: string }>>(() => {
-    const raw = localStorage.getItem('wishlistMeta')
-    if (!raw) return {}
-    try {
-      return JSON.parse(raw) as Record<string, { priority: string; mode: string }>
-    } catch {
-      return {}
-    }
-  })
+  const [showWishlist, setShowWishlist] = useState(() => localStorage.getItem('showWishlist') !== 'false')
   const {
     items,
     addItem,
     removeItem,
     updateThreshold,
-    onedriveStatus,
-    onedriveSupported,
-    connectOnedrive,
-    disconnectOnedrive,
-    requestOnedriveAccess,
-    notificationsEnabled,
-    notificationsSupported,
-    enableNotifications,
-    disableNotifications,
     alerts,
     checking,
     lastCheckedAt,
@@ -87,15 +69,9 @@ export default function Store() {
 
   const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
   const lastCheckedLabel = lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : t('store.wishlist.never')
-  const pushLog = useCallback((entry: string) => {
-    setLogs((prev) => [entry, ...prev].slice(0, 4))
-  }, [])
-  const pushToast = useCallback((entry: string) => {
-    setToasts((prev) => [entry, ...prev].slice(0, 3))
-    window.setTimeout(() => {
-      setToasts((prev) => prev.filter((item) => item !== entry))
-    }, 2400)
-  }, [])
+  const pushLog = useCallback((entry: string) => addEventLog(entry), [])
+  const compareRef = useRef<HTMLDivElement | null>(null)
+  const wishlistRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -114,6 +90,14 @@ export default function Store() {
     return () => window.removeEventListener('mission-update', handler)
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('priceCache', JSON.stringify(priceCache))
+  }, [priceCache])
+
+  useEffect(() => {
+    localStorage.setItem('showWishlist', showWishlist ? 'true' : 'false')
+  }, [showWishlist])
+
   const onSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!query.trim()) return
@@ -124,9 +108,9 @@ export default function Store() {
     setHasSearched(true)
     award(10, 5)
     recordScan()
-    pushLog('SCAN INITIATED')
-    const telemetryOptions = ['LOCKING UPLINK', 'SCANNING NODES', 'CALIBRATING RELAY', 'PINGING MARKETS']
-    setTelemetry(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'LOCKING UPLINK')
+    pushLog('SEARCH STARTED')
+    const telemetryOptions = ['LOCKING MARKET', 'SCANNING STORES', 'CALIBRATING LINKS', 'PINGING MARKET']
+    setTelemetry(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'LOCKING MARKET')
     setScanning(true)
     const started = Date.now()
     try {
@@ -139,7 +123,7 @@ export default function Store() {
             ? data.results
             : []
       setResults(normalized)
-      pushLog(`SCAN COMPLETE: ${normalized.length} RESULTS`)
+      pushLog(`SEARCH COMPLETE: ${normalized.length} RESULTS`)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       setError(message)
@@ -157,7 +141,7 @@ export default function Store() {
     setSelected(game)
     setLoading(true)
     setError(null)
-    pushLog(`UPLINK COMPARE: ${game.title}`)
+    pushLog(`COMPARE: ${game.title}`)
     try {
       const data = await getItadPrices(game.id, region)
       setPrices(data)
@@ -185,12 +169,17 @@ export default function Store() {
     }
   }
 
+  useEffect(() => {
+    if (!selected || !compareRef.current) return
+    compareRef.current.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' })
+  }, [selected, prefersReduced])
+
   const onPing = async () => {
-    pushLog('PING UPLINK: START')
+    pushLog('WATCHLIST SYNC: START')
     award(10, 0)
     recordSync()
     await checkPrices()
-    pushLog('PING UPLINK: COMPLETE')
+    pushLog('WATCHLIST SYNC: COMPLETE')
   }
 
   useEffect(() => {
@@ -201,28 +190,28 @@ export default function Store() {
     if (!progress.scans && counters.scans >= 3) {
       updated.scans = true
       award(25, 20)
-      pushToast('REWARD ACQUIRED: SCAN RUNNER')
+      pushLog('REWARD EARNED: SEARCH RUNNER')
       completed = true
     }
 
     if (!progress.cargo && items.length >= 5) {
       updated.cargo = true
       award(30, 30)
-      pushToast('REWARD ACQUIRED: CARGO TRACKER')
+      pushLog('REWARD EARNED: WATCHLIST TRACKER')
       completed = true
     }
 
     if (!progress.launch && counters.launchUnplayed >= 1) {
       updated.launch = true
       award(40, 35)
-      pushToast('REWARD ACQUIRED: FIRST FLIGHT')
+      pushLog('REWARD EARNED: FIRST LAUNCH')
       completed = true
     }
 
     if (!progress.sync && counters.syncs >= 1) {
       updated.sync = true
       award(20, 10)
-      pushToast('REWARD ACQUIRED: UPLINK SYNC')
+      pushLog('REWARD EARNED: WATCHLIST SYNC')
       completed = true
     }
 
@@ -230,27 +219,7 @@ export default function Store() {
       saveMissionProgress(updated)
       setMissionProgress(updated)
     }
-  }, [counters, items.length, pushToast])
-
-  const updateMeta = (id: string, patch: { priority?: string; mode?: string }) => {
-    setWishlistMeta((prev) => {
-      const next = { ...prev, [id]: { priority: 'MED', mode: 'PASSIVE', ...(prev[id] || {}), ...patch } }
-      localStorage.setItem('wishlistMeta', JSON.stringify(next))
-      return next
-    })
-  }
-
-  const factionSummary = useMemo(() => {
-    let steam = 0
-    let epic = 0
-    Object.values(priceCache).forEach((entry) => {
-      if (typeof entry.steam !== 'number' || typeof entry.epic !== 'number') return
-      const diff = Math.abs(entry.steam - entry.epic)
-      if (entry.steam < entry.epic) steam += diff
-      if (entry.epic < entry.steam) epic += diff
-    })
-    return { steam, epic }
-  }, [priceCache])
+  }, [counters, items.length, pushLog])
 
   const priceItem = Array.isArray(prices)
     ? prices.find((item) => item.id === selected?.id)
@@ -273,46 +242,29 @@ export default function Store() {
             <span />
             <span />
           </div>
-          <div className="term-label">{t('store.title')}</div>
-          <h1 className="mt-3 text-2xl tone-primary">{t('store.title')}</h1>
-          <p className="mt-2 text-sm term-subtle">{t('store.subtitle')}</p>
-        </div>
-      </header>
-
-      <section className="term-frame">
-        <div className="term-panel rounded-[15px] p-4">
-          <div className="term-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-3">
-              <span className="term-chip">SHIP: AIO-01</span>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
-                UPLINK
-                <div className="term-meter" style={{ '--term-meter': '70%' } as CSSProperties} />
-              </div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
-                POWER
-                <div className="term-meter" style={{ '--term-meter': '82%' } as CSSProperties} />
-              </div>
-              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-white/50">
-                HULL
-                <div className="term-meter" style={{ '--term-meter': '64%' } as CSSProperties} />
-              </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="term-label">{t('store.title')}</div>
+              <h1 className="mt-3 text-2xl tone-primary">{t('store.title')}</h1>
+              <p className="mt-2 text-sm term-subtle">{t('store.subtitle')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="term-chip">REGION: {region}</span>
-              <span className="term-chip">
-                <span className="term-signal" />
-                LINK: STABLE
-              </span>
+              <button
+                className="term-btn-secondary"
+                onClick={() => setShowWishlist((prev) => !prev)}
+              >
+                {showWishlist ? 'Hide wishlist' : 'Show wishlist'}
+              </button>
+              <button
+                className="term-btn-secondary"
+                onClick={() => wishlistRef.current?.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' })}
+              >
+                Jump to wishlist
+              </button>
             </div>
           </div>
         </div>
-      </section>
+      </header>
 
       <form className="term-frame" onSubmit={onSearch}>
         <div className="term-panel flex flex-wrap items-center gap-3 rounded-[15px] p-5">
@@ -337,7 +289,7 @@ export default function Store() {
               const value = event.target.value
               setRegion(value)
               localStorage.setItem('storeRegion', value)
-              pushLog(`UPLINK: REGION SET -> ${value}`)
+              pushLog(`REGION SET -> ${value}`)
             }}
           >
             <option value="DE">DE</option>
@@ -361,36 +313,9 @@ export default function Store() {
         </div>
       </form>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-4">
-          <div className="term-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="term-label">NAV TELEMETRY</div>
-          <div className="mt-3 flex flex-wrap items-center gap-6 text-xs uppercase tracking-[0.2em] text-white/50">
-            <span>RESULTS: {hasSearched ? results.length : 0}</span>
-            <span>WATCHLIST LAST PING: {lastCheckedLabel}</span>
-            <span>SELECTED: {selected?.title ? 'LOCKED' : 'NONE'}</span>
-          </div>
-        </div>
-      </div>
-
       {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
 
       {hasSearched && !loading && results.length === 0 && <div className="text-sm term-subtle">{t('store.empty')}</div>}
-
-      {toasts.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {toasts.map((toast) => (
-            <div key={toast} className="term-toast">
-              {toast}
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="relative">
         {scanning && (
@@ -413,9 +338,9 @@ export default function Store() {
             const diff = hasBoth ? Math.abs((cache?.steam ?? 0) - (cache?.epic ?? 0)) : 0
             const currency = cache?.currency ? ` ${cache.currency}` : ''
             const banner = steamCheaper
-              ? `NODE ADVANTAGE: STEAM (-${diff.toFixed(2)}${currency})`
+              ? `BEST PRICE: STEAM (-${diff.toFixed(2)}${currency})`
               : epicCheaper
-                ? `NODE ADVANTAGE: EPIC (-${diff.toFixed(2)}${currency})`
+                ? `BEST PRICE: EPIC (-${diff.toFixed(2)}${currency})`
                 : ''
 
             return (
@@ -441,7 +366,7 @@ export default function Store() {
                         className="term-btn-secondary"
                         onClick={() => {
                           removeItem(game.id)
-                          pushLog(`WATCHLIST: JETTISON -> ${game.title}`)
+                          pushLog(`WATCHLIST: REMOVE -> ${game.title}`)
                         }}
                       >
                         {t('store.wishlist.remove')}
@@ -466,242 +391,8 @@ export default function Store() {
         </div>
       </div>
 
-      <section className="term-frame">
-        <div className="term-panel rounded-[15px] p-6">
-          <div className="term-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="term-label">{t('store.wishlist.title')}</p>
-            <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
-            <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
-          </div>
-          <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
-            {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="term-subtle">{t('store.wishlist.notifications')}</span>
-            <button
-              className="term-btn-secondary"
-              onClick={() => (notificationsEnabled ? disableNotifications() : void enableNotifications())}
-              disabled={!notificationsSupported}
-            >
-              {notificationsEnabled ? t('store.wishlist.disable') : t('store.wishlist.enable')}
-            </button>
-            {!notificationsSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="term-subtle">{t('store.wishlist.onedrive')}</span>
-            {onedriveStatus === 'connected' ? (
-              <button className="term-btn-secondary" onClick={() => void disconnectOnedrive()}>
-                {t('store.wishlist.disconnect')}
-              </button>
-            ) : onedriveStatus === 'permission-required' ? (
-              <button className="term-btn-secondary" onClick={() => void requestOnedriveAccess()}>
-                {t('store.wishlist.grant')}
-              </button>
-            ) : (
-              <button className="term-btn-secondary" onClick={() => void connectOnedrive()} disabled={!onedriveSupported}>
-                {t('store.wishlist.connect')}
-              </button>
-            )}
-            {!onedriveSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
-            {onedriveSupported && onedriveStatus === 'connected' && <span className="term-chip">{t('store.wishlist.connected')}</span>}
-          </div>
-        </div>
-
-        {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
-
-        {items.length > 0 && (
-          <div className="mt-4 grid gap-3">
-            {items.map((item) => {
-              const meta = wishlistMeta[item.id] || { priority: 'MED', mode: 'PASSIVE' }
-              const signalValue = item.belowThreshold ? 90 : item.onSale ? 70 : 35
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4"
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="text-base tone-primary">{item.title}</div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs term-subtle">
-                      <span>
-                        {item.lastPrice !== undefined
-                          ? formatPrice({ amount: item.lastPrice, currency: item.currency })
-                          : '-'}
-                      </span>
-                      {item.onSale && (
-                        <span className="term-chip border-ember/40 text-ember">{t('store.wishlist.onSale')}</span>
-                      )}
-                      {item.belowThreshold && (
-                        <span className="term-chip border-neon/40 text-neon">{t('store.wishlist.belowTarget')}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-white/50">
-                      SIGNAL
-                      <div className="term-meter" style={{ '--term-meter': `${signalValue}%` } as CSSProperties} />
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      className="term-select"
-                      value={meta.priority}
-                      onChange={(event) => updateMeta(item.id, { priority: event.target.value })}
-                    >
-                      <option value="LOW">LOW</option>
-                      <option value="MED">MED</option>
-                      <option value="HIGH">HIGH</option>
-                    </select>
-                    <button
-                      className="term-btn-secondary"
-                      onClick={() =>
-                        updateMeta(item.id, { mode: meta.mode === 'PASSIVE' ? 'AGGRESSIVE' : 'PASSIVE' })
-                      }
-                    >
-                      {meta.mode}
-                    </button>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder={t('store.wishlist.targetPlaceholder')}
-                      value={item.threshold ?? ''}
-                      onChange={(event) =>
-                        updateThreshold(item.id, event.target.value ? Number(event.target.value) : null)
-                      }
-                      className="term-console w-32"
-                    />
-                    <button
-                      className="term-btn-secondary"
-                      onClick={() => {
-                        removeItem(item.id)
-                        pushLog(`WATCHLIST: JETTISON -> ${item.title}`)
-                      }}
-                    >
-                      {t('store.wishlist.remove')}
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-
-        {alerts.length > 0 && (
-          <div className="mt-6 rounded-lg border border-neon/15 bg-black/20 p-4">
-            <div className="term-label">{t('store.wishlist.alerts')}</div>
-            <div className="mt-2 flex flex-col gap-2 text-xs term-subtle">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center justify-between gap-4">
-                  <span>{alert.message}</span>
-                  <span>{new Date(alert.createdAt).toLocaleTimeString()}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="term-label">MISSION BOARD</div>
-            <div className="mt-4 grid gap-3">
-              {[
-                {
-                  id: 'scans',
-                  label: 'RUN 3 SCANS',
-                  progress: Math.min(counters.scans, 3),
-                  target: 3,
-                  reward: '+25 XP / +20 CR',
-                  done: missionProgress.scans,
-                },
-                {
-                  id: 'cargo',
-                  label: 'TRACK 5 CARGO ITEMS',
-                  progress: Math.min(items.length, 5),
-                  target: 5,
-                  reward: '+30 XP / +30 CR',
-                  done: missionProgress.cargo,
-                },
-                {
-                  id: 'launch',
-                  label: 'LAUNCH 1 UNPLAYED TITLE',
-                  progress: Math.min(counters.launchUnplayed, 1),
-                  target: 1,
-                  reward: '+40 XP / +35 CR',
-                  done: missionProgress.launch,
-                },
-                {
-                  id: 'sync',
-                  label: 'SYNC UPLINK ONCE',
-                  progress: Math.min(counters.syncs, 1),
-                  target: 1,
-                  reward: '+20 XP / +10 CR',
-                  done: missionProgress.sync,
-                },
-              ].map((mission) => (
-                <div key={mission.id} className="term-mission">
-                  <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
-                    <span>{mission.label}</span>
-                    <span>{mission.done ? 'COMPLETE' : mission.reward}</span>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3 text-xs text-white/50">
-                    <div className="term-meter" style={{ '--term-meter': `${(mission.progress / mission.target) * 100}%` } as CSSProperties} />
-                    <span>
-                      {mission.progress}/{mission.target}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className="term-label">WEEKLY FACTION REPORT</div>
-            <div className="mt-4 flex flex-col gap-3 text-xs uppercase tracking-[0.2em] text-white/60">
-              <div className="flex items-center justify-between">
-                <span>STEAM SAVINGS</span>
-                <span>{factionSummary.steam.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>EPIC SAVINGS</span>
-                <span>{factionSummary.epic.toFixed(2)}</span>
-              </div>
-              <div className="term-divider" />
-              <div className="flex items-center justify-between">
-                <span>TOTAL ADVANTAGE</span>
-                <span>{(factionSummary.steam + factionSummary.epic).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {selected && (
-        <section className="term-frame term-frame--orange">
+        <section className="term-frame term-frame--orange" ref={compareRef}>
           <div className="term-panel rounded-[15px] p-6">
             <div className="term-corners">
               <span />
@@ -751,23 +442,96 @@ export default function Store() {
         </section>
       )}
 
-      <section className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
-            <span />
-            <span />
-            <span />
-            <span />
+      {showWishlist && (
+        <section className="term-frame" ref={wishlistRef}>
+          <div className="term-panel rounded-[15px] p-6">
+            <div className="term-corners">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="term-label">{t('store.wishlist.title')}</p>
+              <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
+              <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
+            </div>
+            <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
+              {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
+            </button>
           </div>
-          <div className="term-label">SYSTEM LOG</div>
-          <div className="mt-3 flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
-            {logs.length === 0 && <span>NO RECENT EVENTS</span>}
-            {logs.map((entry, index) => (
-              <span key={`${entry}-${index}`}>{entry}</span>
-            ))}
+
+          {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
+
+          {items.length > 0 && (
+            <div className="mt-4 grid gap-3">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="text-base tone-primary">{item.title}</div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs term-subtle">
+                      <span>
+                        {item.lastPrice !== undefined
+                          ? formatPrice({ amount: item.lastPrice, currency: item.currency })
+                          : '-'}
+                      </span>
+                      {item.onSale && (
+                        <span className="term-chip border-ember/40 text-ember">{t('store.wishlist.onSale')}</span>
+                      )}
+                      {item.belowThreshold && (
+                        <span className="term-chip border-neon/40 text-neon">{t('store.wishlist.belowTarget')}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      placeholder={t('store.wishlist.targetPlaceholder')}
+                      value={item.threshold ?? ''}
+                      onChange={(event) =>
+                        updateThreshold(item.id, event.target.value ? Number(event.target.value) : null)
+                      }
+                      className="term-console w-32"
+                    />
+                    <button
+                      className="term-btn-secondary"
+                      onClick={() => {
+                        removeItem(item.id)
+                        pushLog(`WATCHLIST: REMOVE -> ${item.title}`)
+                      }}
+                    >
+                      {t('store.wishlist.remove')}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {alerts.length > 0 && (
+            <div className="mt-6 rounded-lg border border-neon/15 bg-black/20 p-4">
+              <div className="term-label">{t('store.wishlist.alerts')}</div>
+              <div className="mt-2 flex flex-col gap-2 text-xs term-subtle">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between gap-4">
+                    <span>{alert.message}</span>
+                    <span>{new Date(alert.createdAt).toLocaleTimeString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
     </div>
   )
 }

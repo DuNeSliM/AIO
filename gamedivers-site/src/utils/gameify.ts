@@ -5,6 +5,7 @@ type CommanderState = {
   credits: number
   streak: number
   lastActiveDate: string
+  badges?: string[]
 }
 
 type CountersState = {
@@ -48,6 +49,7 @@ function defaultCommander(): CommanderState {
     credits: 0,
     streak: 1,
     lastActiveDate: todayKey(),
+    badges: [],
   }
 }
 
@@ -65,6 +67,11 @@ export function loadCommander(): CommanderState {
 export function saveCommander(state: CommanderState) {
   localStorage.setItem(COMMANDER_KEY, JSON.stringify(state))
   window.dispatchEvent(new Event('commander-update'))
+}
+
+export function updateCommander(patch: Partial<CommanderState>) {
+  const current = loadCommander()
+  saveCommander({ ...current, ...patch })
 }
 
 export function setCommanderName(name: string) {
@@ -92,6 +99,41 @@ export function award(xp: number, credits = 0) {
     credits: state.credits + credits,
   }
   saveCommander(next)
+}
+
+export function purchaseBadge(badgeId: string, cost: number): boolean {
+  const state = loadCommander()
+  const owned = state.badges ?? []
+  if (owned.includes(badgeId)) return false
+  if (state.credits < cost) return false
+  saveCommander({ ...state, credits: state.credits - cost, badges: [...owned, badgeId] })
+  return true
+}
+
+type EventLogItem = {
+  id: string
+  message: string
+  timestamp: number
+}
+
+const LOG_KEY = 'eventLog'
+
+export function loadEventLog(): EventLogItem[] {
+  const raw = localStorage.getItem(LOG_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function addEventLog(message: string) {
+  const entry: EventLogItem = { id: `${Date.now()}-${Math.random()}`, message, timestamp: Date.now() }
+  const next = [entry, ...loadEventLog()].slice(0, 20)
+  localStorage.setItem(LOG_KEY, JSON.stringify(next))
+  window.dispatchEvent(new Event('mission-update'))
 }
 
 function defaultCounters(): CountersState {

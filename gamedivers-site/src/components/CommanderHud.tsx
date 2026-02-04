@@ -32,7 +32,7 @@ export default function CommanderHud() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-[220px]">
-            <div className="term-label">COMMANDER HUD</div>
+            <div className="term-label">PLAYER PROGRESS</div>
             <input
               className="term-console mt-3 w-full max-w-xs"
               value={name}

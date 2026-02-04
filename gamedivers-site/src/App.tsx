@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import GameLibrary from './pages/GameLibrary'
 import Store from './pages/Store'
 import Settings from './pages/Settings'
+import Missions from './pages/Missions'
 import CommanderHud from './components/CommanderHud'
 import { I18nProvider } from './i18n/i18n'
 import type { Page, Theme } from './types'
@@ -35,8 +36,9 @@ export default function App() {
               <CommanderHud />
             </div>
             {page === 'store' && <Store />}
+            {page === 'downloads' && <Missions />}
             {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
-            {page !== 'store' && page !== 'settings' && <GameLibrary />}
+            {page === 'library' && <GameLibrary />}
           </main>
         </div>
       </div>

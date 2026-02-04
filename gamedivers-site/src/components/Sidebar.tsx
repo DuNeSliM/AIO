@@ -98,7 +98,12 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
           onClick={() => onNavigate?.('store')}
           className={activePage === 'store' ? 'text-neon' : 'tone-muted'}
         />
-        <SidebarIcon icon={<DownloadIcon />} label={t('nav.downloads')} onClick={() => {}} />
+        <SidebarIcon
+          icon={<DownloadIcon />}
+          label={t('nav.downloads')}
+          onClick={() => onNavigate?.('downloads')}
+          className={activePage === 'downloads' ? 'text-neon' : 'tone-muted'}
+        />
         <SidebarIcon
           icon={<SettingsIcon />}
           label={t('nav.settings')}
