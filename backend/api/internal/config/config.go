@@ -10,15 +10,31 @@ type Config struct {
 
 	// IsThereAnyDeal API key
 	ITADAPIKey string
+
+	// Keycloak configuration
+	KeycloakURL          string
+	KeycloakRealm        string
+	KeycloakClientID     string
+	KeycloakClientSecret string
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
 	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
 
+	// Keycloak config
+	keycloakURL := mustGetenv("KEYCLOAK_URL")
+	keycloakRealm := mustGetenv("KEYCLOAK_REALM")
+	keycloakClientID := mustGetenv("KEYCLOAK_CLIENT_ID")
+	keycloakClientSecret := mustGetenv("KEYCLOAK_CLIENT_SECRET")
+
 	return Config{
-		Port:       port,
-		ITADAPIKey: itadAPIKey,
+		Port:                 port,
+		ITADAPIKey:           itadAPIKey,
+		KeycloakURL:          keycloakURL,
+		KeycloakRealm:        keycloakRealm,
+		KeycloakClientID:     keycloakClientID,
+		KeycloakClientSecret: keycloakClientSecret,
 	}
 }
 

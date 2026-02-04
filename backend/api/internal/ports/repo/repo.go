@@ -34,6 +34,18 @@ type PriceRow struct {
 	LowestAtUnix    *int64 `json:"lowest_at_unix,omitempty"`
 }
 
+// UserRepo handles user-related database operations
+type UserRepo interface {
+	UpsertUser(ctx context.Context, userID string, nowUnix int64) error
+	GetUser(ctx context.Context, userID string) (*User, error)
+}
+
+// User represents a user in the database
+type User struct {
+	ID        string `json:"id"`
+	CreatedAt int64  `json:"created_at"`
+}
+
 type Repo interface {
 	UpsertGame(ctx context.Context, p UpsertGameParams) error
 
@@ -43,6 +55,7 @@ type Repo interface {
 	GetPriceRow(ctx context.Context, storeID, externalGameID, cc string) (*PriceRow, bool, error)
 
 	UpsertUser(ctx context.Context, userID string, nowUnix int64) error
+	GetUser(ctx context.Context, userID string) (*User, error)
 	AddWatch(ctx context.Context, userID, storeID, externalGameID, cc string, nowUnix int64) error
 	RemoveWatch(ctx context.Context, userID, storeID, externalGameID, cc string) error
 

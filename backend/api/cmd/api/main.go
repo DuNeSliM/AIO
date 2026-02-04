@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"gamedivers.de/api/internal/adapters/auth/keycloak"
 	httpapi "gamedivers.de/api/internal/adapters/http"
 	"gamedivers.de/api/internal/adapters/http/handlers"
+	"gamedivers.de/api/internal/adapters/http/middleware"
 	"gamedivers.de/api/internal/adapters/stores/itad"
 	"gamedivers.de/api/internal/config"
 	"github.com/joho/godotenv"
@@ -28,7 +30,28 @@ func main() {
 		Client: itadClient,
 	}
 
-	router := httpapi.Router(itadHandler)
+	// Initialize Keycloak client
+	keycloakClient := keycloak.NewClient(
+		cfg.KeycloakURL,
+		cfg.KeycloakRealm,
+		cfg.KeycloakClientID,
+		cfg.KeycloakClientSecret,
+	)
+
+	// Initialize auth handler (repo is nil for now, can be wired later)
+	authHandler := &handlers.AuthHandler{
+		Keycloak: keycloakClient,
+		Repo:     nil, // Wire up repo if you want to persist users locally
+	}
+
+	// Initialize JWT middleware for token validation
+	jwtMiddleware := middleware.NewJWTMiddleware(
+		keycloakClient.GetJWKSURL(),
+		keycloakClient.GetIssuer(),
+		cfg.KeycloakClientID,
+	)
+
+	router := httpapi.Router(itadHandler, authHandler, jwtMiddleware)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

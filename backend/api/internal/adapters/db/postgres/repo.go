@@ -193,6 +193,20 @@ ON CONFLICT(id) DO NOTHING
 	return err
 }
 
+func (r *Repo) GetUser(ctx context.Context, userID string) (*repo.User, error) {
+	var user repo.User
+	err := r.DB.QueryRowContext(ctx, `
+SELECT id, created_at FROM users WHERE id=$1
+`, userID).Scan(&user.ID, &user.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 func (r *Repo) AddWatch(ctx context.Context, userID, storeID, externalGameID, cc string, nowUnix int64) error {
 	_, err := r.DB.ExecContext(ctx, `
 INSERT INTO user_watchlist(user_id, store_id, external_game_id, cc, added_at)

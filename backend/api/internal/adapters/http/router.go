@@ -7,9 +7,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"gamedivers.de/api/internal/adapters/http/handlers"
+	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 )
 
-func Router(itadh *handlers.ITADHandler) *chi.Mux {
+func Router(itadh *handlers.ITADHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
@@ -38,30 +39,53 @@ func Router(itadh *handlers.ITADHandler) *chi.Mux {
 	})
 
 	r.Route("/v1", func(r chi.Router) {
-		// IsThereAnyDeal endpoints - provides prices from all stores including Steam
-		r.Route("/itad", func(r chi.Router) {
-			// Search for games
-			r.Get("/search", itadh.Search)
+		// Public auth endpoints (no authentication required)
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/register", authh.Register)
+			r.Post("/login", authh.Login)
+			r.Post("/refresh", authh.RefreshToken)
+			r.Post("/logout", authh.Logout)
+			r.Post("/forgot-password", authh.ForgotPassword)
+			r.Post("/resend-verification", authh.ResendVerification)
 
-			// Get all available stores
-			r.Get("/stores", itadh.GetStores)
+			// Protected auth endpoint
+			r.Group(func(r chi.Router) {
+				r.Use(jwtMw.Authenticate)
+				r.Get("/me", authh.GetMe)
+				r.Put("/password", authh.ChangePassword)
+				r.Put("/profile", authh.UpdateProfile)
+			})
+		})
 
-			// Get price overview for multiple games
-			r.Get("/overview", itadh.GetOverview)
+		// Protected API endpoints (authentication required)
+		r.Group(func(r chi.Router) {
+			r.Use(jwtMw.Authenticate)
 
-			// Game-specific endpoints
-			r.Route("/games/{gameId}", func(r chi.Router) {
-				// Get combined game details (info + prices + history)
-				r.Get("/", itadh.GetGameDetails)
+			// IsThereAnyDeal endpoints - provides prices from all stores including Steam
+			r.Route("/itad", func(r chi.Router) {
+				// Search for games
+				r.Get("/search", itadh.Search)
 
-				// Get just game info
-				r.Get("/info", itadh.GetGameInfo)
+				// Get all available stores
+				r.Get("/stores", itadh.GetStores)
 
-				// Get current prices across stores
-				r.Get("/prices", itadh.GetGamePrices)
+				// Get price overview for multiple games
+				r.Get("/overview", itadh.GetOverview)
 
-				// Get historical lowest price
-				r.Get("/historylow", itadh.GetHistoricalLow)
+				// Game-specific endpoints
+				r.Route("/games/{gameId}", func(r chi.Router) {
+					// Get combined game details (info + prices + history)
+					r.Get("/", itadh.GetGameDetails)
+
+					// Get just game info
+					r.Get("/info", itadh.GetGameInfo)
+
+					// Get current prices across stores
+					r.Get("/prices", itadh.GetGamePrices)
+
+					// Get historical lowest price
+					r.Get("/historylow", itadh.GetHistoricalLow)
+				})
 			})
 		})
 	})
