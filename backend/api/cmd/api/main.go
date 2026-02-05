@@ -21,6 +21,9 @@ import (
 func main() {
 	_ = godotenv.Load()
 	_ = godotenv.Load("../../.env")
+	_ = godotenv.Load("../.env")
+	_ = godotenv.Load("./.env")
+	_ = godotenv.Load("../../../.env")
 
 	cfg := config.Load()
 
@@ -30,6 +33,26 @@ func main() {
 		Client: itadClient,
 	}
 
+	// Initialize game handler
+	gameHandler := &handlers.GameHandler{
+		Repo: nil, // TODO: Inject repo dependency
+	}
+
+	// Initialize Steam handler
+	steamHandler := handlers.NewSteamHandler(
+		cfg.SteamAPIKey,
+		cfg.SteamCallbackURL,
+		nil, // TODO: Inject repo dependency
+	)
+
+	// Initialize Epic Games handler
+	epicHandler := handlers.NewEpicHandler(
+		cfg.EpicClientID,
+		cfg.EpicClientSecret,
+		cfg.EpicCallbackURL,
+	)
+
+	router := httpapi.Router(itadHandler, gameHandler, steamHandler, epicHandler)
 	// Initialize Keycloak client
 	keycloakClient := keycloak.NewClient(
 		cfg.KeycloakURL,

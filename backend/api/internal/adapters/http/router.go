@@ -10,6 +10,7 @@ import (
 	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 )
 
+func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler) *chi.Mux {
 func Router(itadh *handlers.ITADHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -87,6 +88,60 @@ func Router(itadh *handlers.ITADHandler, authh *handlers.AuthHandler, jwtMw *aut
 					r.Get("/historylow", itadh.GetHistoricalLow)
 				})
 			})
+		})
+
+		// Game launch endpoints
+		r.Route("/games", func(r chi.Router) {
+			// Start a Steam game by app ID
+			r.Post("/steam/{appid}/start", gameHandler.StartSteamGame)
+
+			// Start an Epic Games game by app name
+			r.Post("/epic/{appname}/start", gameHandler.StartEpicGame)
+
+			// Start a GOG Galaxy game by game name
+			r.Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
+
+			// Get installed/synced games
+			r.Get("/installed", gameHandler.GetInstalledGames)
+
+			// Get Steam library (placeholder)
+			r.Get("/steam/library", gameHandler.GetSteamLibrary)
+
+			// Get Epic Games library (placeholder)
+			r.Get("/epic/library", gameHandler.GetEpicLibrary)
+
+			// Get GOG Galaxy library (placeholder)
+			r.Get("/gog/library", gameHandler.GetGOGLibrary)
+		})
+
+		// Steam authentication and library
+		r.Route("/steam", func(r chi.Router) {
+			// Initiate Steam login
+			r.Get("/login", steamHandler.LoginRedirect)
+
+			// Steam OpenID callback
+			r.Get("/callback", steamHandler.Callback)
+
+			// Get Steam library for authenticated user
+			r.Get("/library", steamHandler.GetLibrary)
+
+			// Sync Steam library to database
+			r.Post("/sync", steamHandler.SyncLibrary)
+		})
+
+		// Epic Games authentication and library
+		r.Route("/epic", func(r chi.Router) {
+			// Initiate Epic Games login
+			r.Get("/login", epicHandler.LoginRedirect)
+
+			// Epic OAuth callback
+			r.Get("/callback", epicHandler.Callback)
+
+			// Get Epic Games library for authenticated user
+			r.Get("/library", epicHandler.GetLibrary)
+
+			// Sync Epic Games library to database
+			r.Post("/sync", epicHandler.SyncLibrary)
 		})
 	})
 
