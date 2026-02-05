@@ -13,6 +13,17 @@ async function tryJson<T = unknown>(url: string, opts?: RequestInit): Promise<T 
   }
 }
 
+async function readApiError(res: Response): Promise<Error> {
+  try {
+    const data = (await res.json()) as { error?: string }
+    if (data?.error === 'steam_profile_private') return new Error('steam-private')
+    if (data?.error === 'steam_wishlist_blocked') return new Error('steam-wishlist-blocked')
+  } catch {
+    // ignore parse failures
+  }
+  return new Error(`HTTP ${res.status}`)
+}
+
 export async function fetchGames(): Promise<Game[]> {
   const res = await tryJson<Game[] | { error?: unknown }>(`${API_BASE}/v1/games/installed`)
   if (Array.isArray(res)) return res
@@ -22,13 +33,30 @@ export async function fetchGames(): Promise<Game[]> {
 
 export async function fetchSteamLibrary(steamId: string): Promise<Game[]> {
   if (!steamId) return []
-  const res = await tryJson<Game[]>(`${API_BASE}/v1/steam/library?steamid=${steamId}`)
-  return Array.isArray(res) ? res : []
+  const res = await fetch(`${API_BASE}/v1/steam/library?steamid=${steamId}`)
+  if (!res.ok) throw await readApiError(res)
+  const data = (await res.json()) as Game[]
+  return Array.isArray(data) ? data : []
 }
 
 export async function fetchEpicLibrary(): Promise<Game[]> {
   const res = await tryJson<Game[]>(`${API_BASE}/v1/games/epic/library`)
   return Array.isArray(res) ? res : []
+}
+
+export type SteamWishlistEntry = {
+  appId: number
+  name: string
+  added?: number
+  capsule?: string
+}
+
+export async function fetchSteamWishlist(steamId: string): Promise<SteamWishlistEntry[]> {
+  if (!steamId) return []
+  const res = await fetch(`${API_BASE}/v1/steam/wishlist?steamid=${steamId}`)
+  if (!res.ok) throw await readApiError(res)
+  const data = (await res.json()) as SteamWishlistEntry[]
+  return Array.isArray(data) ? data : []
 }
 
 export async function searchItad(

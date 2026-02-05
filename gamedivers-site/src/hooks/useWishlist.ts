@@ -195,14 +195,18 @@ export function useWishlist(region: string) {
     localStorage.setItem(NOTIFY_KEY, 'false')
   }, [])
 
-  const addItem = useCallback((item: { id: string; title: string }) => {
+  const addItem = useCallback((item: { id: string; title: string; source?: 'itad' | 'steam'; steamAppId?: number; itadId?: string; addedAt?: number }) => {
     setItems((prev) => {
       if (prev.some((entry) => entry.id === item.id)) return prev
+      const source = item.source ?? 'itad'
       return [
         {
           id: item.id,
           title: item.title,
-          addedAt: Date.now(),
+          source,
+          steamAppId: item.steamAppId,
+          itadId: item.itadId ?? (source === 'itad' ? item.id : undefined),
+          addedAt: item.addedAt ?? Date.now(),
           currency: defaultCurrency,
         },
         ...prev,
@@ -275,9 +279,28 @@ export function useWishlist(region: string) {
     const updated: WishlistItem[] = []
     for (const item of itemsRef.current) {
       try {
-        const prices = await getItadPrices(item.id, region)
-        const priceItem = normalizePriceItem(prices, item.id)
+        const source = item.source ?? (item.id.startsWith('steam:') ? 'steam' : 'itad')
+        const itadId = item.itadId ?? (source === 'itad' ? item.id : null)
+        if (!itadId) {
+          updated.push({ ...item, lastCheckedAt: Date.now() })
+          continue
+        }
+
+        const prices = await getItadPrices(itadId, region)
+        const priceItem = normalizePriceItem(prices, itadId)
         const deals = priceItem?.deals ?? []
+        const sortedDeals = deals
+          .filter((deal) => deal?.price)
+          .map((deal) => ({
+            shop: deal?.shop?.name,
+            price: getAmount(deal.price) ?? null,
+            currency: deal?.price?.currency ?? item.currency ?? defaultCurrency,
+            cut: deal?.cut ?? 0,
+            url: deal?.url,
+          }))
+          .filter((deal) => typeof deal.price === 'number')
+          .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
+        const topDeals = sortedDeals.slice(0, 3)
         const bestDeal = pickLowestDeal(deals)
         const amount = getAmount(bestDeal?.price ?? null)
         const currency = bestDeal?.price?.currency ?? item.currency ?? defaultCurrency
@@ -301,6 +324,7 @@ export function useWishlist(region: string) {
           currency,
           onSale,
           belowThreshold,
+          dealsTop3: topDeals,
           lastCheckedAt: Date.now(),
         })
       } catch (error) {

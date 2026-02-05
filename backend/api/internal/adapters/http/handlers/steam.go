@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"gamedivers.de/api/internal/adapters/stores/steam"
 	"gamedivers.de/api/internal/ports/repo"
@@ -83,19 +85,28 @@ func (h *SteamHandler) GetLibrary(w http.ResponseWriter, r *http.Request) {
 	games, err := h.steamClient.GetOwnedGames(steamID)
 	if err != nil {
 		log.Printf("Failed to fetch Steam library: %v", err)
-		http.Error(w, "failed to fetch library", http.StatusInternalServerError)
+		msg := err.Error()
+		if strings.Contains(msg, "steam api error: 401") || strings.Contains(msg, "steam api error: 403") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": "steam_profile_private",
+			})
+			return
+		}
+		http.Error(w, "failed to fetch library", http.StatusBadGateway)
 		return
 	}
 
 	// Convert to common format
 	type GameResponse struct {
-		ID          string `json:"id"`
-		AppID       int    `json:"appId"`
-		Name        string `json:"name"`
-		Platform    string `json:"platform"`
-		Image       string `json:"image"`
-		Playtime    int    `json:"playtime"`
-		LastPlayed  int64  `json:"lastPlayed"`
+		ID         string `json:"id"`
+		AppID      int    `json:"appId"`
+		Name       string `json:"name"`
+		Platform   string `json:"platform"`
+		Image      string `json:"image"`
+		Playtime   int    `json:"playtime"`
+		LastPlayed int64  `json:"lastPlayed"`
 	}
 
 	var response []GameResponse
@@ -118,6 +129,37 @@ func (h *SteamHandler) GetLibrary(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// GetWishlist retrieves the authenticated user's Steam wishlist.
+// GET /v1/steam/wishlist?steamid={steamid}
+func (h *SteamHandler) GetWishlist(w http.ResponseWriter, r *http.Request) {
+	steamID := r.URL.Query().Get("steamid")
+	if steamID == "" {
+		http.Error(w, "missing steamid parameter", http.StatusBadRequest)
+		return
+	}
+
+	items, err := h.steamClient.GetWishlist(steamID)
+	if err != nil {
+		log.Printf("Failed to fetch Steam wishlist: %v", err)
+		msg := err.Error()
+		if errors.Is(err, steam.ErrSteamWishlistPrivate) ||
+			strings.Contains(msg, "wishlist api error: 401") ||
+			strings.Contains(msg, "wishlist api error: 403") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": "steam_wishlist_blocked",
+			})
+			return
+		}
+		http.Error(w, "failed to fetch wishlist", http.StatusBadGateway)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
 }
 
 // SyncLibrary fetches and stores the user's Steam library in the database

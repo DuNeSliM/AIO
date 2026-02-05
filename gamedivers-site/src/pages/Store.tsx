@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { searchItad, getItadPrices } from '../services/api'
+import { searchItad, getItadPrices, fetchSteamWishlist } from '../services/api'
 import { useI18n } from '../i18n/i18n'
 import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem } from '../types'
 import { useWishlist } from '../hooks/useWishlist'
+import { useSteamAuth } from '../hooks/useSteamAuth'
 import {
   addEventLog,
   award,
@@ -56,16 +57,17 @@ export default function Store() {
   const [missionProgress, setMissionProgress] = useState(() => loadMissionProgress().progress)
   const [priceCache, setPriceCache] = useState<Record<string, { steam?: number; epic?: number; currency?: string }>>({})
   const [showWishlist, setShowWishlist] = useState(() => localStorage.getItem('showWishlist') !== 'false')
+  const [wishlistSyncing, setWishlistSyncing] = useState(false)
   const {
     items,
     addItem,
     removeItem,
-    updateThreshold,
     alerts,
     checking,
     lastCheckedAt,
     checkPrices,
   } = useWishlist(region)
+  const steamAuth = useSteamAuth()
 
   const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
   const lastCheckedLabel = lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : t('store.wishlist.never')
@@ -180,6 +182,40 @@ export default function Store() {
     recordSync()
     await checkPrices()
     pushLog('WATCHLIST SYNC: COMPLETE')
+  }
+
+  const onSyncSteamWishlist = async () => {
+    if (!steamAuth.steamId) {
+      setError(t('store.wishlist.loginRequired'))
+      return
+    }
+    setWishlistSyncing(true)
+    setError(null)
+    try {
+      const steamItems = await fetchSteamWishlist(steamAuth.steamId)
+      const sorted = [...steamItems].sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
+      for (const item of sorted) {
+        addItem({
+          id: `steam:${item.appId}`,
+          title: item.name,
+          source: 'steam',
+          steamAppId: item.appId,
+          addedAt: item.added ? item.added * 1000 : Date.now(),
+        })
+      }
+      pushLog(`STEAM WISHLIST SYNC: ${steamItems.length} ITEMS`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (message === 'steam-private') {
+        setError(t('store.wishlist.steamPrivate'))
+      } else if (message === 'steam-wishlist-blocked') {
+        setError(t('store.wishlist.steamBlocked'))
+      } else {
+        setError(message)
+      }
+    } finally {
+      setWishlistSyncing(false)
+    }
   }
 
   useEffect(() => {
@@ -457,9 +493,16 @@ export default function Store() {
               <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
               <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
             </div>
-            <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
-              {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {steamAuth.isLoggedIn && (
+                <button className="term-btn-secondary" onClick={onSyncSteamWishlist} disabled={wishlistSyncing}>
+                  {wishlistSyncing ? '...' : t('store.wishlist.syncSteam')}
+                </button>
+              )}
+              <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
+                {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
+              </button>
+            </div>
           </div>
 
           {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
@@ -473,33 +516,8 @@ export default function Store() {
                 >
                   <div className="flex flex-col gap-2">
                     <div className="text-base tone-primary">{item.title}</div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs term-subtle">
-                      <span>
-                        {item.lastPrice !== undefined
-                          ? formatPrice({ amount: item.lastPrice, currency: item.currency })
-                          : '-'}
-                      </span>
-                      {item.onSale && (
-                        <span className="term-chip border-ember/40 text-ember">{t('store.wishlist.onSale')}</span>
-                      )}
-                      {item.belowThreshold && (
-                        <span className="term-chip border-neon/40 text-neon">{t('store.wishlist.belowTarget')}</span>
-                      )}
-                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      placeholder={t('store.wishlist.targetPlaceholder')}
-                      value={item.threshold ?? ''}
-                      onChange={(event) =>
-                        updateThreshold(item.id, event.target.value ? Number(event.target.value) : null)
-                      }
-                      className="term-console w-32"
-                    />
                     <button
                       className="term-btn-secondary"
                       onClick={() => {
@@ -510,6 +528,31 @@ export default function Store() {
                       {t('store.wishlist.remove')}
                     </button>
                   </div>
+                  {item.dealsTop3 && item.dealsTop3.length > 0 && (
+                    <div className="w-full">
+                      <div className="mt-3 grid gap-2 md:grid-cols-3">
+                        {item.dealsTop3.map((deal, index) => (
+                          <div
+                            key={`${item.id}-${index}`}
+                            className="rounded-lg border border-neon/10 bg-black/25 p-3"
+                          >
+                            <div className="text-xs term-subtle">{deal.shop || 'Store'}</div>
+                            <div className="text-lg tone-primary">
+                              {typeof deal.price === 'number'
+                                ? `${deal.price.toFixed(2)} ${deal.currency ?? ''}`
+                                : '-'}
+                            </div>
+                            {deal.cut && deal.cut > 0 && <div className="text-xs text-ember">-{deal.cut}%</div>}
+                            {deal.url && (
+                              <a className="term-btn-secondary mt-2 inline-flex" href={deal.url} target="_blank" rel="noreferrer">
+                                {t('store.offer')}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

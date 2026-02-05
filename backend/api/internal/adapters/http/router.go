@@ -124,6 +124,9 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, stea
 			// Get Steam library for authenticated user
 			r.Get("/library", steamHandler.GetLibrary)
 
+			// Get Steam wishlist for authenticated user
+			r.Get("/wishlist", steamHandler.GetWishlist)
+
 			// Sync Steam library to database
 			r.Post("/sync", steamHandler.SyncLibrary)
 		})

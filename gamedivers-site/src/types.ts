@@ -54,6 +54,16 @@ export type WishlistItem = {
   id: string
   title: string
   addedAt: number
+  source?: 'itad' | 'steam'
+  steamAppId?: number
+  itadId?: string
+  dealsTop3?: {
+    shop?: string
+    price?: number
+    currency?: string
+    cut?: number
+    url?: string
+  }[]
   threshold?: number
   currency?: string
   lastPrice?: number

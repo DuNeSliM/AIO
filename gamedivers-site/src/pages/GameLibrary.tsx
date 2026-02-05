@@ -139,7 +139,11 @@ export default function GameLibrary() {
 
       <section className="flex flex-col gap-4">
         {loading && <div className="text-sm term-subtle">{t('library.loading')}</div>}
-        {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
+        {error && (
+          <div className="text-sm text-red-400">
+            Fehler: {error === 'steam-private' ? t('library.steamPrivate') : error}
+          </div>
+        )}
         {!loading && !error && games.length === 0 && <div className="text-sm term-subtle">{t('library.empty')}</div>}
         {!loading && !error && games.length > 0 && (
           <>
