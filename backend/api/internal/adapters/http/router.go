@@ -10,8 +10,7 @@ import (
 	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 )
 
-func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler) *chi.Mux {
-func Router(itadh *handlers.ITADHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
+func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)

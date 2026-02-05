@@ -110,10 +110,7 @@ func (h *GameHandler) GetSteamLibrary(w http.ResponseWriter, r *http.Request) {
 // GET /v1/games/installed
 func (h *GameHandler) GetInstalledGames(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]any{
-		"error": "Game library endpoint not yet implemented. Requires database query.",
-	})
+	json.NewEncoder(w).Encode([]any{})
 }
 
 // StartEpicGame starts a synced Epic Games game by its app name

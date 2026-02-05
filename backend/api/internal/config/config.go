@@ -44,15 +44,13 @@ func Load() Config {
 	keycloakClientSecret := mustGetenv("KEYCLOAK_CLIENT_SECRET")
 
 	return Config{
-		Port:             port,
-		ITADAPIKey:       itadAPIKey,
-		SteamAPIKey:      steamAPIKey,
-		SteamCallbackURL: steamCallbackURL,
-		EpicClientID:     epicClientID,
-		EpicClientSecret: epicClientSecret,
-		EpicCallbackURL:  epicCallbackURL,
 		Port:                 port,
 		ITADAPIKey:           itadAPIKey,
+		SteamAPIKey:          steamAPIKey,
+		SteamCallbackURL:     steamCallbackURL,
+		EpicClientID:         epicClientID,
+		EpicClientSecret:     epicClientSecret,
+		EpicCallbackURL:      epicCallbackURL,
 		KeycloakURL:          keycloakURL,
 		KeycloakRealm:        keycloakRealm,
 		KeycloakClientID:     keycloakClientID,
