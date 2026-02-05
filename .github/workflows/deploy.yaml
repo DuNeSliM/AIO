@@ -18,7 +18,7 @@ jobs:
   build-and-propose:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -56,7 +56,7 @@ jobs:
           ' k8s/kustomization.yaml
 
       - name: Create PR for deploy
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: deploy/${{ github.sha }}
           title: Deploy ${{ github.sha }} (Flux)
