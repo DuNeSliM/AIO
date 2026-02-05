@@ -21,6 +21,11 @@ type Config struct {
 	EpicClientID     string
 	EpicClientSecret string
 	EpicCallbackURL  string
+	// Keycloak configuration
+	KeycloakURL          string
+	KeycloakRealm        string
+	KeycloakClientID     string
+	KeycloakClientSecret string
 }
 
 func Load() Config {
@@ -32,6 +37,12 @@ func Load() Config {
 	epicClientSecret := getenv("EPIC_CLIENT_SECRET", "")
 	epicCallbackURL := getenv("EPIC_CALLBACK_URL", "http://localhost:8080/v1/epic/callback")
 
+	// Keycloak config
+	keycloakURL := mustGetenv("KEYCLOAK_URL")
+	keycloakRealm := mustGetenv("KEYCLOAK_REALM")
+	keycloakClientID := mustGetenv("KEYCLOAK_CLIENT_ID")
+	keycloakClientSecret := mustGetenv("KEYCLOAK_CLIENT_SECRET")
+
 	return Config{
 		Port:             port,
 		ITADAPIKey:       itadAPIKey,
@@ -40,6 +51,12 @@ func Load() Config {
 		EpicClientID:     epicClientID,
 		EpicClientSecret: epicClientSecret,
 		EpicCallbackURL:  epicCallbackURL,
+		Port:                 port,
+		ITADAPIKey:           itadAPIKey,
+		KeycloakURL:          keycloakURL,
+		KeycloakRealm:        keycloakRealm,
+		KeycloakClientID:     keycloakClientID,
+		KeycloakClientSecret: keycloakClientSecret,
 	}
 }
 
