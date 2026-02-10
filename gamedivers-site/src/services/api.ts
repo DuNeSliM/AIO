@@ -1,4 +1,4 @@
-import type { Game, ItadPricesResponse, ItadSearchItem } from '../types'
+import type { Game, ItadPricesResponse, ItadSearchItem, User, AuthResponse } from '../types'
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 
@@ -123,4 +123,61 @@ export async function syncStore(store: string, credentials?: { steamId?: string;
 
   await new Promise((resolve) => setTimeout(resolve, 700))
   return { ok: true }
+}
+
+// Auth endpoints
+export async function register(username: string, email: string, password: string, firstName?: string, lastName?: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/v1/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password, firstName, lastName }),
+  })
+  if (!res.ok) {
+    const error = await res.json() as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Registration failed')
+  }
+  return (await res.json()) as User
+}
+
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!res.ok) {
+    const error = await res.json() as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Login failed')
+  }
+  return (await res.json()) as AuthResponse
+}
+
+export async function logout(refreshToken: string): Promise<void> {
+  await fetch(`${API_BASE}/v1/auth/logout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+}
+
+export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!res.ok) {
+    throw new Error('Token refresh failed')
+  }
+  return (await res.json()) as AuthResponse
+}
+
+export async function getMe(accessToken: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/v1/auth/me`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    throw new Error('Failed to get user info')
+  }
+  return (await res.json()) as User
 }

@@ -4,8 +4,11 @@ import GameLibrary from './pages/GameLibrary'
 import Store from './pages/Store'
 import Settings from './pages/Settings'
 import Missions from './pages/Missions'
+import Login from './pages/Login'
+import Register from './pages/Register'
 import CommanderHud from './components/CommanderHud'
 import { I18nProvider } from './i18n/i18n'
+import { useAuth } from './hooks/useAuth'
 import type { Page, Theme } from './types'
 
 function getStoredTheme(): Theme {
@@ -14,7 +17,8 @@ function getStoredTheme(): Theme {
 }
 
 export default function App() {
-  const [page, setPage] = useState<Page>('library')
+  const { isLoggedIn } = useAuth()
+  const [page, setPage] = useState<Page>(() => isLoggedIn ? 'library' : 'login')
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme())
 
   useEffect(() => {
@@ -22,8 +26,32 @@ export default function App() {
     localStorage.setItem('theme', theme)
   }, [theme])
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoggedIn && page !== 'register' && page !== 'login') {
+      setPage('login')
+    }
+  }, [isLoggedIn, page])
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  // Show login/register pages without sidebar
+  if (page === 'login') {
+    return (
+      <I18nProvider>
+        <Login onSuccess={setPage} />
+      </I18nProvider>
+    )
+  }
+
+  if (page === 'register') {
+    return (
+      <I18nProvider>
+        <Register onSuccess={setPage} />
+      </I18nProvider>
+    )
   }
 
   return (
