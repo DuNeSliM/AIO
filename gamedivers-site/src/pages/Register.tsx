@@ -72,139 +72,159 @@ export default function Register({ onSuccess }: RegisterPageProps) {
   const displayError = error || localError
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4 py-8">
+    <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-void">
       <div className="w-full max-w-md">
-        <div className="rounded-lg border border-border bg-surface-secondary p-8">
-          <h1 className="mb-2 text-3xl font-bold text-text-primary">
-            {t?.('register.title') || 'Create Account'}
-          </h1>
-          <p className="mb-8 text-text-secondary">
-            Join us and manage your game library
-          </p>
-
-          {displayError && (
-            <div className="mb-6 rounded-lg bg-red-500/10 p-4 text-sm text-red-400">
-              {displayError}
+        <div className="term-frame">
+          <div className="term-panel relative p-8">
+            <div className="term-corners">
+              <span />
+              <span />
+              <span />
+              <span />
             </div>
-          )}
+            <div className="term-notch" />
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-text-primary mb-2">
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  placeholder="John"
-                  className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
+            <div className="relative z-10">
+              <h1 className="mb-2 text-4xl font-bold tracking-wide">
+                {t?.('register') || 'CREATE ACCOUNT'}
+              </h1>
+              <p className="mb-8 text-xs uppercase tracking-widest term-subtle">
+                Join us and manage your game library
+              </p>
+
+              {displayError && (
+                <div className="mb-6 rounded-lg border border-ember/40 bg-black/50 p-4 text-xs text-ember/90">
+                  {displayError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="firstName" className="term-label mb-3 block">
+                      First Name
+                    </label>
+                    <input
+                      id="firstName"
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleChange}
+                      placeholder="JOHN"
+                      className="term-console w-full"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="lastName" className="term-label mb-3 block">
+                      Last Name
+                    </label>
+                    <input
+                      id="lastName"
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleChange}
+                      placeholder="DOE"
+                      className="term-console w-full"
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="username" className="term-label mb-3 block">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    placeholder="ENTER USERNAME"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="email" className="term-label mb-3 block">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="YOUR@EMAIL.COM"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="term-label mb-3 block">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="MIN. 8 CHARACTERS"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="confirmPassword" className="term-label mb-3 block">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="CONFIRM PASSWORD"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <button
+                  type="submit"
                   disabled={isLoading}
-                />
-              </div>
+                  className="term-btn-primary w-full mt-6"
+                >
+                  {isLoading ? '... CREATING ACCOUNT ...' : 'CREATE ACCOUNT'}
+                </button>
+              </form>
 
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-text-primary mb-2">
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  placeholder="Doe"
-                  className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                  disabled={isLoading}
-                />
-              </div>
+              <div className="term-divider my-6" />
+
+              <p className="text-center text-xs uppercase tracking-widest term-subtle">
+                Already have credentials?{' '}
+                <button
+                  type="button"
+                  onClick={() => onSuccess('login' as Page)}
+                  className="inline font-bold text-neon/90 hover:text-neon transition-colors"
+                >
+                  LOGIN NOW
+                </button>
+              </p>
             </div>
+          </div>
+        </div>
 
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-text-primary mb-2">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                placeholder="Choose your username"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-text-primary mb-2">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="your@email.com"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Min. 8 characters"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary mb-2">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm password"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-lg bg-accent px-4 py-2 font-medium text-text-primary hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Creating account...' : 'Create Account'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-text-secondary text-sm">
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={() => onSuccess('login' as Page)}
-              className="font-medium text-accent hover:text-accent/80 transition-colors"
-            >
-              Login here
-            </button>
+        <div className="mt-8 text-center">
+          <p className="text-[10px] uppercase tracking-widest term-subtle">
+            AIO GAME LIBRARY v1.0
           </p>
         </div>
       </div>

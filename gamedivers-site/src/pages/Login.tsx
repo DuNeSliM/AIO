@@ -35,71 +35,98 @@ export default function Login({ onSuccess }: LoginPageProps) {
   const displayError = error || localError
 
   return (
-    <div className="flex items-center justify-center min-h-screen px-4">
+    <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-void">
       <div className="w-full max-w-md">
-        <div className="rounded-lg border border-border bg-surface-secondary p-8">
-          <h1 className="mb-2 text-3xl font-bold text-text-primary">
-            {t?.('login.title') || 'Login'}
-          </h1>
-          <p className="mb-8 text-text-secondary">
-            Access your game library
-          </p>
-
-          {displayError && (
-            <div className="mb-6 rounded-lg bg-red-500/10 p-4 text-sm text-red-400">
-              {displayError}
+        <div className="term-frame">
+          <div className="term-panel relative p-8">
+            <div className="term-corners">
+              <span />
+              <span />
+              <span />
+              <span />
             </div>
-          )}
+            <div className="term-notch" />
+            
+            <div className="relative z-10">
+              <h1 className="mb-2 text-4xl font-bold tracking-wide">
+                {t?.('login') || 'LOGIN'}
+              </h1>
+              <p className="mb-8 text-xs uppercase tracking-widest term-subtle">
+                Access your game library
+              </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-text-primary mb-2">
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
+              {displayError && (
+                <div className="mb-6 rounded-lg border border-ember/40 bg-black/50 p-4 text-xs text-ember/90">
+                  {displayError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label htmlFor="username" className="term-label mb-3 block">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="ENTER USERNAME"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="term-label mb-3 block">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="ENTER PASSWORD"
+                    className="term-console w-full"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onSuccess('forgot-password' as Page)}
+                    className="mt-2 text-[10px] uppercase tracking-widest text-neon/70 hover:text-neon transition-colors"
+                  >
+                    FORGOT PASSWORD?
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="term-btn-primary w-full mt-6"
+                >
+                  {isLoading ? '... CONNECTING ...' : 'LOGIN'}
+                </button>
+              </form>
+
+              <div className="term-divider my-6" />
+
+              <p className="text-center text-xs uppercase tracking-widest term-subtle">
+                No credentials yet?{' '}
+                <button
+                  type="button"
+                  onClick={() => onSuccess('register' as Page)}
+                  className="inline font-bold text-neon/90 hover:text-neon transition-colors"
+                >
+                  CREATE ACCOUNT
+                </button>
+              </p>
             </div>
+          </div>
+        </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-text-primary mb-2">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full rounded-lg border border-border bg-surface-primary px-4 py-2 text-text-primary placeholder-text-tertiary focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={isLoading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-lg bg-accent px-4 py-2 font-medium text-text-primary hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-text-secondary text-sm">
-            Don't have an account?{' '}
-            <button
-              type="button"
-              onClick={() => onSuccess('register' as Page)}
-              className="font-medium text-accent hover:text-accent/80 transition-colors"
-            >
-              Register here
-            </button>
+        <div className="mt-8 text-center">
+          <p className="text-[10px] uppercase tracking-widest term-subtle">
+            AIO GAME LIBRARY v1.0
           </p>
         </div>
       </div>

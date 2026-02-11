@@ -181,3 +181,16 @@ export async function getMe(accessToken: string): Promise<User> {
   }
   return (await res.json()) as User
 }
+
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/v1/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const error = await res.json() as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Failed to request password reset')
+  }
+  return (await res.json()) as { message: string }
+}

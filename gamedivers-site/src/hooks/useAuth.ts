@@ -22,18 +22,28 @@ type AuthFunctions = {
 
 export function useAuth(): AuthState & AuthFunctions {
   const [user, setUser] = useState<User | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Load user from storage on mount
+  // Load user and check tokens on mount
   useEffect(() => {
+    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
     const storedUser = localStorage.getItem(USER_KEY)
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-      } catch {
-        localStorage.removeItem(USER_KEY)
+
+    // If tokens exist, consider user logged in
+    if (accessToken && refreshToken) {
+      setIsLoggedIn(true)
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser))
+        } catch {
+          localStorage.removeItem(USER_KEY)
+        }
       }
+    } else {
+      setIsLoggedIn(false)
     }
   }, [])
 
@@ -54,12 +64,19 @@ export function useAuth(): AuthState & AuthFunctions {
       setError(null)
       const response = await authApi.login(username, password)
       saveTokens(response)
+      setIsLoggedIn(true)
       
-      // Get user info
-      const userInfo = await authApi.getMe(response.accessToken)
-      setUser(userInfo)
-      localStorage.setItem(USER_KEY, JSON.stringify(userInfo))
+      // Get user info (non-critical - don't fail if this fails)
+      try {
+        const userInfo = await authApi.getMe(response.accessToken)
+        setUser(userInfo)
+        localStorage.setItem(USER_KEY, JSON.stringify(userInfo))
+      } catch (err) {
+        console.warn('Failed to fetch user info:', err)
+        // User is still logged in even if we can't fetch their full info
+      }
     } catch (err) {
+      setIsLoggedIn(false)
       const message = err instanceof Error ? err.message : 'Login failed'
       setError(message)
       throw err
@@ -75,6 +92,7 @@ export function useAuth(): AuthState & AuthFunctions {
       const newUser = await authApi.register(username, email, password, firstName, lastName)
       setUser(newUser)
       localStorage.setItem(USER_KEY, JSON.stringify(newUser))
+      // After registration, user still needs to login
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed'
       setError(message)
@@ -96,6 +114,7 @@ export function useAuth(): AuthState & AuthFunctions {
     } finally {
       clearTokens()
       setUser(null)
+      setIsLoggedIn(false)
       setIsLoading(false)
     }
   }
@@ -104,7 +123,7 @@ export function useAuth(): AuthState & AuthFunctions {
 
   return {
     user,
-    isLoggedIn: !!user,
+    isLoggedIn,
     isLoading,
     error,
     login,

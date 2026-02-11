@@ -2,7 +2,7 @@ export type ViewMode = 'grid' | 'list'
 
 export type Theme = 'dark' | 'light'
 
-export type Page = 'library' | 'store' | 'settings' | 'downloads' | 'login' | 'register'
+export type Page = 'library' | 'store' | 'settings' | 'downloads' | 'login' | 'register' | 'forgot-password'
 
 export type User = {
   id: string

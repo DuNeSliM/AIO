@@ -6,6 +6,7 @@ import Settings from './pages/Settings'
 import Missions from './pages/Missions'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
 import CommanderHud from './components/CommanderHud'
 import { I18nProvider } from './i18n/i18n'
 import { useAuth } from './hooks/useAuth'
@@ -28,7 +29,7 @@ export default function App() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!isLoggedIn && page !== 'register' && page !== 'login') {
+    if (!isLoggedIn && page !== 'register' && page !== 'login' && page !== 'forgot-password') {
       setPage('login')
     }
   }, [isLoggedIn, page])
@@ -37,7 +38,7 @@ export default function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
-  // Show login/register pages without sidebar
+  // Show login/register/forgot-password pages without sidebar
   if (page === 'login') {
     return (
       <I18nProvider>
@@ -50,6 +51,14 @@ export default function App() {
     return (
       <I18nProvider>
         <Register onSuccess={setPage} />
+      </I18nProvider>
+    )
+  }
+
+  if (page === 'forgot-password') {
+    return (
+      <I18nProvider>
+        <ForgotPassword onSuccess={setPage} />
       </I18nProvider>
     )
   }
