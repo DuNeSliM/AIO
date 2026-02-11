@@ -82,7 +82,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   }
 
   return (
-    <aside className="flex w-24 flex-col items-center gap-8 border-r border-neon/10 bg-panel/60 px-3 py-6 backdrop-blur">
+    <aside className="fixed left-0 top-0 h-screen w-24 flex flex-col items-center gap-8 border-r border-neon/10 bg-panel/60 px-3 py-6 backdrop-blur overflow-hidden z-50">
       <div className="flex flex-col items-center gap-3">
         <div className="font-display text-xl text-ember">AIO</div>
         <div className="hud-divider w-10" />
@@ -130,7 +130,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
             onClick={handleLogout}
             disabled={isLoading}
           >
-            {isLoading ? t('auth.loggingOut') : t('auth.logout')}
+            {isLoading ? t('Logging Out...') : t('Logout Account')}
           </button>
         )}
         {!steamAuth.isLoggedIn ? (

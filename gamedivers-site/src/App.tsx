@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Sidebar from './components/Sidebar'
 import GameLibrary from './pages/GameLibrary'
 import Store from './pages/Store'
@@ -17,18 +17,30 @@ function getStoredTheme(): Theme {
   return stored === 'light' ? 'light' : 'dark'
 }
 
+function isUserLoggedIn(): boolean {
+  const accessToken = localStorage.getItem('accessToken')
+  const refreshToken = localStorage.getItem('refreshToken')
+  return !!accessToken && !!refreshToken
+}
+
 export default function App() {
   const { isLoggedIn } = useAuth()
-  const [page, setPage] = useState<Page>(() => isLoggedIn ? 'library' : 'login')
+  const [page, setPage] = useState<Page>(() => isUserLoggedIn() ? 'library' : 'login')
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme())
+  const isInitializedRef = useRef(false)
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  // Redirect to login if not authenticated
+  // Redirect to login if not authenticated (but skip first render)
   useEffect(() => {
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true
+      return
+    }
+    
     if (!isLoggedIn && page !== 'register' && page !== 'login' && page !== 'forgot-password') {
       setPage('login')
     }
@@ -66,8 +78,8 @@ export default function App() {
   return (
     <I18nProvider>
       <div className="hud-shell">
-        <div className="relative z-10 flex min-h-screen">
-          <Sidebar activePage={page} onNavigate={setPage} />
+        <Sidebar activePage={page} onNavigate={setPage} />
+        <div className="relative z-10 ml-24 flex min-h-screen flex-col">
           <main className="flex-1 px-6 py-8 lg:px-10">
             <div className="mb-6">
               <CommanderHud />
