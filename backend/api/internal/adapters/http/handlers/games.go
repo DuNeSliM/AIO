@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,6 +21,8 @@ import (
 type GameHandler struct {
 	Repo repo.Repo
 }
+
+var safeName = regexp.MustCompile("^[\\w .-]{1,120}$")
 
 // StartGameRequest represents a request to start a game
 type StartGameRequest struct {
@@ -118,33 +121,35 @@ func (h *GameHandler) GetInstalledGames(w http.ResponseWriter, r *http.Request) 
 // Example: curl -X POST http://localhost:8080/v1/games/epic/Bloons%20TD%206/start
 func (h *GameHandler) StartEpicGame(w http.ResponseWriter, r *http.Request) {
 	appName := chi.URLParam(r, "appname")
-	log.Printf("[Epic Games] Received request to start game: %s", appName)
 
 	if appName == "" {
-		log.Printf("[Epic Games] ERROR: Missing appname parameter")
 		http.Error(w, "missing appname", http.StatusBadRequest)
+		return
+	}
+
+	if !safeName.MatchString(appName) {
+		http.Error(w, "invalid app name", http.StatusBadRequest)
 		return
 	}
 
 	// Start the Epic game
 	if err := startEpicApp(appName); err != nil {
-		log.Printf("[Epic Games] ERROR starting game %s: %v", appName, err)
+		log.Printf("[Epic Games] launch failed")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]any{
-			"success": false,
-			"message": err.Error(),
+			"success":  false,
+			"message":  err.Error(),
 			"app_name": appName,
 		})
 		return
 	}
 
-	log.Printf("[Epic Games] Successfully started game: %s", appName)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
-		"success": true,
-		"message": "Game started successfully",
+		"success":  true,
+		"message":  "Game started successfully",
 		"app_name": appName,
 	})
 }
@@ -152,21 +157,16 @@ func (h *GameHandler) StartEpicGame(w http.ResponseWriter, r *http.Request) {
 // startEpicApp launches an Epic Games game
 // Reads the Epic Games manifest files to find the correct app ID and launches the game
 func startEpicApp(appName string) error {
-	log.Printf("[Epic Games] Starting app: %s", appName)
-
 	// Try to find the app in Epic Games manifests
 	appID, err := findEpicGameAppID(appName)
 	if err != nil {
-		log.Printf("[Epic Games] ERROR finding app ID: %v", err)
+		log.Printf("[Epic Games] app id lookup failed")
 		return err
 	}
 
 	if appID == "" {
-		log.Printf("[Epic Games] App not found in manifests: %s", appName)
-		return NewStartGameError("Epic Games app not found: " + appName)
+		return NewStartGameError("Epic Games app not found")
 	}
-
-	log.Printf("[Epic Games] Found app ID for %s: %s", appName, appID)
 
 	var cmd *exec.Cmd
 
@@ -175,28 +175,23 @@ func startEpicApp(appName string) error {
 		// Use the found app ID to launch the game
 		// Try different URI formats for Epic Games
 		launchURI := "com.epicgames.launcher://apps/" + appID + "?action=launch"
-		log.Printf("[Epic Games] Using launch URI: %s", launchURI)
 		cmd = exec.Command("cmd", "/c", "start", launchURI)
 
 	case "darwin":
 		// On macOS
-		log.Printf("[Epic Games] Launching on macOS")
 		cmd = exec.Command("open", "-a", "Epic Games Launcher")
 
 	case "linux":
 		// On Linux
-		log.Printf("[Epic Games] Launching on Linux")
 		cmd = exec.Command("bash", "-c", "epic-games-launcher")
 
 	default:
-		log.Printf("[Epic Games] Unsupported OS: %s", runtime.GOOS)
 		return ErrUnsupportedOS
 	}
 
-	log.Printf("[Epic Games] Executing command: %v", cmd)
 	err = cmd.Start()
 	if err != nil {
-		log.Printf("[Epic Games] ERROR executing command: %v", err)
+		log.Printf("[Epic Games] launch command failed")
 	}
 	return err
 }
@@ -224,51 +219,39 @@ type EpicLibraryItem struct {
 func findEpicGameAppID(appName string) (string, error) {
 	// Epic Games manifest directory
 	manifestDir := filepath.Join(os.Getenv("PROGRAMDATA"), "Epic", "EpicGamesLauncher", "Data", "Manifests")
-	log.Printf("[Epic Games] Searching manifests in: %s", manifestDir)
 
 	entries, err := ioutil.ReadDir(manifestDir)
 	if err != nil {
-		log.Printf("[Epic Games] ERROR reading manifest directory: %v", err)
 		// Manifest directory not found, return empty
 		return "", nil
 	}
 
-	log.Printf("[Epic Games] Found %d manifest files", len(entries))
-
 	appNameLower := strings.ToLower(appName)
-	log.Printf("[Epic Games] Looking for app: %s (lowercase: %s)", appName, appNameLower)
 
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".item") {
 			filePath := filepath.Join(manifestDir, entry.Name())
-			log.Printf("[Epic Games] Checking manifest: %s", entry.Name())
 
 			data, err := ioutil.ReadFile(filePath)
 			if err != nil {
-				log.Printf("[Epic Games] ERROR reading file %s: %v", entry.Name(), err)
 				continue
 			}
 
 			var manifest EpicManifest
 			if err := json.Unmarshal(data, &manifest); err != nil {
-				log.Printf("[Epic Games] ERROR parsing JSON in %s: %v", entry.Name(), err)
 				continue
 			}
-
-			log.Printf("[Epic Games] Manifest - AppName: %s, DisplayName: %s", manifest.AppName, manifest.DisplayName)
 
 			// Match by AppName or DisplayName (case-insensitive)
 			if strings.ToLower(manifest.AppName) == appNameLower ||
 				strings.ToLower(manifest.DisplayName) == appNameLower ||
 				strings.Contains(strings.ToLower(manifest.DisplayName), appNameLower) {
-				log.Printf("[Epic Games] MATCH FOUND! AppName: %s, DisplayName: %s", manifest.AppName, manifest.DisplayName)
 				// Return the AppName which is the app ID
 				return manifest.AppName, nil
 			}
 		}
 	}
 
-	log.Printf("[Epic Games] No match found for app: %s", appName)
 	return "", nil
 }
 
@@ -320,7 +303,7 @@ func readEpicManifests() ([]EpicManifest, error) {
 func (h *GameHandler) GetEpicLibrary(w http.ResponseWriter, r *http.Request) {
 	manifests, err := readEpicManifests()
 	if err != nil {
-		log.Printf("[Epic Games] ERROR reading manifests: %v", err)
+		log.Printf("[Epic Games] library read failed")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]any{
@@ -356,33 +339,35 @@ func (h *GameHandler) GetEpicLibrary(w http.ResponseWriter, r *http.Request) {
 // Example: curl -X POST http://localhost:8080/v1/games/gog/Captain%20Blood%20Demo/start
 func (h *GameHandler) StartGOGGame(w http.ResponseWriter, r *http.Request) {
 	gameName := chi.URLParam(r, "gamename")
-	log.Printf("[GOG Galaxy] Received request to start game: %s", gameName)
 
 	if gameName == "" {
-		log.Printf("[GOG Galaxy] ERROR: Missing gamename parameter")
 		http.Error(w, "missing gamename", http.StatusBadRequest)
+		return
+	}
+
+	if !safeName.MatchString(gameName) {
+		http.Error(w, "invalid game name", http.StatusBadRequest)
 		return
 	}
 
 	// Start the GOG game
 	if err := startGOGApp(gameName); err != nil {
-		log.Printf("[GOG Galaxy] ERROR starting game %s: %v", gameName, err)
+		log.Printf("[GOG Galaxy] launch failed")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]any{
-			"success": false,
-			"message": err.Error(),
+			"success":   false,
+			"message":   err.Error(),
 			"game_name": gameName,
 		})
 		return
 	}
 
-	log.Printf("[GOG Galaxy] Successfully started game: %s", gameName)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]any{
-		"success": true,
-		"message": "Game started successfully",
+		"success":   true,
+		"message":   "Game started successfully",
 		"game_name": gameName,
 	})
 }
@@ -390,72 +375,56 @@ func (h *GameHandler) StartGOGGame(w http.ResponseWriter, r *http.Request) {
 // startGOGApp launches a GOG Galaxy game
 // Reads the GOG Galaxy configuration files to find the correct game ID and launches the game
 func startGOGApp(gameName string) error {
-	log.Printf("[GOG Galaxy] Starting app: %s", gameName)
-
 	// Try to find the game in GOG Galaxy configuration
 	gameInstallPath, err := findGOGGamePath(gameName)
 	if err != nil {
-		log.Printf("[GOG Galaxy] ERROR finding game path: %v", err)
+		log.Printf("[GOG Galaxy] game path lookup failed")
 		return err
 	}
 
 	if gameInstallPath == "" {
-		log.Printf("[GOG Galaxy] Game not found: %s", gameName)
-		return NewStartGameError("GOG Galaxy game not found: " + gameName)
+		return NewStartGameError("GOG Galaxy game not found")
 	}
-
-	log.Printf("[GOG Galaxy] Found game at: %s", gameInstallPath)
 
 	// Find the executable in the game directory
 	exePath := findGameExecutable(gameInstallPath)
 	if exePath == "" {
-		log.Printf("[GOG Galaxy] No executable found in: %s", gameInstallPath)
-		return NewStartGameError("Game executable not found in: " + gameInstallPath)
+		return NewStartGameError("game executable not found")
 	}
-
-	log.Printf("[GOG Galaxy] Found executable: %s", exePath)
 
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
 	case "windows":
 		// Execute the game directly
-		log.Printf("[GOG Galaxy] Executing: %s", exePath)
 		cmd = exec.Command(exePath)
 
 	case "darwin":
 		// On macOS
-		log.Printf("[GOG Galaxy] Launching on macOS")
 		cmd = exec.Command("open", exePath)
 
 	case "linux":
 		// On Linux
-		log.Printf("[GOG Galaxy] Launching on Linux")
 		cmd = exec.Command(exePath)
 
 	default:
-		log.Printf("[GOG Galaxy] Unsupported OS: %s", runtime.GOOS)
 		return ErrUnsupportedOS
 	}
 
 	// Set working directory to the game folder for relative path dependencies
 	cmd.Dir = gameInstallPath
 
-	log.Printf("[GOG Galaxy] Executing command: %v with WorkDir: %s", cmd, gameInstallPath)
 	err = cmd.Start()
 	if err != nil {
-		log.Printf("[GOG Galaxy] ERROR executing command: %v", err)
+		log.Printf("[GOG Galaxy] launch command failed")
 	}
 	return err
 }
 
 // findGameExecutable looks for the main executable in a game directory
 func findGameExecutable(gamePath string) string {
-	log.Printf("[GOG Galaxy] Searching for executable in: %s", gamePath)
-
 	entries, err := ioutil.ReadDir(gamePath)
 	if err != nil {
-		log.Printf("[GOG Galaxy] ERROR reading game directory: %v", err)
 		return ""
 	}
 
@@ -471,7 +440,6 @@ func findGameExecutable(gamePath string) string {
 				for _, ext := range exePatterns {
 					if nameLower == priority+ext {
 						fullPath := filepath.Join(gamePath, entry.Name())
-						log.Printf("[GOG Galaxy] Found priority executable: %s", fullPath)
 						return fullPath
 					}
 				}
@@ -488,29 +456,26 @@ func findGameExecutable(gamePath string) string {
 				!strings.Contains(nameLower, "setup") &&
 				!strings.Contains(nameLower, "config") {
 				fullPath := filepath.Join(gamePath, entry.Name())
-				log.Printf("[GOG Galaxy] Found executable: %s", fullPath)
 				return fullPath
 			}
 		}
 	}
 
-	log.Printf("[GOG Galaxy] No executable found in game directory")
 	return ""
 }
 
 // GOGGame represents a GOG Galaxy game configuration
 type GOGGame struct {
-	ProductID   string `json:"productId"`
-	GameID      string `json:"gameId"`
-	GameTitle   string `json:"gameTitle"`
-	LocalTitle  string `json:"localTitle"`
+	ProductID      string `json:"productId"`
+	GameID         string `json:"gameId"`
+	GameTitle      string `json:"gameTitle"`
+	LocalTitle     string `json:"localTitle"`
 	ExecutablePath string `json:"executablePath"`
 }
 
 // findGOGGamePath searches for a GOG Galaxy game installation directory
 func findGOGGamePath(gameName string) (string, error) {
 	gameNameLower := strings.ToLower(gameName)
-	log.Printf("[GOG Galaxy] Looking for game path: %s (lowercase: %s)", gameName, gameNameLower)
 
 	// GOG Galaxy typically installs games in these locations
 	gogInstallPaths := []string{
@@ -525,38 +490,28 @@ func findGOGGamePath(gameName string) (string, error) {
 	userPath := filepath.Join("C:\\Users", username, "Games")
 	gogInstallPaths = append(gogInstallPaths, userPath)
 
-	log.Printf("[GOG Galaxy] Searching for installed games in %d locations", len(gogInstallPaths))
-
 	for _, basePath := range gogInstallPaths {
-		log.Printf("[GOG Galaxy] Checking path: %s", basePath)
-		
 		entries, err := ioutil.ReadDir(basePath)
 		if err != nil {
-			log.Printf("[GOG Galaxy] Path not found or error reading: %s - %v", basePath, err)
 			continue
 		}
-
-		log.Printf("[GOG Galaxy] Found %d items in %s", len(entries), basePath)
 
 		for _, entry := range entries {
 			if entry.IsDir() {
 				dirName := entry.Name()
 				dirNameLower := strings.ToLower(dirName)
-				log.Printf("[GOG Galaxy] Checking installed game directory: %s", dirName)
 
 				// Match by directory name (case-insensitive)
 				if dirNameLower == gameNameLower ||
 					strings.Contains(dirNameLower, gameNameLower) ||
 					strings.Contains(gameNameLower, dirNameLower) {
 					fullPath := filepath.Join(basePath, dirName)
-					log.Printf("[GOG Galaxy] MATCH FOUND! Path: %s", fullPath)
 					return fullPath, nil
 				}
 			}
 		}
 	}
 
-	log.Printf("[GOG Galaxy] No match found for game: %s", gameName)
 	return "", nil
 }
 

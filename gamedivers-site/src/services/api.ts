@@ -110,15 +110,17 @@ export async function launchGame(platform: string, id: string | number, appName?
 
 export async function syncStore(store: string, credentials?: { steamId?: string; accessToken?: string }) {
   let url
+  let headers: HeadersInit | undefined
   if (store === 'steam' && credentials?.steamId) {
     url = `${API_BASE}/v1/steam/sync?steamid=${credentials.steamId}`
   } else if (store === 'epic' && credentials?.accessToken) {
-    url = `${API_BASE}/v1/epic/sync?access_token=${credentials.accessToken}`
+    url = `${API_BASE}/v1/epic/sync`
+    headers = { Authorization: `Bearer ${credentials.accessToken}` }
   } else {
     url = `${API_BASE}/v1/games/${store}/library`
   }
 
-  const res = await tryJson(url, { method: 'POST' })
+  const res = await tryJson(url, { method: 'POST', headers })
   if (res && !(res as { error?: unknown }).error) return res
 
   await new Promise((resolve) => setTimeout(resolve, 700))

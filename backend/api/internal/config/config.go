@@ -11,6 +11,9 @@ type Config struct {
 	// IsThereAnyDeal API key
 	ITADAPIKey string
 
+	// Frontend origin for CORS/callbacks
+	FrontendOrigin string
+
 	// Steam Web API key
 	SteamAPIKey string
 
@@ -31,6 +34,10 @@ type Config struct {
 func Load() Config {
 	port := getenv("PORT", "8080")
 	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
+	frontendOrigin := getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+	if frontendOrigin == "" {
+		frontendOrigin = "http://localhost:5173"
+	}
 	steamAPIKey := getenv("STEAM_API_KEY", "")
 	steamCallbackURL := getenv("STEAM_CALLBACK_URL", "http://localhost:8080/v1/steam/callback")
 	epicClientID := getenv("EPIC_CLIENT_ID", "")
@@ -46,6 +53,7 @@ func Load() Config {
 	return Config{
 		Port:                 port,
 		ITADAPIKey:           itadAPIKey,
+		FrontendOrigin:       frontendOrigin,
 		SteamAPIKey:          steamAPIKey,
 		SteamCallbackURL:     steamCallbackURL,
 		EpicClientID:         epicClientID,

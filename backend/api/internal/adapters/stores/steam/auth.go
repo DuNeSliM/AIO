@@ -233,7 +233,7 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch wishlist: %w", err)
+		return nil, fmt.Errorf("failed to fetch wishlist")
 	}
 	defer resp.Body.Close()
 
@@ -247,7 +247,7 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("wishlist api error: %d - %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("wishlist api error: %d", resp.StatusCode)
 	}
 
 	var raw struct {
@@ -458,9 +458,14 @@ func (c *Client) GetOwnedGames(steamID string) ([]Game, error) {
 	params.Set("include_played_free_games", "1")
 	params.Set("format", "json")
 
-	resp, err := c.httpClient.Get(endpoint + "?" + params.Encode())
+	req, err := http.NewRequest(http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch games: %w", err)
+		return nil, fmt.Errorf("failed to build games request")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch games")
 	}
 	defer resp.Body.Close()
 
@@ -491,9 +496,14 @@ func (c *Client) GetPlayerSummaries(steamIDs []string) ([]PlayerSummary, error) 
 	params.Set("steamids", steamIDs[0]) // For simplicity, just get first one
 	params.Set("format", "json")
 
-	resp, err := c.httpClient.Get(endpoint + "?" + params.Encode())
+	req, err := http.NewRequest(http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch player: %w", err)
+		return nil, fmt.Errorf("failed to build player request")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch player")
 	}
 	defer resp.Body.Close()
 

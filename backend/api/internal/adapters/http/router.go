@@ -10,21 +10,37 @@ import (
 	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 )
 
-func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
+func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	allowedOrigins := map[string]struct{}{
+		frontendOrigin:          {},
+		"http://localhost:3000": {},
+		"http://localhost:5173": {},
+	}
+
 	// CORS middleware for frontend
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if _, ok := allowedOrigins[origin]; ok {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type")
 
-			if r.Method == "OPTIONS" {
+			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -39,6 +55,21 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, stea
 	})
 
 	r.Route("/v1", func(r chi.Router) {
+		// Game endpoints: keep a single mount path to avoid chi route collisions
+		r.Route("/games", func(r chi.Router) {
+			r.Get("/installed", gameHandler.GetInstalledGames)
+
+			// Authenticated launch endpoints
+			r.With(jwtMw.Authenticate).Post("/steam/{appid}/start", gameHandler.StartSteamGame)
+			r.With(jwtMw.Authenticate).Post("/epic/{appname}/start", gameHandler.StartEpicGame)
+			r.With(jwtMw.Authenticate).Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
+
+			// Authenticated local library endpoints
+			r.With(jwtMw.Authenticate).Get("/steam/library", gameHandler.GetSteamLibrary)
+			r.With(jwtMw.Authenticate).Get("/epic/library", gameHandler.GetEpicLibrary)
+			r.With(jwtMw.Authenticate).Get("/gog/library", gameHandler.GetGOGLibrary)
+		})
+
 		// Public auth endpoints (no authentication required)
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", authh.Register)
@@ -55,6 +86,27 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, stea
 				r.Put("/password", authh.ChangePassword)
 				r.Put("/profile", authh.UpdateProfile)
 			})
+		})
+
+		// Steam endpoints
+		r.Route("/steam", func(r chi.Router) {
+			r.Get("/login", steamHandler.LoginRedirect)
+			r.Get("/callback", steamHandler.Callback)
+
+			// Authenticated Steam endpoints
+			r.With(jwtMw.Authenticate).Get("/library", steamHandler.GetLibrary)
+			r.With(jwtMw.Authenticate).Get("/wishlist", steamHandler.GetWishlist)
+			r.With(jwtMw.Authenticate).Post("/sync", steamHandler.SyncLibrary)
+		})
+
+		// Epic endpoints
+		r.Route("/epic", func(r chi.Router) {
+			r.Get("/login", epicHandler.LoginRedirect)
+			r.Get("/callback", epicHandler.Callback)
+
+			// Authenticated Epic endpoints
+			r.With(jwtMw.Authenticate).Get("/library", epicHandler.GetLibrary)
+			r.With(jwtMw.Authenticate).Post("/sync", epicHandler.SyncLibrary)
 		})
 
 		// Protected API endpoints (authentication required)
@@ -87,63 +139,7 @@ func Router(itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, stea
 					r.Get("/historylow", itadh.GetHistoricalLow)
 				})
 			})
-		})
 
-		// Game launch endpoints
-		r.Route("/games", func(r chi.Router) {
-			// Start a Steam game by app ID
-			r.Post("/steam/{appid}/start", gameHandler.StartSteamGame)
-
-			// Start an Epic Games game by app name
-			r.Post("/epic/{appname}/start", gameHandler.StartEpicGame)
-
-			// Start a GOG Galaxy game by game name
-			r.Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
-
-			// Get installed/synced games
-			r.Get("/installed", gameHandler.GetInstalledGames)
-
-			// Get Steam library (placeholder)
-			r.Get("/steam/library", gameHandler.GetSteamLibrary)
-
-			// Get Epic Games library (placeholder)
-			r.Get("/epic/library", gameHandler.GetEpicLibrary)
-
-			// Get GOG Galaxy library (placeholder)
-			r.Get("/gog/library", gameHandler.GetGOGLibrary)
-		})
-
-		// Steam authentication and library
-		r.Route("/steam", func(r chi.Router) {
-			// Initiate Steam login
-			r.Get("/login", steamHandler.LoginRedirect)
-
-			// Steam OpenID callback
-			r.Get("/callback", steamHandler.Callback)
-
-			// Get Steam library for authenticated user
-			r.Get("/library", steamHandler.GetLibrary)
-
-			// Get Steam wishlist for authenticated user
-			r.Get("/wishlist", steamHandler.GetWishlist)
-
-			// Sync Steam library to database
-			r.Post("/sync", steamHandler.SyncLibrary)
-		})
-
-		// Epic Games authentication and library
-		r.Route("/epic", func(r chi.Router) {
-			// Initiate Epic Games login
-			r.Get("/login", epicHandler.LoginRedirect)
-
-			// Epic OAuth callback
-			r.Get("/callback", epicHandler.Callback)
-
-			// Get Epic Games library for authenticated user
-			r.Get("/library", epicHandler.GetLibrary)
-
-			// Sync Epic Games library to database
-			r.Post("/sync", epicHandler.SyncLibrary)
 		})
 	})
 

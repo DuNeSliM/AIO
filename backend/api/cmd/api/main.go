@@ -50,6 +50,7 @@ func main() {
 		cfg.EpicClientID,
 		cfg.EpicClientSecret,
 		cfg.EpicCallbackURL,
+		cfg.FrontendOrigin,
 	)
 
 	// Initialize Keycloak client
@@ -73,7 +74,7 @@ func main() {
 		cfg.KeycloakClientID,
 	)
 
-	router := httpapi.Router(itadHandler, gameHandler, steamHandler, epicHandler, authHandler, jwtMiddleware)
+	router := httpapi.Router(cfg.FrontendOrigin, itadHandler, gameHandler, steamHandler, epicHandler, authHandler, jwtMiddleware)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

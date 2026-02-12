@@ -15,10 +15,13 @@ export function useEpicAuth(): EpicAuth {
   const [accessToken, setAccessToken] = useState<string | null>(null)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const id = params.get('epicid')
-    const name = params.get('username')
-    const token = params.get('access_token')
+    const queryParams = new URLSearchParams(window.location.search)
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : ''
+    const hashParams = new URLSearchParams(hash)
+
+    const id = hashParams.get('epicid') || queryParams.get('epicid')
+    const name = hashParams.get('username') || queryParams.get('username')
+    const token = hashParams.get('access_token') || queryParams.get('access_token')
 
     if (id) {
       setEpicId(id)
@@ -27,13 +30,17 @@ export function useEpicAuth(): EpicAuth {
 
       localStorage.setItem('epicId', id)
       if (name) localStorage.setItem('epicUsername', name)
-      if (token) localStorage.setItem('epicAccessToken', token)
+      if (token) sessionStorage.setItem('epicAccessToken', token)
 
       window.history.replaceState({}, '', window.location.pathname)
     } else {
       const storedId = localStorage.getItem('epicId')
       const storedName = localStorage.getItem('epicUsername')
-      const storedToken = localStorage.getItem('epicAccessToken')
+      const storedToken = sessionStorage.getItem('epicAccessToken') || localStorage.getItem('epicAccessToken')
+      if (storedToken && !sessionStorage.getItem('epicAccessToken')) {
+        sessionStorage.setItem('epicAccessToken', storedToken)
+      }
+      localStorage.removeItem('epicAccessToken')
       if (storedId) {
         setEpicId(storedId)
         setUsername(storedName)
@@ -54,6 +61,7 @@ export function useEpicAuth(): EpicAuth {
     localStorage.removeItem('epicId')
     localStorage.removeItem('epicUsername')
     localStorage.removeItem('epicAccessToken')
+    sessionStorage.removeItem('epicAccessToken')
   }
 
   return {

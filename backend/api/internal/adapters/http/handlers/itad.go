@@ -33,7 +33,8 @@ func (h *ITADHandler) Search(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.Search(r.Context(), query, limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad search failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -52,7 +53,8 @@ func (h *ITADHandler) GetGameInfo(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.GetGameInfo(r.Context(), gameID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad game info failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -76,7 +78,8 @@ func (h *ITADHandler) GetGamePrices(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.GetGamePrices(r.Context(), gameID, country)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad game prices failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -100,7 +103,8 @@ func (h *ITADHandler) GetOverview(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.GetOverview(r.Context(), ids, country)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad overview failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -124,7 +128,8 @@ func (h *ITADHandler) GetHistoricalLow(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.GetHistoricalLow(r.Context(), gameID, country)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad historylow failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -142,7 +147,8 @@ func (h *ITADHandler) GetStores(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Client.GetStores(r.Context(), country)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad stores failed", err)
+		writeBadGateway(w)
 		return
 	}
 
@@ -167,13 +173,15 @@ func (h *ITADHandler) GetGameDetails(w http.ResponseWriter, r *http.Request) {
 	// Fetch both info and prices
 	infoData, err := h.Client.GetGameInfo(r.Context(), gameID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad game details info failed", err)
+		writeBadGateway(w)
 		return
 	}
 
 	pricesData, err := h.Client.GetGamePrices(r.Context(), gameID, country)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("itad game details prices failed", err)
+		writeBadGateway(w)
 		return
 	}
 

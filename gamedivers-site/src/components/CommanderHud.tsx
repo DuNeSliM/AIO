@@ -40,7 +40,7 @@ export default function CommanderHud() {
               onBlur={() => setCommanderName(name.trim() || 'Commander')}
             />
             <div className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
-              RANK: {rank} · LEVEL {commander.level}
+              RANK: {rank} • LEVEL {commander.level}
             </div>
           </div>
           <div className="flex flex-1 flex-wrap items-center gap-4">

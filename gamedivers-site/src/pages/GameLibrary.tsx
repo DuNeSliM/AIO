@@ -39,6 +39,10 @@ export default function GameLibrary() {
   }, [loadEpicLibrary])
 
   useEffect(() => {
+    void reload()
+  }, [reload])
+
+  useEffect(() => {
     localStorage.setItem('libraryView', viewMode)
   }, [viewMode])
 

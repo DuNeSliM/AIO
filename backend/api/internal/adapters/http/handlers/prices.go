@@ -26,13 +26,15 @@ func (h *PriceHandler) GetSteamDEPrice(w http.ResponseWriter, r *http.Request) {
 	force := r.URL.Query().Get("refresh") == "1"
 
 	if err := h.Pricing.EnsureSteamDEPriceFresh(r.Context(), appid, force); err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
+		logSafeError("ensure steam price failed", err)
+		writeBadGateway(w)
 		return
 	}
 
 	row, found, err := h.Repo.GetPriceRow(r.Context(), "steam", appid, "de")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("get price row failed", err)
+		writeInternalError(w)
 		return
 	}
 
@@ -59,7 +61,8 @@ func (h *PriceHandler) TrackSteamApp(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().Unix()
 	if err := h.Repo.TrackGame(r.Context(), "steam", appid, "de", now); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("track steam app failed", err)
+		writeInternalError(w)
 		return
 	}
 
