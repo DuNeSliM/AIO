@@ -126,7 +126,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
       <div className="mt-auto flex w-full flex-col gap-3">
         {user && (
           <button className="btn-ghost w-full text-xs" onClick={() => void handleLogout()} disabled={isLoading}>
-            {isLoading ? t('Logging Out...') : t('Logout Account')}
+            {isLoading ? t('auth.loggingOut') : t('auth.accountLogout')}
           </button>
         )}
         {!steamAuth.isLoggedIn ? (

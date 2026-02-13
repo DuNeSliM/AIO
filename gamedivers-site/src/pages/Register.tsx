@@ -59,7 +59,7 @@ export default function Register({ onSuccess }: RegisterPageProps) {
         formData.firstName || undefined,
         formData.lastName || undefined,
       )
-      onSuccess('library')
+      onSuccess('login')
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Registration failed')
     }

@@ -27,6 +27,23 @@ function getStoredRefreshToken(): string | null {
   return getStoredValue(REFRESH_TOKEN_STORAGE_KEYS)
 }
 
+export function clearPersistedAuthTokens() {
+  if (typeof window === 'undefined') return
+
+  const keys = new Set<string>([
+    ...AUTH_TOKEN_STORAGE_KEYS,
+    ...REFRESH_TOKEN_STORAGE_KEYS,
+    'accessToken',
+    'refreshToken',
+    'user',
+  ])
+
+  keys.forEach((key) => {
+    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
+  })
+}
+
 function persistAuthTokens(accessToken: string, refreshToken?: string) {
   if (typeof window === 'undefined') return
   localStorage.setItem('accessToken', accessToken)
@@ -54,15 +71,22 @@ async function tryRefreshToken(): Promise<string | null> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     })
-    if (!res.ok) return null
+    if (!res.ok) {
+      clearPersistedAuthTokens()
+      return null
+    }
 
     const payload = (await res.json()) as { accessToken?: string; refreshToken?: string }
     const nextAccess = payload.accessToken?.trim()
-    if (!nextAccess) return null
+    if (!nextAccess) {
+      clearPersistedAuthTokens()
+      return null
+    }
 
     persistAuthTokens(nextAccess, payload.refreshToken?.trim())
     return nextAccess
   } catch {
+    clearPersistedAuthTokens()
     return null
   }
 }

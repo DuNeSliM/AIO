@@ -24,6 +24,8 @@ const translations: Record<Language, TranslationTree> = {
     auth: {
       steamLogin: 'Steam Login',
       steamLogout: 'Logout Steam',
+      accountLogout: 'Account Logout',
+      loggingOut: 'Logging out...',
     },
     epic: {
       localSync: 'Epic',
@@ -238,6 +240,8 @@ const translations: Record<Language, TranslationTree> = {
     auth: {
       steamLogin: 'Steam Login',
       steamLogout: 'Logout Steam',
+      accountLogout: 'Logout Account',
+      loggingOut: 'Logging out...',
     },
     epic: {
       localSync: 'Epic',

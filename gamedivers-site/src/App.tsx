@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import CommanderHud from './components/CommanderHud'
 import OnboardingMission, { OPEN_ONBOARDING_EVENT, shouldShowOnboardingMission } from './components/OnboardingMission'
 import { DESIGN_CLASS_NAMES, findDesignById } from './designs/registry'
 import { useCommander } from './hooks/useCommander'
+import { AuthProvider, useAuth } from './hooks/useAuth'
 import { I18nProvider } from './i18n/i18n'
 import ForgotPassword from './pages/ForgotPassword'
 import GameLibrary from './pages/GameLibrary'
@@ -15,24 +16,25 @@ import Store from './pages/Store'
 import type { Page, Theme } from './types'
 import { evaluateDailyMissionsFromStorage } from './utils/gameify'
 
+const PUBLIC_PAGES: Page[] = ['login', 'register', 'forgot-password']
+
 function getStoredTheme(): Theme {
   const stored = localStorage.getItem('theme')
   return stored === 'light' ? 'light' : 'dark'
 }
 
-function isUserLoggedIn(): boolean {
-  const accessToken = localStorage.getItem('accessToken')
-  const refreshToken = localStorage.getItem('refreshToken')
+function hasStoredSession(): boolean {
+  const accessToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
+  const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken')
   return !!accessToken && !!refreshToken
 }
 
-export default function App() {
+function AppShell() {
   const commander = useCommander()
-  const [page, setPage] = useState<Page>(() => (isUserLoggedIn() ? 'library' : 'login'))
+  const { isLoggedIn, isLoading } = useAuth()
+  const [page, setPage] = useState<Page>(() => (hasStoredSession() ? 'library' : 'login'))
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme())
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboardingMission())
-  const isInitializedRef = useRef(false)
-  const loggedIn = isUserLoggedIn()
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
@@ -63,67 +65,62 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!isInitializedRef.current) {
-      isInitializedRef.current = true
+    if (isLoading) return
+
+    if (isLoggedIn) {
+      if (PUBLIC_PAGES.includes(page)) {
+        setPage('library')
+      }
       return
     }
 
-    if (!loggedIn && page !== 'register' && page !== 'login' && page !== 'forgot-password') {
+    if (!PUBLIC_PAGES.includes(page)) {
       setPage('login')
     }
-  }, [loggedIn, page])
+  }, [isLoggedIn, isLoading, page])
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
   }
 
   if (page === 'login') {
-    return (
-      <I18nProvider>
-        <Login onSuccess={setPage} />
-      </I18nProvider>
-    )
+    return <Login onSuccess={setPage} />
   }
 
   if (page === 'register') {
-    return (
-      <I18nProvider>
-        <Register onSuccess={setPage} />
-      </I18nProvider>
-    )
+    return <Register onSuccess={setPage} />
   }
 
   if (page === 'forgot-password') {
-    return (
-      <I18nProvider>
-        <ForgotPassword onSuccess={setPage} />
-      </I18nProvider>
-    )
+    return <ForgotPassword onSuccess={setPage} />
   }
 
   return (
-    <I18nProvider>
-      <div className="hud-shell">
-        <div className="relative z-10 flex min-h-screen">
-          <Sidebar activePage={page} onNavigate={setPage} />
-          <main className="flex-1 px-6 py-8 lg:px-10">
-            <div className="mb-6">
-              <CommanderHud />
-            </div>
-            {page === 'store' && <Store />}
-            {page === 'downloads' && <Missions />}
-            {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
-            {page === 'library' && <GameLibrary />}
-          </main>
-        </div>
-
-        {showOnboarding && (
-          <OnboardingMission
-            onNavigate={setPage}
-            onClose={() => setShowOnboarding(false)}
-          />
-        )}
+    <div className="hud-shell">
+      <div className="relative z-10 flex min-h-screen">
+        <Sidebar activePage={page} onNavigate={setPage} />
+        <main className="flex-1 px-6 py-8 lg:px-10">
+          <div className="mb-6">
+            <CommanderHud />
+          </div>
+          {page === 'store' && <Store />}
+          {page === 'downloads' && <Missions />}
+          {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
+          {page === 'library' && <GameLibrary />}
+        </main>
       </div>
-    </I18nProvider>
+
+      {showOnboarding && <OnboardingMission onNavigate={setPage} onClose={() => setShowOnboarding(false)} />}
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <I18nProvider>
+        <AppShell />
+      </I18nProvider>
+    </AuthProvider>
   )
 }
