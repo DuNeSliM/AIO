@@ -1,0 +1,23 @@
+body.design-cobalt-strike {
+  --tone-primary: #d9eeff;
+  --tone-muted: #8eb4ce;
+  --tone-soft: #b4d4ea;
+}
+
+body.design-cobalt-strike .term-frame {
+  background: linear-gradient(135deg, rgba(72, 186, 255, 0.52), rgba(47, 111, 255, 0.2), rgba(23, 67, 145, 0.26));
+  box-shadow: 0 0 24px rgba(72, 186, 255, 0.22);
+}
+
+body.design-cobalt-strike .term-frame--orange {
+  background: linear-gradient(135deg, rgba(120, 216, 255, 0.45), rgba(47, 111, 255, 0.18), rgba(87, 208, 255, 0.26));
+  box-shadow: 0 0 26px rgba(87, 208, 255, 0.2);
+}
+
+body.design-cobalt-strike .hud-shell::after {
+  background-image:
+    radial-gradient(circle at 32% 16%, rgba(72, 186, 255, 0.2), transparent 55%),
+    radial-gradient(circle at 84% 12%, rgba(47, 111, 255, 0.2), transparent 55%),
+    radial-gradient(circle at 48% 100%, rgba(24, 88, 189, 0.16), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 4px);
+}

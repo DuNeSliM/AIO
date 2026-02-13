@@ -1,0 +1,23 @@
+[
+  {
+    "id": "neo-grid",
+    "className": "design-neo-grid",
+    "cost": 0,
+    "default": true
+  },
+  {
+    "id": "sunset-drive",
+    "className": "design-sunset-drive",
+    "cost": 220
+  },
+  {
+    "id": "cobalt-strike",
+    "className": "design-cobalt-strike",
+    "cost": 260
+  },
+  {
+    "id": "ghost-protocol",
+    "className": "design-ghost-protocol",
+    "cost": 320
+  }
+]

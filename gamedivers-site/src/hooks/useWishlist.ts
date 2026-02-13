@@ -100,10 +100,16 @@ function getPicker(): (() => Promise<DirectoryHandle>) | null {
 }
 
 export function useWishlist(region: string) {
+  const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window
+  const onedriveSupported = typeof window !== 'undefined' && !!getPicker()
+
   const [items, setItems] = useState<WishlistItem[]>([])
   const [storageMode, setStorageMode] = useState<StorageMode>('local')
   const [onedriveStatus, setOnedriveStatus] = useState<OnedriveStatus>('disconnected')
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(
+    notificationsSupported ? Notification.permission : 'unsupported',
+  )
   const [alerts, setAlerts] = useState<WishlistAlert[]>([])
   const [checking, setChecking] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null)
@@ -112,8 +118,22 @@ export function useWishlist(region: string) {
   const itemsRef = useRef<WishlistItem[]>([])
   const checkingRef = useRef(false)
 
-  const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window
-  const onedriveSupported = typeof window !== 'undefined' && !!getPicker()
+  const syncNotificationState = useCallback(() => {
+    if (!notificationsSupported) {
+      setNotificationPermission('unsupported')
+      setNotificationsEnabled(false)
+      localStorage.setItem(NOTIFY_KEY, 'false')
+      return
+    }
+    const permission = Notification.permission
+    setNotificationPermission(permission)
+    const wantsNotifications = localStorage.getItem(NOTIFY_KEY) === 'true'
+    const enabled = wantsNotifications && permission === 'granted'
+    setNotificationsEnabled(enabled)
+    if (wantsNotifications !== enabled) {
+      localStorage.setItem(NOTIFY_KEY, enabled ? 'true' : 'false')
+    }
+  }, [notificationsSupported])
 
   useEffect(() => {
     itemsRef.current = items
@@ -124,7 +144,7 @@ export function useWishlist(region: string) {
     setItems(storedItems)
     const storedMode = localStorage.getItem(STORAGE_MODE_KEY) === 'onedrive' ? 'onedrive' : 'local'
     setStorageMode(storedMode)
-    setNotificationsEnabled(localStorage.getItem(NOTIFY_KEY) === 'true')
+    syncNotificationState()
 
     if (!onedriveSupported) {
       setOnedriveStatus('unsupported')
@@ -149,10 +169,37 @@ export function useWishlist(region: string) {
         setOnedriveStatus('connected')
       })()
     }
-  }, [onedriveSupported])
+  }, [onedriveSupported, syncNotificationState])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleFocus = () => syncNotificationState()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncNotificationState()
+      }
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === NOTIFY_KEY) {
+        syncNotificationState()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [syncNotificationState])
 
   useEffect(() => {
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(items))
+    window.dispatchEvent(new Event('mission-update'))
     if (storageMode !== 'onedrive') return
     if (onedriveStatus !== 'connected') return
     const handle = handleRef.current
@@ -178,13 +225,21 @@ export function useWishlist(region: string) {
 
   const enableNotifications = useCallback(async () => {
     if (!notificationsSupported) return false
+    if (Notification.permission === 'denied') {
+      setNotificationPermission('denied')
+      setNotificationsEnabled(false)
+      localStorage.setItem(NOTIFY_KEY, 'false')
+      return false
+    }
     if (Notification.permission === 'granted') {
+      setNotificationPermission('granted')
       setNotificationsEnabled(true)
       localStorage.setItem(NOTIFY_KEY, 'true')
       return true
     }
     const permission = await Notification.requestPermission()
     const granted = permission === 'granted'
+    setNotificationPermission(permission)
     setNotificationsEnabled(granted)
     localStorage.setItem(NOTIFY_KEY, granted ? 'true' : 'false')
     return granted
@@ -359,6 +414,7 @@ export function useWishlist(region: string) {
     requestOnedriveAccess,
     notificationsEnabled,
     notificationsSupported,
+    notificationPermission,
     enableNotifications,
     disableNotifications,
     alerts,

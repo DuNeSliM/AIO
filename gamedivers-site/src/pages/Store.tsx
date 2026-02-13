@@ -9,10 +9,9 @@ import {
   addEventLog,
   award,
   loadCounters,
-  loadMissionProgress,
+  recordCompare,
   recordScan,
   recordSync,
-  saveMissionProgress,
 } from '../utils/gameify'
 
 function formatPrice(price?: ItadPrice) {
@@ -54,7 +53,6 @@ export default function Store() {
   const [telemetry, setTelemetry] = useState('LOCKING MARKET')
   const [prefersReduced, setPrefersReduced] = useState(false)
   const [counters, setCounters] = useState(() => loadCounters())
-  const [missionProgress, setMissionProgress] = useState(() => loadMissionProgress().progress)
   const [priceCache, setPriceCache] = useState<Record<string, { steam?: number; epic?: number; currency?: string }>>({})
   const [showWishlist, setShowWishlist] = useState(() => localStorage.getItem('showWishlist') !== 'false')
   const [wishlistSyncing, setWishlistSyncing] = useState(false)
@@ -62,6 +60,7 @@ export default function Store() {
     items,
     addItem,
     removeItem,
+    updateThreshold,
     alerts,
     checking,
     lastCheckedAt,
@@ -70,6 +69,15 @@ export default function Store() {
   const steamAuth = useSteamAuth()
 
   const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
+  const sortedWishlistItems = useMemo(() => {
+    const score = (item: (typeof items)[number]) =>
+      (item.belowThreshold ? 4 : 0) + (item.onSale ? 2 : 0) + ((item.dealsTop3?.length ?? 0) > 0 ? 1 : 0)
+    return [...items].sort((a, b) => {
+      const scoreDiff = score(b) - score(a)
+      if (scoreDiff !== 0) return scoreDiff
+      return (b.addedAt ?? 0) - (a.addedAt ?? 0)
+    })
+  }, [items])
   const lastCheckedLabel = lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : t('store.wishlist.never')
   const pushLog = useCallback((entry: string) => addEventLog(entry), [])
   const compareRef = useRef<HTMLDivElement | null>(null)
@@ -86,7 +94,6 @@ export default function Store() {
   useEffect(() => {
     const handler = () => {
       setCounters(loadCounters())
-      setMissionProgress(loadMissionProgress().progress)
     }
     window.addEventListener('mission-update', handler)
     return () => window.removeEventListener('mission-update', handler)
@@ -144,6 +151,7 @@ export default function Store() {
     setLoading(true)
     setError(null)
     pushLog(`COMPARE: ${game.title}`)
+    recordCompare()
     try {
       const data = await getItadPrices(game.id, region)
       setPrices(data)
@@ -217,45 +225,6 @@ export default function Store() {
       setWishlistSyncing(false)
     }
   }
-
-  useEffect(() => {
-    const progress = loadMissionProgress().progress
-    let updated = { ...progress }
-    let completed = false
-
-    if (!progress.scans && counters.scans >= 3) {
-      updated.scans = true
-      award(25, 20)
-      pushLog('REWARD EARNED: SEARCH RUNNER')
-      completed = true
-    }
-
-    if (!progress.cargo && items.length >= 5) {
-      updated.cargo = true
-      award(30, 30)
-      pushLog('REWARD EARNED: WATCHLIST TRACKER')
-      completed = true
-    }
-
-    if (!progress.launch && counters.launchUnplayed >= 1) {
-      updated.launch = true
-      award(40, 35)
-      pushLog('REWARD EARNED: FIRST LAUNCH')
-      completed = true
-    }
-
-    if (!progress.sync && counters.syncs >= 1) {
-      updated.sync = true
-      award(20, 10)
-      pushLog('REWARD EARNED: WATCHLIST SYNC')
-      completed = true
-    }
-
-    if (completed) {
-      saveMissionProgress(updated)
-      setMissionProgress(updated)
-    }
-  }, [counters, items.length, pushLog])
 
   const priceItem = Array.isArray(prices)
     ? prices.find((item) => item.id === selected?.id)
@@ -509,15 +478,45 @@ export default function Store() {
 
           {items.length > 0 && (
             <div className="mt-4 grid gap-3">
-              {items.map((item) => (
+              {sortedWishlistItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4"
                 >
                   <div className="flex flex-col gap-2">
                     <div className="text-base tone-primary">{item.title}</div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/55">
+                      <span>{item.source === 'steam' ? 'STEAM' : 'MANUAL'}</span>
+                      {typeof item.lastPrice === 'number' && (
+                        <span>
+                          {item.lastPrice.toFixed(2)} {item.currency ?? 'EUR'}
+                        </span>
+                      )}
+                      {item.lastCheckedAt && <span>{new Date(item.lastCheckedAt).toLocaleTimeString()}</span>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
+                      {item.onSale && <span className="term-chip">{t('store.wishlist.onSale')}</span>}
+                      {item.belowThreshold && <span className="term-chip">{t('store.wishlist.belowTarget')}</span>}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      className="term-console w-28"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder={t('store.wishlist.targetPlaceholder')}
+                      value={typeof item.threshold === 'number' ? item.threshold : ''}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        if (!raw) {
+                          updateThreshold(item.id, null)
+                          return
+                        }
+                        const parsed = Number.parseFloat(raw)
+                        updateThreshold(item.id, Number.isNaN(parsed) ? null : Math.max(0, parsed))
+                      }}
+                    />
                     <button
                       className="term-btn-secondary"
                       onClick={() => {

@@ -1,0 +1,23 @@
+body.design-sunset-drive {
+  --tone-primary: #ffe9d6;
+  --tone-muted: #d6b9a1;
+  --tone-soft: #f2c9a8;
+}
+
+body.design-sunset-drive .term-frame {
+  background: linear-gradient(135deg, rgba(255, 169, 98, 0.55), rgba(255, 122, 0, 0.2), rgba(189, 62, 26, 0.28));
+  box-shadow: 0 0 24px rgba(255, 122, 0, 0.25);
+}
+
+body.design-sunset-drive .term-frame--orange {
+  background: linear-gradient(135deg, rgba(255, 191, 122, 0.6), rgba(255, 122, 0, 0.18), rgba(255, 82, 0, 0.3));
+  box-shadow: 0 0 28px rgba(255, 140, 64, 0.32);
+}
+
+body.design-sunset-drive .hud-shell::after {
+  background-image:
+    radial-gradient(circle at 35% 20%, rgba(255, 180, 120, 0.2), transparent 55%),
+    radial-gradient(circle at 82% 8%, rgba(255, 92, 32, 0.24), transparent 55%),
+    radial-gradient(circle at 45% 100%, rgba(255, 122, 0, 0.15), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 4px);
+}
