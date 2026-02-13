@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
@@ -71,14 +72,25 @@ type SidebarProps = {
 }
 
 export default function Sidebar({ activePage = 'library', onNavigate }: SidebarProps) {
+  const { user, logout, isLoading } = useAuth()
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
+
+  const handleLogout = async () => {
+    await logout()
+    onNavigate?.('login')
+  }
 
   return (
     <aside className="flex w-24 flex-col items-center gap-8 border-r border-neon/10 bg-panel/60 px-3 py-6 backdrop-blur">
       <div className="flex flex-col items-center gap-3">
         <div className="font-display text-xl text-ember">AIO</div>
         <div className="hud-divider w-10" />
+        {user && (
+          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={user.username}>
+            {user.username}
+          </div>
+        )}
         {steamAuth.isLoggedIn && (
           <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={steamAuth.username ?? undefined}>
             {steamAuth.username}
@@ -112,6 +124,11 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
         />
       </nav>
       <div className="mt-auto flex w-full flex-col gap-3">
+        {user && (
+          <button className="btn-ghost w-full text-xs" onClick={() => void handleLogout()} disabled={isLoading}>
+            {isLoading ? t('Logging Out...') : t('Logout Account')}
+          </button>
+        )}
         {!steamAuth.isLoggedIn ? (
           <button className="btn-primary w-full text-xs" onClick={steamAuth.login}>
             {t('auth.steamLogin')}

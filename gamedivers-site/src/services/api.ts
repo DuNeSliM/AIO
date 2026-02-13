@@ -1,10 +1,105 @@
-import type { Game, ItadPricesResponse, ItadSearchItem } from '../types'
+import type { AuthResponse, Game, ItadPricesResponse, ItadSearchItem, User } from '../types'
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+const ENV_AUTH_TOKEN = (import.meta.env.VITE_AUTH_ACCESS_TOKEN || import.meta.env.VITE_AUTH_TOKEN || '').trim()
+const AUTH_TOKEN_STORAGE_KEYS = ['accessToken', 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
+const REFRESH_TOKEN_STORAGE_KEYS = ['refreshToken', 'authRefreshToken'] as const
+
+function getStoredValue(keys: readonly string[]): string | null {
+  if (typeof window === 'undefined') return null
+
+  for (const key of keys) {
+    const sessionToken = sessionStorage.getItem(key)?.trim()
+    if (sessionToken) return sessionToken
+
+    const localToken = localStorage.getItem(key)?.trim()
+    if (localToken) return localToken
+  }
+
+  return null
+}
+
+function getStoredToken(): string | null {
+  return getStoredValue(AUTH_TOKEN_STORAGE_KEYS)
+}
+
+function getStoredRefreshToken(): string | null {
+  return getStoredValue(REFRESH_TOKEN_STORAGE_KEYS)
+}
+
+function persistAuthTokens(accessToken: string, refreshToken?: string) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('accessToken', accessToken)
+  sessionStorage.setItem('accessToken', accessToken)
+  if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken)
+    sessionStorage.setItem('refreshToken', refreshToken)
+  }
+}
+
+function resolveAuthToken(): string | null {
+  const stored = getStoredToken()
+  if (stored) return stored
+  if (ENV_AUTH_TOKEN) return ENV_AUTH_TOKEN
+  return null
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken()
+  if (!refreshToken) return null
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) return null
+
+    const payload = (await res.json()) as { accessToken?: string; refreshToken?: string }
+    const nextAccess = payload.accessToken?.trim()
+    if (!nextAccess) return null
+
+    persistAuthTokens(nextAccess, payload.refreshToken?.trim())
+    return nextAccess
+  } catch {
+    return null
+  }
+}
+
+function withAuth(opts?: RequestInit): RequestInit {
+  const token = resolveAuthToken()
+  if (!token) return opts ?? {}
+
+  const headers = new Headers(opts?.headers)
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  return { ...opts, headers }
+}
+
+function withToken(opts: RequestInit | undefined, token: string): RequestInit {
+  const headers = new Headers(opts?.headers)
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  return { ...opts, headers }
+}
+
+async function fetchWithAuth(url: string, opts?: RequestInit): Promise<Response> {
+  const first = await fetch(url, withAuth(opts))
+  if (first.status !== 401) return first
+
+  const refreshedAccess = await tryRefreshToken()
+  if (!refreshedAccess) return first
+
+  return fetch(url, withToken(opts, refreshedAccess))
+}
 
 async function tryJson<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch(url, opts)
+    const res = await fetchWithAuth(url, opts)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return (await res.json()) as T
   } catch (error) {
@@ -33,7 +128,7 @@ export async function fetchGames(): Promise<Game[]> {
 
 export async function fetchSteamLibrary(steamId: string): Promise<Game[]> {
   if (!steamId) return []
-  const res = await fetch(`${API_BASE}/v1/steam/library?steamid=${steamId}`)
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/library?steamid=${encodeURIComponent(steamId)}`)
   if (!res.ok) throw await readApiError(res)
   const data = (await res.json()) as Game[]
   return Array.isArray(data) ? data : []
@@ -53,7 +148,7 @@ export type SteamWishlistEntry = {
 
 export async function fetchSteamWishlist(steamId: string): Promise<SteamWishlistEntry[]> {
   if (!steamId) return []
-  const res = await fetch(`${API_BASE}/v1/steam/wishlist?steamid=${steamId}`)
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/wishlist?steamid=${encodeURIComponent(steamId)}`)
   if (!res.ok) throw await readApiError(res)
   const data = (await res.json()) as SteamWishlistEntry[]
   return Array.isArray(data) ? data : []
@@ -99,7 +194,7 @@ export async function launchGame(platform: string, id: string | number, appName?
         throw new Error(`Unsupported platform: ${platform}`)
     }
 
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetchWithAuth(url, { method: 'POST' })
     if (!res.ok) throw new Error(`Launch failed: ${res.status}`)
     return await res.json()
   } catch (error) {
@@ -125,4 +220,79 @@ export async function syncStore(store: string, credentials?: { steamId?: string;
 
   await new Promise((resolve) => setTimeout(resolve, 700))
   return { ok: true }
+}
+
+export async function register(
+  username: string,
+  email: string,
+  password: string,
+  firstName?: string,
+  lastName?: string,
+): Promise<User> {
+  const res = await fetch(`${API_BASE}/v1/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password, firstName, lastName }),
+  })
+  if (!res.ok) {
+    const error = (await res.json()) as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Registration failed')
+  }
+  return (await res.json()) as User
+}
+
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/v1/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!res.ok) {
+    const error = (await res.json()) as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Login failed')
+  }
+  return (await res.json()) as AuthResponse
+}
+
+export async function logout(refreshToken: string): Promise<void> {
+  await fetch(`${API_BASE}/v1/auth/logout`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+}
+
+export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!res.ok) {
+    throw new Error('Token refresh failed')
+  }
+  return (await res.json()) as AuthResponse
+}
+
+export async function getMe(accessToken: string): Promise<User> {
+  const res = await fetch(`${API_BASE}/v1/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    throw new Error('Failed to get user info')
+  }
+  return (await res.json()) as User
+}
+
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/v1/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const error = (await res.json()) as { error?: string; message?: string }
+    throw new Error(error.message || error.error || 'Failed to request password reset')
+  }
+  return (await res.json()) as { message: string }
 }
