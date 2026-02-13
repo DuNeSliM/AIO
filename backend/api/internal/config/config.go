@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -25,18 +26,19 @@ type Config struct {
 	EpicClientSecret string
 	EpicCallbackURL  string
 	// Keycloak configuration
-	KeycloakURL          string
-	KeycloakRealm        string
-	KeycloakClientID     string
-	KeycloakClientSecret string
+	KeycloakURL                  string
+	KeycloakRealm                string
+	KeycloakClientID             string
+	KeycloakClientSecret         string
+	KeycloakRequireEmailVerified bool
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
 	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
-	frontendOrigin := getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+	frontendOrigin := getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 	if frontendOrigin == "" {
-		frontendOrigin = "http://localhost:5173"
+		frontendOrigin = "http://localhost:3000"
 	}
 	steamAPIKey := getenv("STEAM_API_KEY", "")
 	steamCallbackURL := getenv("STEAM_CALLBACK_URL", "http://localhost:8080/v1/steam/callback")
@@ -49,6 +51,7 @@ func Load() Config {
 	keycloakRealm := mustGetenv("KEYCLOAK_REALM")
 	keycloakClientID := mustGetenv("KEYCLOAK_CLIENT_ID")
 	keycloakClientSecret := mustGetenv("KEYCLOAK_CLIENT_SECRET")
+	keycloakRequireEmailVerified := getenvBool("KEYCLOAK_REQUIRE_EMAIL_VERIFIED", true)
 
 	return Config{
 		Port:                 port,
@@ -59,10 +62,11 @@ func Load() Config {
 		EpicClientID:         epicClientID,
 		EpicClientSecret:     epicClientSecret,
 		EpicCallbackURL:      epicCallbackURL,
-		KeycloakURL:          keycloakURL,
-		KeycloakRealm:        keycloakRealm,
-		KeycloakClientID:     keycloakClientID,
-		KeycloakClientSecret: keycloakClientSecret,
+		KeycloakURL:                  keycloakURL,
+		KeycloakRealm:                keycloakRealm,
+		KeycloakClientID:             keycloakClientID,
+		KeycloakClientSecret:         keycloakClientSecret,
+		KeycloakRequireEmailVerified: keycloakRequireEmailVerified,
 	}
 }
 
@@ -79,4 +83,19 @@ func getenv(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func getenvBool(key string, def bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+
+	parsed, err := strconv.ParseBool(v)
+	if err != nil {
+		log.Printf("invalid boolean value for %s, using default %t", key, def)
+		return def
+	}
+
+	return parsed
 }

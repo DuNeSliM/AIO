@@ -42,6 +42,7 @@ func main() {
 	steamHandler := handlers.NewSteamHandler(
 		cfg.SteamAPIKey,
 		cfg.SteamCallbackURL,
+		cfg.FrontendOrigin,
 		nil, // TODO: Inject repo dependency
 	)
 
@@ -59,6 +60,7 @@ func main() {
 		cfg.KeycloakRealm,
 		cfg.KeycloakClientID,
 		cfg.KeycloakClientSecret,
+		cfg.KeycloakRequireEmailVerified,
 	)
 
 	// Initialize auth handler (repo is nil for now, can be wired later)

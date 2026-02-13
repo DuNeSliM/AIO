@@ -57,6 +57,9 @@ type UserResponse struct {
 	Email     string `json:"email"`
 	FirstName string `json:"firstName,omitempty"`
 	LastName  string `json:"lastName,omitempty"`
+	VerificationEmailRequired *bool  `json:"verificationEmailRequired,omitempty"`
+	VerificationEmailSent     *bool  `json:"verificationEmailSent,omitempty"`
+	Warning                   string `json:"warning,omitempty"`
 }
 
 // ErrorResponse represents an error response
@@ -121,12 +124,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	verificationEmailRequired := kcUser.VerificationEmailRequired
+	verificationEmailSent := kcUser.VerificationEmailSent
 	json.NewEncoder(w).Encode(UserResponse{
 		ID:        kcUser.ID,
 		Username:  kcUser.Username,
 		Email:     kcUser.Email,
 		FirstName: kcUser.FirstName,
 		LastName:  kcUser.LastName,
+		VerificationEmailRequired: &verificationEmailRequired,
+		VerificationEmailSent:     &verificationEmailSent,
+		Warning:                   kcUser.VerificationEmailWarning,
 	})
 }
 
@@ -149,6 +157,14 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "account not verified") {
+			writeError(w, http.StatusForbidden, "account_not_verified", "Account is not verified. Please verify your email.")
+			return
+		}
+		if strings.Contains(err.Error(), "account disabled") {
+			writeError(w, http.StatusForbidden, "account_disabled", "Account is disabled.")
+			return
+		}
 		if strings.Contains(err.Error(), "invalid username or password") {
 			writeError(w, http.StatusUnauthorized, "invalid_credentials", "Invalid username or password")
 			return

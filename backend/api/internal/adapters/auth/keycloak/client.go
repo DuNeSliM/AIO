@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,20 +15,22 @@ import (
 
 // Client handles communication with Keycloak Admin and Token APIs
 type Client struct {
-	baseURL      string
-	realm        string
-	clientID     string
-	clientSecret string
-	httpClient   *http.Client
+	baseURL              string
+	realm                string
+	clientID             string
+	clientSecret         string
+	requireEmailVerified bool
+	httpClient           *http.Client
 }
 
 // NewClient creates a new Keycloak client
-func NewClient(baseURL, realm, clientID, clientSecret string) *Client {
+func NewClient(baseURL, realm, clientID, clientSecret string, requireEmailVerified bool) *Client {
 	return &Client{
-		baseURL:      strings.TrimSuffix(baseURL, "/"),
-		realm:        realm,
-		clientID:     clientID,
-		clientSecret: clientSecret,
+		baseURL:              strings.TrimSuffix(baseURL, "/"),
+		realm:                realm,
+		clientID:             clientID,
+		clientSecret:         clientSecret,
+		requireEmailVerified: requireEmailVerified,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -54,8 +57,12 @@ type UserRepresentation struct {
 	LastName      string                     `json:"lastName,omitempty"`
 	Enabled       bool                       `json:"enabled"`
 	EmailVerified bool                       `json:"emailVerified"`
+	RequiredActions []string                 `json:"requiredActions,omitempty"`
 	Credentials   []CredentialRepresentation `json:"credentials,omitempty"`
 	Attributes    map[string][]string        `json:"attributes,omitempty"`
+	VerificationEmailRequired bool           `json:"-"`
+	VerificationEmailSent     bool           `json:"-"`
+	VerificationEmailWarning  string         `json:"-"`
 }
 
 // CredentialRepresentation represents user credentials
@@ -148,7 +155,7 @@ func (c *Client) Register(ctx context.Context, req RegisterRequest) (*UserRepres
 		FirstName:     req.FirstName,
 		LastName:      req.LastName,
 		Enabled:       true,
-		EmailVerified: false, // Set to true if you don't want email verification
+		EmailVerified: !c.requireEmailVerified,
 		Credentials: []CredentialRepresentation{
 			{
 				Type:      "password",
@@ -195,20 +202,113 @@ func (c *Client) Register(ctx context.Context, req RegisterRequest) (*UserRepres
 	parts := strings.Split(location, "/")
 	userID := parts[len(parts)-1]
 
-	// Send email verification
-	if err := c.SendVerificationEmail(ctx, userID, adminToken); err != nil {
-		// Log error but don't fail registration - user can request verification later
-		// In production, you might want to handle this differently
+	verificationEmailSent := !c.requireEmailVerified
+	verificationEmailWarning := ""
+
+	// Send verification mail only when verification is required.
+	if !c.requireEmailVerified {
+		if err := c.setEmailVerified(ctx, userID, true, adminToken); err != nil {
+			log.Printf("keycloak: could not force emailVerified=true for user %s: %v", userID, err)
+		}
+	}
+	if c.requireEmailVerified {
+		if err := c.SendVerificationEmail(ctx, userID, adminToken); err != nil {
+			verificationEmailSent = false
+			verificationEmailWarning = "verification email could not be sent"
+			log.Printf("keycloak: failed to send verification email for user %s: %v", userID, err)
+		}
 	}
 
 	return &UserRepresentation{
-		ID:        userID,
-		Username:  req.Username,
-		Email:     req.Email,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Enabled:   true,
+		ID:            userID,
+		Username:      req.Username,
+		Email:         req.Email,
+		FirstName:     req.FirstName,
+		LastName:      req.LastName,
+		Enabled:       true,
+		EmailVerified: !c.requireEmailVerified,
+		VerificationEmailRequired: c.requireEmailVerified,
+		VerificationEmailSent:     verificationEmailSent,
+		VerificationEmailWarning:  verificationEmailWarning,
 	}, nil
+}
+
+func (c *Client) setEmailVerified(ctx context.Context, userID string, verified bool, adminToken string) error {
+	if adminToken == "" {
+		var err error
+		adminToken, err = c.getAdminToken(ctx)
+		if err != nil {
+			return fmt.Errorf("get admin token: %w", err)
+		}
+	}
+
+	userURL := fmt.Sprintf("%s/admin/realms/%s/users/%s", c.baseURL, c.realm, userID)
+
+	getReq, err := http.NewRequestWithContext(ctx, "GET", userURL, nil)
+	if err != nil {
+		return fmt.Errorf("create get request: %w", err)
+	}
+	getReq.Header.Set("Authorization", "Bearer "+adminToken)
+
+	getResp, err := c.httpClient.Do(getReq)
+	if err != nil {
+		return fmt.Errorf("execute get request: %w", err)
+	}
+	defer getResp.Body.Close()
+
+	if getResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(getResp.Body)
+		return fmt.Errorf("get user failed (status %d): %s", getResp.StatusCode, string(body))
+	}
+
+	var user UserRepresentation
+	if err := json.NewDecoder(getResp.Body).Decode(&user); err != nil {
+		return fmt.Errorf("parse user: %w", err)
+	}
+
+	user.EmailVerified = verified
+	if verified {
+		user.RequiredActions = removeRequiredAction(user.RequiredActions, "VERIFY_EMAIL")
+	}
+
+	userJSON, err := json.Marshal(user)
+	if err != nil {
+		return fmt.Errorf("marshal user: %w", err)
+	}
+
+	updateReq, err := http.NewRequestWithContext(ctx, "PUT", userURL, bytes.NewReader(userJSON))
+	if err != nil {
+		return fmt.Errorf("create update request: %w", err)
+	}
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq.Header.Set("Authorization", "Bearer "+adminToken)
+
+	updateResp, err := c.httpClient.Do(updateReq)
+	if err != nil {
+		return fmt.Errorf("execute update request: %w", err)
+	}
+	defer updateResp.Body.Close()
+
+	if updateResp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(updateResp.Body)
+		return fmt.Errorf("update user failed (status %d): %s", updateResp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+func removeRequiredAction(actions []string, action string) []string {
+	if len(actions) == 0 {
+		return actions
+	}
+
+	out := make([]string, 0, len(actions))
+	for _, a := range actions {
+		if !strings.EqualFold(a, action) {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // Login authenticates a user and returns tokens
@@ -243,7 +343,24 @@ func (c *Client) Login(ctx context.Context, req LoginRequest) (*TokenResponse, e
 		var errResp ErrorResponse
 		_ = json.Unmarshal(body, &errResp)
 		if errResp.Error == "invalid_grant" {
-			return nil, fmt.Errorf("invalid username or password")
+			desc := strings.ToLower(strings.TrimSpace(errResp.ErrorDescription))
+			switch {
+			case strings.Contains(desc, "account is not fully set up"),
+				strings.Contains(desc, "email not verified"),
+				strings.Contains(desc, "verify email"):
+				return nil, fmt.Errorf("account not verified")
+			case strings.Contains(desc, "account disabled"),
+				strings.Contains(desc, "user is disabled"):
+				return nil, fmt.Errorf("account disabled")
+			case strings.Contains(desc, "invalid user credentials"),
+				strings.Contains(desc, "invalid username or password"):
+				return nil, fmt.Errorf("invalid username or password")
+			default:
+				if errResp.ErrorDescription != "" {
+					return nil, fmt.Errorf("invalid login: %s", errResp.ErrorDescription)
+				}
+				return nil, fmt.Errorf("invalid username or password")
+			}
 		}
 		return nil, fmt.Errorf("keycloak error: %s - %s", errResp.Error, errResp.ErrorDescription)
 	}
