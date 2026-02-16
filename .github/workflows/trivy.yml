@@ -24,7 +24,7 @@ jobs:
             backend/api
 
       - name: Trivy image scan
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: "local/go-api:latest"
           format: "table"
@@ -33,7 +33,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Trivy config scan (k8s manifests)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           scan-type: "config"
           hide-progress: true
