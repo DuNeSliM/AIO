@@ -24,6 +24,16 @@ const translations: Record<Language, TranslationTree> = {
     auth: {
       steamLogin: 'Steam Login',
       steamLogout: 'Logout Steam',
+      logout: 'Logout Account',
+      loggingOut: 'Logging Out...',
+      sessionExpired: 'Session expired. Please login again.',
+      validation: {
+        requiredFields: 'Username, email, and password are required',
+        invalidEmail: 'Please enter a valid email address',
+        passwordTooShort: 'Password must be at least 8 characters long',
+        passwordMismatch: 'Passwords do not match',
+        emailRequired: 'Email address is required',
+      },
     },
     epic: {
       localSync: 'Epic',
@@ -107,6 +117,16 @@ const translations: Record<Language, TranslationTree> = {
     auth: {
       steamLogin: 'Steam Login',
       steamLogout: 'Logout Steam',
+      logout: 'Logout Account',
+      loggingOut: 'Logging Out...',
+      sessionExpired: 'Session expired. Please login again.',
+      validation: {
+        requiredFields: 'Username, email, and password are required',
+        invalidEmail: 'Please enter a valid email address',
+        passwordTooShort: 'Password must be at least 8 characters long',
+        passwordMismatch: 'Passwords do not match',
+        emailRequired: 'Email address is required',
+      },
     },
     epic: {
       localSync: 'Epic',

@@ -19,13 +19,13 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
     setError(null)
 
     if (!email.trim()) {
-      setError('Email address is required')
+      setError(t('auth.validation.emailRequired'))
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address')
+      setError(t('auth.validation.invalidEmail'))
       return
     }
 

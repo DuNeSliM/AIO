@@ -130,7 +130,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
             onClick={handleLogout}
             disabled={isLoading}
           >
-            {isLoading ? t('Logging Out...') : t('Logout Account')}
+            {isLoading ? t('auth.loggingOut') : t('auth.logout')}
           </button>
         )}
         {!steamAuth.isLoggedIn ? (

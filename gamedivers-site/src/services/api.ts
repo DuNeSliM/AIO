@@ -2,6 +2,85 @@ import type { Game, ItadPricesResponse, ItadSearchItem, User, AuthResponse } fro
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 
+const ACCESS_TOKEN_KEY = 'accessToken'
+const REFRESH_TOKEN_KEY = 'refreshToken'
+const USER_KEY = 'user'
+
+// Decode JWT token and extract expiration time
+function decodeJwt(token: string): { exp?: number } {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return {}
+    const decoded = JSON.parse(atob(parts[1]))
+    return decoded
+  } catch {
+    return {}
+  }
+}
+
+// Check if token is expiring soon (within 5 minutes)
+export function isTokenExpiringSoon(token: string, thresholdSeconds = 300): boolean {
+  const decoded = decodeJwt(token)
+  if (!decoded.exp) return false
+  const now = Math.floor(Date.now() / 1000)
+  return decoded.exp - now < thresholdSeconds
+}
+
+// Clear auth tokens from localStorage
+export function clearAuthTokens(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
+// Refresh token if it's expiring soon
+export async function ensureValidToken(): Promise<string | null> {
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+
+  if (!accessToken || !refreshToken) return null
+
+  // If token is expiring soon, refresh it
+  if (isTokenExpiringSoon(accessToken)) {
+    try {
+      const newTokens = await refreshTokenRequest(refreshToken)
+      localStorage.setItem(ACCESS_TOKEN_KEY, newTokens.accessToken)
+      localStorage.setItem(REFRESH_TOKEN_KEY, newTokens.refreshToken)
+      return newTokens.accessToken
+    } catch (err) {
+      console.error('Token refresh failed:', err)
+      clearAuthTokens()
+      return null
+    }
+  }
+
+  return accessToken
+}
+
+// Make authenticated API calls with automatic token refresh
+export async function authenticatedFetch<T = unknown>(
+  url: string,
+  opts?: RequestInit,
+): Promise<T | null> {
+  try {
+    // Ensure token is valid before making request
+    const accessToken = await ensureValidToken()
+    if (!accessToken) {
+      return null
+    }
+
+    const headers = new Headers(opts?.headers || {})
+    headers.set('Authorization', `Bearer ${accessToken}`)
+
+    const res = await fetch(url, { ...opts, headers })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return (await res.json()) as T
+  } catch (error) {
+    console.error('Authenticated API Error:', error)
+    return null
+  }
+}
+
 async function tryJson<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
   try {
     const res = await fetch(url, opts)
@@ -160,16 +239,22 @@ export async function logout(refreshToken: string): Promise<void> {
   })
 }
 
-export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
+async function refreshTokenRequest(refreshToken: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   })
   if (!res.ok) {
+    // Clear tokens if refresh fails
+    clearAuthTokens()
     throw new Error('Token refresh failed')
   }
   return (await res.json()) as AuthResponse
+}
+
+export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
+  return refreshTokenRequest(refreshToken)
 }
 
 export async function getMe(accessToken: string): Promise<User> {

@@ -32,26 +32,26 @@ export default function Register({ onSuccess }: RegisterPageProps) {
 
     // Validate required fields
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
-      setLocalError('Username, email, and password are required')
+      setLocalError(t('auth.validation.requiredFields'))
       return
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
-      setLocalError('Please enter a valid email address')
+      setLocalError(t('auth.validation.invalidEmail'))
       return
     }
 
     // Validate password length
     if (formData.password.length < 8) {
-      setLocalError('Password must be at least 8 characters long')
+      setLocalError(t('auth.validation.passwordTooShort'))
       return
     }
 
     // Check password confirmation
     if (formData.password !== formData.confirmPassword) {
-      setLocalError('Passwords do not match')
+      setLocalError(t('auth.validation.passwordMismatch'))
       return
     }
 
@@ -63,7 +63,8 @@ export default function Register({ onSuccess }: RegisterPageProps) {
         formData.firstName || undefined,
         formData.lastName || undefined
       )
-      onSuccess('library')
+      // Redirect to login after successful registration
+      onSuccess('login')
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Registration failed')
     }
