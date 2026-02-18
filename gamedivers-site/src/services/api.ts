@@ -178,6 +178,18 @@ export async function fetchSteamWishlist(steamId: string): Promise<SteamWishlist
   return Array.isArray(data) ? data : []
 }
 
+export async function syncSteamWishlistToBackend(appIds: number[]): Promise<void> {
+  const unique = Array.from(new Set(appIds.filter((id) => Number.isInteger(id) && id > 0)))
+  if (unique.length === 0) return
+
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/wishlist/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appIds: unique }),
+  })
+  if (!res.ok) throw await readApiError(res)
+}
+
 export async function searchItad(
   query: string,
   limit = 10,

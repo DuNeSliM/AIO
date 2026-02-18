@@ -15,6 +15,9 @@ type Config struct {
 	// Frontend origin for CORS/callbacks
 	FrontendOrigin string
 
+	// Optional Postgres connection string. When set, persistence is enabled.
+	DatabaseURL string
+
 	// Steam Web API key
 	SteamAPIKey string
 
@@ -40,6 +43,7 @@ func Load() Config {
 	if frontendOrigin == "" {
 		frontendOrigin = "http://localhost:3000"
 	}
+	databaseURL := getenv("DATABASE_URL", "")
 	steamAPIKey := getenv("STEAM_API_KEY", "")
 	steamCallbackURL := getenv("STEAM_CALLBACK_URL", "http://localhost:8080/v1/steam/callback")
 	epicClientID := getenv("EPIC_CLIENT_ID", "")
@@ -54,14 +58,15 @@ func Load() Config {
 	keycloakRequireEmailVerified := getenvBool("KEYCLOAK_REQUIRE_EMAIL_VERIFIED", true)
 
 	return Config{
-		Port:                 port,
-		ITADAPIKey:           itadAPIKey,
-		FrontendOrigin:       frontendOrigin,
-		SteamAPIKey:          steamAPIKey,
-		SteamCallbackURL:     steamCallbackURL,
-		EpicClientID:         epicClientID,
-		EpicClientSecret:     epicClientSecret,
-		EpicCallbackURL:      epicCallbackURL,
+		Port:                         port,
+		ITADAPIKey:                   itadAPIKey,
+		FrontendOrigin:               frontendOrigin,
+		DatabaseURL:                  databaseURL,
+		SteamAPIKey:                  steamAPIKey,
+		SteamCallbackURL:             steamCallbackURL,
+		EpicClientID:                 epicClientID,
+		EpicClientSecret:             epicClientSecret,
+		EpicCallbackURL:              epicCallbackURL,
 		KeycloakURL:                  keycloakURL,
 		KeycloakRealm:                keycloakRealm,
 		KeycloakClientID:             keycloakClientID,

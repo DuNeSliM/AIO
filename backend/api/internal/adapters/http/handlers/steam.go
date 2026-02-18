@@ -9,8 +9,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
+	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 	"gamedivers.de/api/internal/adapters/stores/steam"
 	"gamedivers.de/api/internal/ports/repo"
 )
@@ -196,6 +199,67 @@ func (h *SteamHandler) GetWishlist(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(items)
+}
+
+type syncSteamWishlistRequest struct {
+	AppIDs []int `json:"appIds"`
+}
+
+// SyncWishlistToWatchlist stores steam wishlist app IDs in the backend user watchlist.
+// POST /v1/steam/wishlist/sync
+func (h *SteamHandler) SyncWishlistToWatchlist(w http.ResponseWriter, r *http.Request) {
+	user, ok := authmw.GetUserFromContext(r.Context())
+	if !ok || strings.TrimSpace(user.ID) == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if h.repo == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var payload syncSteamWishlistRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	now := time.Now().Unix()
+	if err := h.repo.UpsertUser(r.Context(), user.ID, now); err != nil {
+		logSafeError("upsert user failed during wishlist sync", err)
+		writeInternalError(w)
+		return
+	}
+
+	unique := make(map[int]struct{}, len(payload.AppIDs))
+	for _, appID := range payload.AppIDs {
+		if appID <= 0 {
+			continue
+		}
+		unique[appID] = struct{}{}
+	}
+
+	added := 0
+	for appID := range unique {
+		appIDStr := strconv.Itoa(appID)
+		if err := h.repo.AddWatch(r.Context(), user.ID, "steam", appIDStr, "de", now); err != nil {
+			logSafeError("add watch failed during wishlist sync", err)
+			writeInternalError(w)
+			return
+		}
+		if err := h.repo.TrackGame(r.Context(), "steam", appIDStr, "de", now); err != nil {
+			logSafeError("track game failed during wishlist sync", err)
+			writeInternalError(w)
+			return
+		}
+		added++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"synced": added,
+	})
 }
 
 // SyncLibrary fetches and stores the user's Steam library in the database

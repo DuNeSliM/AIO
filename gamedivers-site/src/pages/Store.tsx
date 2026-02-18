@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { searchItad, getItadPrices, fetchSteamWishlist } from '../services/api'
+import { searchItad, getItadPrices, fetchSteamWishlist, syncSteamWishlistToBackend } from '../services/api'
 import { useI18n } from '../i18n/i18n'
 import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem } from '../types'
 import { useWishlist } from '../hooks/useWishlist'
@@ -37,6 +37,68 @@ function pickLowestDeal(deals?: ItadDeal[] | null) {
     const b = lowest.price.amount ?? (lowest.price.amountInt ? lowest.price.amountInt / 100 : 0)
     return a < b ? deal : lowest
   }, null)
+}
+
+function defaultSteamCapsuleUrl(appId: number): string {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_184x69.jpg`
+}
+
+function backupSteamHeaderUrl(appId: number): string {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`
+}
+
+const STEAM_NAME_CACHE_KEY = 'steamWishlistNameCache'
+
+function normalizeTitleKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function isSteamPlaceholderTitle(title: string): boolean {
+  const normalized = title.trim().toLowerCase()
+  if (!normalized) return true
+  return /^app\s+\d+$/.test(normalized) || /^steam app\s+\d+$/.test(normalized) || /^steam:\d+$/.test(normalized) || /^\d+$/.test(normalized)
+}
+
+function pickBestItadMatch(queryTitle: string, candidates: ItadSearchItem[]): ItadSearchItem | null {
+  if (!candidates.length) return null
+  const queryKey = normalizeTitleKey(queryTitle)
+  if (!queryKey) return candidates[0] ?? null
+
+  const exact = candidates.find((item) => normalizeTitleKey(item.title) === queryKey)
+  if (exact) return exact
+
+  const contains = candidates.find((item) => {
+    const candidateKey = normalizeTitleKey(item.title)
+    return candidateKey.includes(queryKey) || queryKey.includes(candidateKey)
+  })
+  return contains ?? candidates[0] ?? null
+}
+
+function readSteamNameCache(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(STEAM_NAME_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+function writeSteamNameCache(cache: Record<string, string>): void {
+  try {
+    localStorage.setItem(STEAM_NAME_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore storage write failures
+  }
+}
+
+function isNumeric(text: string): boolean {
+  return /^\d+$/.test(text.trim())
 }
 
 export default function Store() {
@@ -207,16 +269,120 @@ export default function Store() {
     try {
       const steamItems = await fetchSteamWishlist(steamAuth.steamId)
       const sorted = [...steamItems].sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
+      const titleLookupCache = new Map<string, ItadSearchItem | null>()
+      const steamNameCache = readSteamNameCache()
+      let steamNameCacheDirty = false
+      const existingBySteamAppId = new Map<number, (typeof items)[number]>()
+      for (const existing of items) {
+        if (typeof existing.steamAppId === 'number' && existing.steamAppId > 0) {
+          existingBySteamAppId.set(existing.steamAppId, existing)
+        }
+      }
+
+      const resolveItadMatch = async (query: string, expectedTitle?: string): Promise<ItadSearchItem | null> => {
+        const key = normalizeTitleKey(query)
+        if (!key) return null
+        if (titleLookupCache.has(key)) return titleLookupCache.get(key) ?? null
+
+        try {
+          const data = await searchItad(query, 6)
+          const candidates = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.results)
+                ? data.results
+                : []
+
+          let match: ItadSearchItem | null
+          if (expectedTitle && !isSteamPlaceholderTitle(expectedTitle)) {
+            match = pickBestItadMatch(expectedTitle, candidates)
+          } else if (isNumeric(query)) {
+            match = candidates.length === 1 ? candidates[0] ?? null : null
+          } else if (isSteamPlaceholderTitle(query)) {
+            match = null
+          } else {
+            match = pickBestItadMatch(query, candidates)
+          }
+
+          titleLookupCache.set(key, match)
+          return match
+        } catch {
+          titleLookupCache.set(key, null)
+          return null
+        }
+      }
+
+      const appIds: number[] = []
       for (const item of sorted) {
+        const appId = item.appId
+        const cachedSteamName = steamNameCache[String(appId)]?.trim() ?? ''
+        const rawSteamTitle = item.name?.trim() || cachedSteamName
+        const existing = existingBySteamAppId.get(appId)
+
+        let resolvedItadId = existing?.itadId
+        let resolvedTitle = existing?.title?.trim() || rawSteamTitle
+
+        if (!resolvedItadId && existing?.source === 'itad' && !existing.id.startsWith('steam:')) {
+          resolvedItadId = existing.id
+        }
+
+        let match: ItadSearchItem | null = null
+        if (!resolvedItadId && rawSteamTitle && !isSteamPlaceholderTitle(rawSteamTitle)) {
+          match = await resolveItadMatch(rawSteamTitle, rawSteamTitle)
+          resolvedItadId = match?.id
+          if (match?.title?.trim()) {
+            resolvedTitle = match.title.trim()
+          }
+        }
+
+        if (!resolvedItadId && (!resolvedTitle || isSteamPlaceholderTitle(resolvedTitle))) {
+          match = await resolveItadMatch(String(appId))
+          resolvedItadId = match?.id
+          if (match?.title?.trim()) {
+            resolvedTitle = match.title.trim()
+          }
+        }
+
+        if (!resolvedTitle || isSteamPlaceholderTitle(resolvedTitle)) {
+          resolvedTitle = rawSteamTitle && !isSteamPlaceholderTitle(rawSteamTitle)
+            ? rawSteamTitle
+            : `Steam App ${appId}`
+        }
+
+        if (!isSteamPlaceholderTitle(resolvedTitle)) {
+          if (steamNameCache[String(appId)] !== resolvedTitle) {
+            steamNameCache[String(appId)] = resolvedTitle
+            steamNameCacheDirty = true
+          }
+        }
+
+        const image = item.capsule?.trim() || defaultSteamCapsuleUrl(appId)
+        const targetID = resolvedItadId || `steam:${appId}`
         addItem({
-          id: `steam:${item.appId}`,
-          title: item.name,
-          source: 'steam',
-          steamAppId: item.appId,
+          id: targetID,
+          title: resolvedTitle,
+          image,
+          imageBackup: backupSteamHeaderUrl(appId),
+          source: resolvedItadId ? 'itad' : 'steam',
+          steamAppId: appId,
+          itadId: resolvedItadId,
           addedAt: item.added ? item.added * 1000 : Date.now(),
         })
+        appIds.push(appId)
+      }
+      if (steamNameCacheDirty) {
+        writeSteamNameCache(steamNameCache)
+      }
+      try {
+        await syncSteamWishlistToBackend(appIds)
+      } catch (backendError) {
+        console.error('Failed to sync Steam wishlist to backend:', backendError)
       }
       pushLog(`STEAM WISHLIST SYNC: ${steamItems.length} ITEMS`)
+      window.setTimeout(() => {
+        void checkPrices()
+      }, 150)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message === 'steam-private') {
@@ -483,25 +649,61 @@ export default function Store() {
 
           {items.length > 0 && (
             <div className="mt-4 grid gap-3">
-              {sortedWishlistItems.map((item) => (
+              {sortedWishlistItems.map((item) => {
+                const computedPrimaryImage =
+                  item.image ||
+                  (item.source === 'steam' && typeof item.steamAppId === 'number'
+                    ? defaultSteamCapsuleUrl(item.steamAppId)
+                    : undefined)
+                const computedBackupImage =
+                  item.imageBackup ||
+                  (item.source === 'steam' && typeof item.steamAppId === 'number'
+                    ? backupSteamHeaderUrl(item.steamAppId)
+                    : undefined)
+                const cheapestDeal = item.dealsTop3?.[0]
+
+                return (
                 <div
                   key={item.id}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4"
                 >
-                  <div className="flex flex-col gap-2">
-                    <div className="text-base tone-primary">{item.title}</div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/55">
-                      <span>{item.source === 'steam' ? t('store.wishlist.sourceSteam') : t('store.wishlist.sourceManual')}</span>
-                      {typeof item.lastPrice === 'number' && (
-                        <span>
-                          {item.lastPrice.toFixed(2)} {item.currency ?? 'EUR'}
-                        </span>
+                  <div className="flex min-w-0 items-start gap-3">
+                    {(computedPrimaryImage || computedBackupImage) && (
+                      <img
+                        src={computedPrimaryImage || computedBackupImage}
+                        alt={item.title}
+                        className="h-14 w-28 rounded-md border border-neon/15 object-cover"
+                        loading="lazy"
+                        data-fallback={computedBackupImage}
+                        onError={(event) => {
+                          const fallback = event.currentTarget.dataset.fallback
+                          if (!fallback) return
+                          if (event.currentTarget.src === fallback) return
+                          event.currentTarget.src = fallback
+                        }}
+                      />
+                    )}
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <div className="text-base tone-primary">{item.title}</div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/55">
+                        <span>{item.source === 'steam' ? t('store.wishlist.sourceSteam') : t('store.wishlist.sourceManual')}</span>
+                        {typeof item.lastPrice === 'number' && (
+                          <span>
+                            {item.lastPrice.toFixed(2)} {item.currency ?? 'EUR'}
+                          </span>
+                        )}
+                        {item.lastCheckedAt && <span>{new Date(item.lastCheckedAt).toLocaleTimeString()}</span>}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
+                        {item.onSale && <span className="ui-chip">{t('store.wishlist.onSale')}</span>}
+                        {item.belowThreshold && <span className="ui-chip">{t('store.wishlist.belowTarget')}</span>}
+                      </div>
+                      {typeof cheapestDeal?.price === 'number' && (
+                        <div className="text-xs ui-subtle">
+                          {t('store.cheapest')}: {cheapestDeal.price.toFixed(2)} {cheapestDeal.currency ?? item.currency ?? 'EUR'}
+                          {cheapestDeal.shop ? ` - ${cheapestDeal.shop}` : ''}
+                        </div>
                       )}
-                      {item.lastCheckedAt && <span>{new Date(item.lastCheckedAt).toLocaleTimeString()}</span>}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
-                      {item.onSale && <span className="ui-chip">{t('store.wishlist.onSale')}</span>}
-                      {item.belowThreshold && <span className="ui-chip">{t('store.wishlist.belowTarget')}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -558,7 +760,7 @@ export default function Store() {
                     </div>
                   )}
                 </div>
-              ))}
+                )})}
             </div>
           )}
 

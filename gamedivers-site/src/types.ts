@@ -69,6 +69,8 @@ export type ItadPricesResponse =
 export type WishlistItem = {
   id: string
   title: string
+  image?: string
+  imageBackup?: string
   addedAt: number
   source?: 'itad' | 'steam'
   steamAppId?: number

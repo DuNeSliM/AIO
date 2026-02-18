@@ -96,6 +96,7 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 			// Authenticated Steam endpoints
 			r.With(jwtMw.Authenticate).Get("/library", steamHandler.GetLibrary)
 			r.With(jwtMw.Authenticate).Get("/wishlist", steamHandler.GetWishlist)
+			r.With(jwtMw.Authenticate).Post("/wishlist/sync", steamHandler.SyncWishlistToWatchlist)
 			r.With(jwtMw.Authenticate).Post("/sync", steamHandler.SyncLibrary)
 		})
 

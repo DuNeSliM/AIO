@@ -6,15 +6,19 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"gamedivers.de/api/internal/adapters/auth/keycloak"
+	"gamedivers.de/api/internal/adapters/db/postgres"
 	httpapi "gamedivers.de/api/internal/adapters/http"
 	"gamedivers.de/api/internal/adapters/http/handlers"
 	"gamedivers.de/api/internal/adapters/http/middleware"
 	"gamedivers.de/api/internal/adapters/stores/itad"
 	"gamedivers.de/api/internal/config"
+	"gamedivers.de/api/internal/migrate"
+	"gamedivers.de/api/internal/ports/repo"
 	"github.com/joho/godotenv"
 )
 
@@ -27,6 +31,30 @@ func main() {
 
 	cfg := config.Load()
 
+	var appRepo repo.Repo
+	if strings.TrimSpace(cfg.DatabaseURL) != "" {
+		db, err := postgres.Open(cfg.DatabaseURL)
+		if err != nil {
+			log.Fatalf("database connect failed: %v", err)
+		}
+
+		migrateCtx, migrateCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		err = migrate.Run(migrateCtx, db)
+		migrateCancel()
+		if err != nil {
+			_ = db.Close()
+			log.Fatalf("database migration failed: %v", err)
+		}
+
+		appRepo = &postgres.Repo{DB: db}
+		defer func() {
+			_ = db.Close()
+		}()
+		log.Printf("database connected and migrations applied")
+	} else {
+		log.Printf("DATABASE_URL not set, running without persistence")
+	}
+
 	// Initialize ITAD client with API key
 	itadClient := itad.New(cfg.ITADAPIKey)
 	itadHandler := &handlers.ITADHandler{
@@ -35,7 +63,7 @@ func main() {
 
 	// Initialize game handler
 	gameHandler := &handlers.GameHandler{
-		Repo: nil, // TODO: Inject repo dependency
+		Repo: appRepo,
 	}
 
 	// Initialize Steam handler
@@ -43,7 +71,7 @@ func main() {
 		cfg.SteamAPIKey,
 		cfg.SteamCallbackURL,
 		cfg.FrontendOrigin,
-		nil, // TODO: Inject repo dependency
+		appRepo,
 	)
 
 	// Initialize Epic Games handler
@@ -63,10 +91,10 @@ func main() {
 		cfg.KeycloakRequireEmailVerified,
 	)
 
-	// Initialize auth handler (repo is nil for now, can be wired later)
+	// Initialize auth handler
 	authHandler := &handlers.AuthHandler{
 		Keycloak: keycloakClient,
-		Repo:     nil, // Wire up repo if you want to persist users locally
+		Repo:     appRepo,
 	}
 
 	// Initialize JWT middleware for token validation
