@@ -100,30 +100,33 @@ func (h *SteamHandler) GetLibrary(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to common format
 	type GameResponse struct {
-		ID         string `json:"id"`
-		AppID      int    `json:"appId"`
-		Name       string `json:"name"`
-		Platform   string `json:"platform"`
-		Image      string `json:"image"`
-		Playtime   int    `json:"playtime"`
-		LastPlayed int64  `json:"lastPlayed"`
+		ID            string `json:"id"`
+		AppID         int    `json:"appId"`
+		Name          string `json:"name"`
+		Platform      string `json:"platform"`
+		Image         string `json:"image"`
+		ImageFallback string `json:"imageFallback,omitempty"`
+		Playtime      int    `json:"playtime"`
+		LastPlayed    int64  `json:"lastPlayed"`
 	}
 
 	var response []GameResponse
 	for _, game := range games {
-		imageURL := ""
+		imageURL := fmt.Sprintf("https://cdn.akamai.steamstatic.com/steam/apps/%d/header.jpg", game.AppID)
+		imageFallbackURL := ""
 		if game.ImgIconURL != "" {
-			imageURL = fmt.Sprintf("https://media.steampowered.com/steamcommunity/public/images/apps/%d/%s.jpg", game.AppID, game.ImgIconURL)
+			imageFallbackURL = fmt.Sprintf("https://media.steampowered.com/steamcommunity/public/images/apps/%d/%s.jpg", game.AppID, game.ImgIconURL)
 		}
 
 		response = append(response, GameResponse{
-			ID:         fmt.Sprintf("%d", game.AppID),
-			AppID:      game.AppID,
-			Name:       game.Name,
-			Platform:   "steam",
-			Image:      imageURL,
-			Playtime:   game.PlaytimeForever,
-			LastPlayed: game.RtimeLastPlayed,
+			ID:            fmt.Sprintf("%d", game.AppID),
+			AppID:         game.AppID,
+			Name:          game.Name,
+			Platform:      "steam",
+			Image:         imageURL,
+			ImageFallback: imageFallbackURL,
+			Playtime:      game.PlaytimeForever,
+			LastPlayed:    game.RtimeLastPlayed,
 		})
 	}
 

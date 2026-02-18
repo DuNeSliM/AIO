@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { launchGame } from '../services/api'
 import { getLastPlayedDate, getPlaytimeHours } from '../utils/gameFormat'
 import type { Game, ViewMode } from '../types'
@@ -24,10 +24,17 @@ type GameCardProps = {
 }
 
 export default function GameCard({ game, viewMode = 'grid', index }: GameCardProps) {
-  const { name, platform, image, id, appId, appName, gameName, lastPlayed, playtime } = game
+  const { name, platform, image, imageFallback, id, appId, appName, gameName, lastPlayed, playtime } = game
   const [launching, setLaunching] = useState(false)
+  const [imageSrc, setImageSrc] = useState<string | undefined>(image)
+  const [usedImageFallback, setUsedImageFallback] = useState(false)
   const assetId = `AIO-${String(index + 1).padStart(4, '0')}`
   const nodeLabel = platform ? platform.toUpperCase() : 'UNKNOWN'
+
+  useEffect(() => {
+    setImageSrc(image)
+    setUsedImageFallback(false)
+  }, [image, imageFallback])
 
   const start = async () => {
     setLaunching(true)
@@ -49,6 +56,15 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
     }
   }
 
+  const handleImageError = () => {
+    if (!usedImageFallback && imageFallback) {
+      setImageSrc(imageFallback)
+      setUsedImageFallback(true)
+      return
+    }
+    setImageSrc(undefined)
+  }
+
   return (
     <article className="term-card">
       <div
@@ -64,10 +80,11 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
         </div>
         <div className="term-cardHeader" />
         <div className={viewMode === 'list' ? 'flex h-16 w-24 shrink-0 items-center' : 'w-full'}>
-          {image ? (
+          {imageSrc ? (
             <img
-              src={image}
+              src={imageSrc}
               alt={name}
+              onError={handleImageError}
               className={`rounded-lg object-cover ${viewMode === 'list' ? 'h-16 w-24' : 'h-36 w-full'}`}
             />
           ) : (

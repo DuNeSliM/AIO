@@ -9,6 +9,7 @@ export type Game = {
   name: string
   platform?: string
   image?: string
+  imageFallback?: string
   appId?: string
   appName?: string
   gameName?: string
