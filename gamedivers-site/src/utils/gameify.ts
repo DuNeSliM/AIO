@@ -98,6 +98,8 @@ const LEGACY_MISSIONS_KEY = 'commanderMissions'
 const LOG_KEY = 'eventLog'
 const MISSION_PREFS_KEY = 'commanderMissionPreferences'
 const DAILY_MISSIONS_KEY = 'commanderDailyMissionsV2'
+const DESIGN_PREVIEW_KEY = 'commanderDesignPreview'
+export const DESIGN_PREVIEW_EVENT = 'design-preview-update'
 
 const DAILY_MISSION_COUNT = 4
 export const DAILY_REROLL_LIMIT = 2
@@ -609,10 +611,41 @@ export function purchaseDesign(designId: DesignId): PurchaseDesignResult {
   return { ok: true }
 }
 
+export function grantCredits(amount: number): boolean {
+  const value = Math.floor(amount)
+  if (!Number.isFinite(value) || value <= 0) return false
+  award(0, value)
+  addEventLog(`DEV CREDITS: +${value}`)
+  return true
+}
+
+export function loadDesignPreview(): DesignId | null {
+  const raw = localStorage.getItem(DESIGN_PREVIEW_KEY)
+  return isKnownDesignId(raw) ? raw : null
+}
+
+export function setDesignPreview(designId: DesignId | null) {
+  if (designId && !isKnownDesignId(designId)) return
+  if (designId) {
+    localStorage.setItem(DESIGN_PREVIEW_KEY, designId)
+  } else {
+    localStorage.removeItem(DESIGN_PREVIEW_KEY)
+  }
+  window.dispatchEvent(new Event(DESIGN_PREVIEW_EVENT))
+}
+
+export function clearDesignPreview() {
+  setDesignPreview(null)
+}
+
 export function equipDesign(designId: DesignId): boolean {
   const state = loadCommander()
   const unlocked = sanitizeDesigns(state.unlockedDesigns)
   if (!unlocked.includes(designId)) return false
+  const hasPreview = loadDesignPreview() !== null
+  if (hasPreview) {
+    clearDesignPreview()
+  }
   if (state.activeDesign === designId) return true
   saveCommander({ ...state, activeDesign: designId, unlockedDesigns: unlocked })
   addEventLog(`DESIGN EQUIPPED: ${designId}`)

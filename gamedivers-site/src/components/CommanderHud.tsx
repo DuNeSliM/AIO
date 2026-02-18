@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { getRank, setCommanderName } from '../utils/gameify'
 import { useCommander } from '../hooks/useCommander'
@@ -22,9 +22,9 @@ export default function CommanderHud() {
   }, [commander.commanderName])
 
   return (
-    <div className="term-frame term-frame--orange">
-      <div className="term-panel rounded-[15px] p-4">
-        <div className="term-corners">
+    <div className="ui-surface ui-surface--accent">
+      <div className="ui-panel ui-panel-pad-sm">
+        <div className="ui-corners">
           <span />
           <span />
           <span />
@@ -32,29 +32,29 @@ export default function CommanderHud() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-[220px]">
-            <div className="term-label">PLAYER PROGRESS</div>
+            <div className="ui-label">PLAYER PROGRESS</div>
             <input
-              className="term-console mt-3 w-full max-w-xs"
+              className="ui-input mt-3 w-full max-w-xs"
               value={name}
               onChange={(event) => setName(event.target.value)}
               onBlur={() => setCommanderName(name.trim() || 'Commander')}
             />
             <div className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
-              RANK: {rank} • LEVEL {commander.level}
+              RANK: {rank} | LEVEL {commander.level}
             </div>
           </div>
           <div className="flex flex-1 flex-wrap items-center gap-4">
             <div className="min-w-[200px]">
-              <div className="term-label">XP</div>
+              <div className="ui-label">XP</div>
               <div
-                className={`term-xpbar mt-2 ${pulse ? 'term-xpbar--pulse' : ''}`}
-                style={{ '--term-xp': `${progress}%` } as CSSProperties}
+                className={`ui-progress mt-2 ${pulse ? 'ui-progress--pulse' : ''}`}
+                style={{ '--ui-progress': `${progress}%` } as CSSProperties}
               />
               <div className="mt-2 text-xs text-white/50">{commander.xp} XP</div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="term-chip">CREDITS: {commander.credits}</span>
-              <span className="term-chip">STREAK: {commander.streak}</span>
+              <span className="ui-chip">CREDITS: {commander.credits}</span>
+              <span className="ui-chip">STREAK: {commander.streak}</span>
             </div>
           </div>
         </div>
@@ -62,3 +62,6 @@ export default function CommanderHud() {
     </div>
   )
 }
+
+
+

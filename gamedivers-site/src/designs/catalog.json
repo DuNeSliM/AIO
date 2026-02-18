@@ -19,5 +19,15 @@
     "id": "ghost-protocol",
     "className": "design-ghost-protocol",
     "cost": 320
+  },
+  {
+    "id": "meadow-bloom",
+    "className": "design-meadow-bloom",
+    "cost": 280
+  },
+  {
+    "id": "kawaii-overdrive",
+    "className": "design-kawaii-overdrive",
+    "cost": 380
   }
 ]

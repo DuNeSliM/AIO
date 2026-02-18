@@ -50,7 +50,7 @@ export default function Store() {
   const [hasSearched, setHasSearched] = useState(false)
   const [region, setRegion] = useState(() => localStorage.getItem('storeRegion') || 'DE')
   const [scanning, setScanning] = useState(false)
-  const [telemetry, setTelemetry] = useState('LOCKING MARKET')
+  const [telemetryKey, setTelemetryKey] = useState('store.telemetry.lockingMarket')
   const [prefersReduced, setPrefersReduced] = useState(false)
   const [counters, setCounters] = useState(() => loadCounters())
   const [priceCache, setPriceCache] = useState<Record<string, { steam?: number; epic?: number; currency?: string }>>({})
@@ -118,8 +118,13 @@ export default function Store() {
     award(10, 5)
     recordScan()
     pushLog('SEARCH STARTED')
-    const telemetryOptions = ['LOCKING MARKET', 'SCANNING STORES', 'CALIBRATING LINKS', 'PINGING MARKET']
-    setTelemetry(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'LOCKING MARKET')
+    const telemetryOptions = [
+      'store.telemetry.lockingMarket',
+      'store.telemetry.scanningStores',
+      'store.telemetry.calibratingLinks',
+      'store.telemetry.pingingMarket',
+    ]
+    setTelemetryKey(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'store.telemetry.lockingMarket')
     setScanning(true)
     const started = Date.now()
     try {
@@ -239,9 +244,9 @@ export default function Store() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="term-frame term-frame--orange">
-        <div className="term-panel rounded-[15px] p-6">
-          <div className="term-corners">
+      <header className="ui-surface ui-surface--accent">
+        <div className="ui-panel ui-panel-pad-lg">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -249,46 +254,46 @@ export default function Store() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="term-label">{t('store.title')}</div>
+              <div className="ui-label">{t('store.title')}</div>
               <h1 className="mt-3 text-2xl tone-primary">{t('store.title')}</h1>
-              <p className="mt-2 text-sm term-subtle">{t('store.subtitle')}</p>
+              <p className="mt-2 text-sm ui-subtle">{t('store.subtitle')}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="term-btn-secondary"
+                className="ui-btn-secondary"
                 onClick={() => setShowWishlist((prev) => !prev)}
               >
-                {showWishlist ? 'Hide wishlist' : 'Show wishlist'}
+                {showWishlist ? t('store.wishlist.hide') : t('store.wishlist.show')}
               </button>
               <button
-                className="term-btn-secondary"
+                className="ui-btn-secondary"
                 onClick={() => wishlistRef.current?.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' })}
               >
-                Jump to wishlist
+                {t('store.wishlist.jump')}
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <form className="term-frame" onSubmit={onSearch}>
-        <div className="term-panel flex flex-wrap items-center gap-3 rounded-[15px] p-5">
-          <div className="term-corners">
+      <form className="ui-surface" onSubmit={onSearch}>
+        <div className="ui-panel flex flex-wrap items-center gap-3 ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
             <span />
           </div>
           <input
-            className="term-console flex-1"
+            className="ui-input flex-1"
             type="text"
             placeholder={t('store.searchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <span className="term-label">{t('store.region')}</span>
+          <span className="ui-label">{t('store.region')}</span>
           <select
-            className="term-select"
+            className="ui-select"
             value={region}
             onChange={(event) => {
               const value = event.target.value
@@ -312,24 +317,24 @@ export default function Store() {
             <option value="CA">CA</option>
             <option value="AU">AU</option>
           </select>
-          <button type="submit" className="term-btn-primary" disabled={loading}>
+          <button type="submit" className="ui-btn-primary" disabled={loading}>
             {t('store.search')}
           </button>
         </div>
       </form>
 
-      {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
+      {error && <div className="text-sm text-red-400">{t('store.errorPrefix')}: {error}</div>}
 
-      {hasSearched && !loading && results.length === 0 && <div className="text-sm term-subtle">{t('store.empty')}</div>}
+      {hasSearched && !loading && results.length === 0 && <div className="text-sm ui-subtle">{t('store.empty')}</div>}
 
       <div className="relative">
         {scanning && (
-          <div className="term-scanOverlay">
-            <div className="term-scanline" />
-            <span>{telemetry}</span>
-            {(prefersReduced || scanning) && (
-              <button className="term-btn-secondary" onClick={() => setScanning(false)}>
-                SKIP
+            <div className="ui-overlay">
+              <div className="ui-scanline" />
+              <span>{t(telemetryKey)}</span>
+              {(prefersReduced || scanning) && (
+                <button className="ui-btn-secondary" onClick={() => setScanning(false)}>
+                  {t('store.skipScan')}
               </button>
             )}
           </div>
@@ -343,32 +348,32 @@ export default function Store() {
             const diff = hasBoth ? Math.abs((cache?.steam ?? 0) - (cache?.epic ?? 0)) : 0
             const currency = cache?.currency ? ` ${cache.currency}` : ''
             const banner = steamCheaper
-              ? `BEST PRICE: STEAM (-${diff.toFixed(2)}${currency})`
+              ? t('store.bestPriceSteam', { diff: diff.toFixed(2), currency })
               : epicCheaper
-                ? `BEST PRICE: EPIC (-${diff.toFixed(2)}${currency})`
+                ? t('store.bestPriceEpic', { diff: diff.toFixed(2), currency })
                 : ''
 
             return (
-              <div key={game.id} className={`term-frame ${selected?.id === game.id ? 'term-frame--orange' : ''}`}>
-                <div className="term-panel rounded-[15px] p-4">
-                  <div className="term-corners">
+              <div key={game.id} className={`ui-surface ${selected?.id === game.id ? 'ui-surface--accent' : ''}`}>
+                <div className="ui-panel ui-panel-pad-sm">
+                  <div className="ui-corners">
                     <span />
                     <span />
                     <span />
                     <span />
                   </div>
-                  {banner && <div className="term-banner">{banner}</div>}
+                  {banner && <div className="ui-banner">{banner}</div>}
                   <div>
-                    <p className="term-label">SEARCH HIT</p>
+                    <p className="ui-label">{t('store.searchHit')}</p>
                     <div className="text-lg tone-primary">{game.title}</div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button className="term-btn-primary" onClick={() => onCompare(game)} disabled={loading}>
+                    <button className="ui-btn-primary" onClick={() => onCompare(game)} disabled={loading}>
                       {selected?.id === game.id && loading ? '...' : t('store.compare')}
                     </button>
                     {wishlistIds.has(game.id) ? (
                       <button
-                        className="term-btn-secondary"
+                        className="ui-btn-secondary"
                         onClick={() => {
                           removeItem(game.id)
                           pushLog(`WATCHLIST: REMOVE -> ${game.title}`)
@@ -378,7 +383,7 @@ export default function Store() {
                       </button>
                     ) : (
                       <button
-                        className="term-btn-secondary"
+                        className="ui-btn-secondary"
                         onClick={() => {
                           addItem({ id: game.id, title: game.title })
                           award(15, 10)
@@ -397,9 +402,9 @@ export default function Store() {
       </div>
 
       {selected && (
-        <section className="term-frame term-frame--orange" ref={compareRef}>
-          <div className="term-panel rounded-[15px] p-6">
-            <div className="term-corners">
+        <section className="ui-surface ui-surface--accent" ref={compareRef}>
+          <div className="ui-panel ui-panel-pad-lg">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
@@ -407,37 +412,37 @@ export default function Store() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="term-label">{t('store.compare')}</p>
+                <p className="ui-label">{t('store.compare')}</p>
                 <h2 className="text-xl tone-primary">{selected.title}</h2>
               </div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-                <div className="term-label">{t('store.steam')}</div>
+                <div className="ui-label">{t('store.steam')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(steamBest?.price)}</div>
                 {steamBest?.cut && steamBest.cut > 0 && <div className="text-sm text-ember">-{steamBest.cut}%</div>}
                 {steamBest?.url && (
-                  <a className="term-btn-secondary mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-secondary mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
               </div>
               <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-                <div className="term-label">{t('store.epic')}</div>
+                <div className="ui-label">{t('store.epic')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(epicBest?.price)}</div>
                 {epicBest?.cut && epicBest.cut > 0 && <div className="text-sm text-ember">-{epicBest.cut}%</div>}
                 {epicBest?.url && (
-                  <a className="term-btn-secondary mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-secondary mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
               </div>
               <div className="rounded-lg border border-ember/40 bg-black/30 p-4 shadow-ember">
-                <div className="term-label">{t('store.cheapest')}</div>
+                <div className="ui-label">{t('store.cheapest')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(overallBest?.price)}</div>
                 {overallBest?.shop?.name && <div className="text-sm tone-muted">{overallBest.shop.name}</div>}
                 {overallBest?.url && (
-                  <a className="term-btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
@@ -448,9 +453,9 @@ export default function Store() {
       )}
 
       {showWishlist && (
-        <section className="term-frame" ref={wishlistRef}>
-          <div className="term-panel rounded-[15px] p-6">
-            <div className="term-corners">
+        <section className="ui-surface" ref={wishlistRef}>
+          <div className="ui-panel ui-panel-pad-lg">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
@@ -458,23 +463,23 @@ export default function Store() {
             </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="term-label">{t('store.wishlist.title')}</p>
+              <p className="ui-label">{t('store.wishlist.title')}</p>
               <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
-              <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
+              <div className="text-xs ui-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {steamAuth.isLoggedIn && (
-                <button className="term-btn-secondary" onClick={onSyncSteamWishlist} disabled={wishlistSyncing}>
+                <button className="ui-btn-secondary" onClick={onSyncSteamWishlist} disabled={wishlistSyncing}>
                   {wishlistSyncing ? '...' : t('store.wishlist.syncSteam')}
                 </button>
               )}
-              <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
+              <button className="ui-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
                 {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
               </button>
             </div>
           </div>
 
-          {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
+          {items.length === 0 && <div className="mt-4 text-sm ui-subtle">{t('store.wishlist.empty')}</div>}
 
           {items.length > 0 && (
             <div className="mt-4 grid gap-3">
@@ -486,7 +491,7 @@ export default function Store() {
                   <div className="flex flex-col gap-2">
                     <div className="text-base tone-primary">{item.title}</div>
                     <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/55">
-                      <span>{item.source === 'steam' ? 'STEAM' : 'MANUAL'}</span>
+                      <span>{item.source === 'steam' ? t('store.wishlist.sourceSteam') : t('store.wishlist.sourceManual')}</span>
                       {typeof item.lastPrice === 'number' && (
                         <span>
                           {item.lastPrice.toFixed(2)} {item.currency ?? 'EUR'}
@@ -495,13 +500,13 @@ export default function Store() {
                       {item.lastCheckedAt && <span>{new Date(item.lastCheckedAt).toLocaleTimeString()}</span>}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
-                      {item.onSale && <span className="term-chip">{t('store.wishlist.onSale')}</span>}
-                      {item.belowThreshold && <span className="term-chip">{t('store.wishlist.belowTarget')}</span>}
+                      {item.onSale && <span className="ui-chip">{t('store.wishlist.onSale')}</span>}
+                      {item.belowThreshold && <span className="ui-chip">{t('store.wishlist.belowTarget')}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <input
-                      className="term-console w-28"
+                      className="ui-input w-28"
                       type="number"
                       min={0}
                       step="0.01"
@@ -518,7 +523,7 @@ export default function Store() {
                       }}
                     />
                     <button
-                      className="term-btn-secondary"
+                      className="ui-btn-secondary"
                       onClick={() => {
                         removeItem(item.id)
                         pushLog(`WATCHLIST: REMOVE -> ${item.title}`)
@@ -535,7 +540,7 @@ export default function Store() {
                             key={`${item.id}-${index}`}
                             className="rounded-lg border border-neon/10 bg-black/25 p-3"
                           >
-                            <div className="text-xs term-subtle">{deal.shop || 'Store'}</div>
+                            <div className="text-xs ui-subtle">{deal.shop || t('store.wishlist.sourceUnknown')}</div>
                             <div className="text-lg tone-primary">
                               {typeof deal.price === 'number'
                                 ? `${deal.price.toFixed(2)} ${deal.currency ?? ''}`
@@ -543,7 +548,7 @@ export default function Store() {
                             </div>
                             {deal.cut && deal.cut > 0 && <div className="text-xs text-ember">-{deal.cut}%</div>}
                             {deal.url && (
-                              <a className="term-btn-secondary mt-2 inline-flex" href={deal.url} target="_blank" rel="noreferrer">
+                              <a className="ui-btn-secondary mt-2 inline-flex" href={deal.url} target="_blank" rel="noreferrer">
                                 {t('store.offer')}
                               </a>
                             )}
@@ -559,8 +564,8 @@ export default function Store() {
 
           {alerts.length > 0 && (
             <div className="mt-6 rounded-lg border border-neon/15 bg-black/20 p-4">
-              <div className="term-label">{t('store.wishlist.alerts')}</div>
-              <div className="mt-2 flex flex-col gap-2 text-xs term-subtle">
+              <div className="ui-label">{t('store.wishlist.alerts')}</div>
+              <div className="mt-2 flex flex-col gap-2 text-xs ui-subtle">
                 {alerts.map((alert) => (
                   <div key={alert.id} className="flex items-center justify-between gap-4">
                     <span>{alert.message}</span>
@@ -577,3 +582,5 @@ export default function Store() {
     </div>
   )
 }
+
+

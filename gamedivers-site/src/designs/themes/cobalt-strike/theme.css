@@ -1,23 +1,39 @@
-body.design-cobalt-strike {
+﻿body.design-cobalt-strike {
   --tone-primary: #d9eeff;
   --tone-muted: #8eb4ce;
   --tone-soft: #b4d4ea;
+
+  --ui-frame-gradient: linear-gradient(135deg, rgba(72, 186, 255, 0.52), rgba(47, 111, 255, 0.2), rgba(23, 67, 145, 0.26));
+  --ui-frame-shadow: 0 0 24px rgba(72, 186, 255, 0.22);
+  --ui-frame-accent-gradient: linear-gradient(135deg, rgba(120, 216, 255, 0.45), rgba(47, 111, 255, 0.18), rgba(87, 208, 255, 0.26));
+  --ui-frame-accent-shadow: 0 0 26px rgba(87, 208, 255, 0.2);
+
+  --ui-panel-bg: rgba(9, 23, 49, 0.82);
+  --ui-panel-border: rgba(112, 210, 255, 0.26);
+
+  --ui-btn-primary-bg: linear-gradient(135deg, #80e3ff, #66b7ff 58%, #4f87ff);
+  --ui-btn-primary-color: #04132d;
+  --ui-btn-primary-hover-shadow: 0 12px 28px rgba(92, 188, 255, 0.3);
+
+  --ui-btn-secondary-border: rgba(132, 211, 255, 0.52);
+  --ui-btn-secondary-color: rgba(198, 235, 255, 0.96);
+
+  --ui-chip-border: rgba(124, 205, 255, 0.52);
+  --ui-chip-color: rgba(194, 232, 255, 0.95);
+
+  --ui-item-bg: rgba(8, 22, 48, 0.46);
+  --ui-item-border: rgba(104, 185, 255, 0.26);
+
+  --ui-toast-bg: rgba(7, 20, 39, 0.86);
+  --ui-toast-border: rgba(110, 205, 255, 0.44);
+  --ui-toast-color: #bfe8ff;
 }
 
-body.design-cobalt-strike .term-frame {
-  background: linear-gradient(135deg, rgba(72, 186, 255, 0.52), rgba(47, 111, 255, 0.2), rgba(23, 67, 145, 0.26));
-  box-shadow: 0 0 24px rgba(72, 186, 255, 0.22);
-}
-
-body.design-cobalt-strike .term-frame--orange {
-  background: linear-gradient(135deg, rgba(120, 216, 255, 0.45), rgba(47, 111, 255, 0.18), rgba(87, 208, 255, 0.26));
-  box-shadow: 0 0 26px rgba(87, 208, 255, 0.2);
-}
-
-body.design-cobalt-strike .hud-shell::after {
+body.design-cobalt-strike .ui-shell::after {
   background-image:
     radial-gradient(circle at 32% 16%, rgba(72, 186, 255, 0.2), transparent 55%),
     radial-gradient(circle at 84% 12%, rgba(47, 111, 255, 0.2), transparent 55%),
     radial-gradient(circle at 48% 100%, rgba(24, 88, 189, 0.16), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 4px);
 }
+

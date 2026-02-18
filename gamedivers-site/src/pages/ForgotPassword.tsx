@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { requestPasswordReset } from '../services/api'
 import type { Page } from '../types'
 
@@ -41,19 +41,19 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
   return (
     <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-void">
       <div className="w-full max-w-md">
-        <div className="term-frame">
-          <div className="term-panel relative p-8">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel relative p-8">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-notch" />
+            <div className="ui-notch" />
 
             <div className="relative z-10">
               <h1 className="mb-2 text-4xl font-bold tracking-wide">RESET PASSWORD</h1>
-              <p className="mb-8 text-xs uppercase tracking-widest term-subtle">
+              <p className="mb-8 text-xs uppercase tracking-widest ui-subtle">
                 Enter your email to receive recovery instructions
               </p>
 
@@ -65,18 +65,18 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
 
               {submitted ? (
                 <div className="rounded-lg border border-neon/40 bg-black/50 p-6 text-center">
-                  <div className="mb-4 text-lg text-neon">✓ SUCCESS</div>
-                  <p className="mb-6 text-xs uppercase tracking-widest term-subtle">
+                  <div className="mb-4 text-lg text-neon">[OK] SUCCESS</div>
+                  <p className="mb-6 text-xs uppercase tracking-widest ui-subtle">
                     Check your email for password reset instructions
                   </p>
-                  <button type="button" onClick={() => onSuccess('login' as Page)} className="term-btn-primary w-full">
+                  <button type="button" onClick={() => onSuccess('login' as Page)} className="ui-btn-primary w-full">
                     RETURN TO LOGIN
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
-                    <label htmlFor="email" className="term-label mb-3 block">
+                    <label htmlFor="email" className="ui-label mb-3 block">
                       Email Address
                     </label>
                     <input
@@ -85,20 +85,20 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="YOUR@EMAIL.COM"
-                      className="term-console w-full"
+                      className="ui-input w-full"
                       disabled={isLoading}
                     />
                   </div>
 
-                  <button type="submit" disabled={isLoading} className="term-btn-primary w-full mt-6">
+                  <button type="submit" disabled={isLoading} className="ui-btn-primary w-full mt-6">
                     {isLoading ? '... SENDING ...' : 'SEND RESET LINK'}
                   </button>
                 </form>
               )}
 
-              <div className="term-divider my-6" />
+              <div className="ui-divider my-6" />
 
-              <p className="text-center text-xs uppercase tracking-widest term-subtle">
+              <p className="text-center text-xs uppercase tracking-widest ui-subtle">
                 Remember password?{' '}
                 <button
                   type="button"
@@ -113,9 +113,11 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest term-subtle">AIO GAME LIBRARY v1.0</p>
+          <p className="text-[10px] uppercase tracking-widest ui-subtle">AIO GAME LIBRARY v1.0</p>
         </div>
       </div>
     </div>
   )
 }
+
+

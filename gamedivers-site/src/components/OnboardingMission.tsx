@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
 import { loadCounters } from '../utils/gameify'
@@ -219,7 +219,7 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
     return (
       <div className="fixed bottom-4 right-4 z-40 max-w-[calc(100vw-2rem)]">
         <button
-          className="term-btn-secondary"
+          className="ui-btn-secondary"
           onClick={() => setMinimizedState(false)}
           title={t('onboarding.open')}
         >
@@ -231,9 +231,9 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-full max-w-md px-4 sm:px-0">
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -242,15 +242,15 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
 
           <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="term-label">{t('onboarding.label')}</div>
+              <div className="ui-label">{t('onboarding.label')}</div>
               <h2 className="mt-3 text-lg tone-primary">{t('onboarding.title')}</h2>
             </div>
-            <button className="term-btn-secondary" onClick={() => setMinimizedState(true)}>
+            <button className="ui-btn-secondary" onClick={() => setMinimizedState(true)}>
               {t('onboarding.minimize')}
             </button>
           </div>
 
-          <p className="mt-2 text-sm term-subtle">{t('onboarding.subtitle')}</p>
+          <p className="mt-2 text-sm ui-subtle">{t('onboarding.subtitle')}</p>
 
           <div className="mt-4 text-xs uppercase tracking-[0.2em] text-white/55">
             {t('onboarding.progress', { done: doneCount, total: STEPS.length })}
@@ -263,18 +263,18 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
               const pageLabel = t(pageKey) === pageKey ? step.page : t(pageKey)
 
               return (
-                <div key={step.id} className="term-mission">
+                <div key={step.id} className="ui-item">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="text-[11px] uppercase tracking-[0.16em] text-white/70">
                         {t(`onboarding.steps.${step.id}.title`)}
                       </div>
-                      <div className="mt-1 text-xs term-subtle">{t(`onboarding.steps.${step.id}.description`)}</div>
+                      <div className="mt-1 text-xs ui-subtle">{t(`onboarding.steps.${step.id}.description`)}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="term-chip">{done ? t('onboarding.status.complete') : t('onboarding.status.pending')}</span>
+                      <span className="ui-chip">{done ? t('onboarding.status.complete') : t('onboarding.status.pending')}</span>
                       {!done && (
-                        <button className="term-btn-secondary" onClick={() => onNavigate(step.page)}>
+                        <button className="ui-btn-secondary" onClick={() => onNavigate(step.page)}>
                           {t('onboarding.openPage', { page: pageLabel })}
                         </button>
                       )}
@@ -286,10 +286,10 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
           </div>
 
           <div className="mt-5 flex flex-wrap justify-end gap-2">
-            <button className="term-btn-secondary" onClick={completeAndClose}>
+            <button className="ui-btn-secondary" onClick={completeAndClose}>
               {t('onboarding.skip')}
             </button>
-            <button className="term-btn-primary" onClick={completeAndClose} disabled={!allDone}>
+            <button className="ui-btn-primary" onClick={completeAndClose} disabled={!allDone}>
               {t('onboarding.finish')}
             </button>
           </div>
@@ -298,3 +298,5 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
     </div>
   )
 }
+
+

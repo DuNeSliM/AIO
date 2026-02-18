@@ -1,13 +1,20 @@
 import catalogRaw from './catalog.json'
+import { DEFAULT_DESIGN_MANIFEST, type DesignAssetSlots, type DesignLayoutPreset, type DesignManifest } from './themeManifest'
 
 const themeModules = import.meta.glob('./themes/*/theme.css', { eager: true })
 void themeModules
+const manifestModules = import.meta.glob('./themes/*/theme.ts', { eager: true })
 
 type CatalogRecord = {
   id?: unknown
   className?: unknown
   cost?: unknown
   default?: unknown
+}
+
+type ManifestModule = {
+  default?: unknown
+  manifest?: unknown
 }
 
 export type DesignId = string
@@ -18,6 +25,56 @@ export type DesignCatalogItem = {
   cost: number
   isDefault: boolean
 }
+
+const DESIGN_LAYOUT_PRESETS: DesignLayoutPreset[] = ['default', 'meadow', 'kawaii']
+
+function parseDesignIdFromPath(path: string): DesignId | null {
+  const match = path.match(/^\.\/themes\/([^/]+)\/theme\.ts$/)
+  return match?.[1] ?? null
+}
+
+function toLayoutPreset(value: unknown): DesignLayoutPreset {
+  if (typeof value === 'string' && DESIGN_LAYOUT_PRESETS.includes(value as DesignLayoutPreset)) {
+    return value as DesignLayoutPreset
+  }
+  return DEFAULT_DESIGN_MANIFEST.layout
+}
+
+function toAssetLayer(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function toAssetSlots(value: unknown): DesignAssetSlots {
+  if (!value || typeof value !== 'object') return {}
+  const source = value as Record<string, unknown>
+  return {
+    panelTexture: toAssetLayer(source.panelTexture),
+    buttonTexture: toAssetLayer(source.buttonTexture),
+    sidebarTexture: toAssetLayer(source.sidebarTexture),
+  }
+}
+
+function toManifest(value: unknown): DesignManifest {
+  if (!value || typeof value !== 'object') return {}
+  const source = value as Record<string, unknown>
+  const assets = toAssetSlots(source.assets)
+  return {
+    layout: toLayoutPreset(source.layout),
+    assets,
+  }
+}
+
+const manifestById = new Map<DesignId, DesignManifest>()
+Object.entries(manifestModules).forEach(([path, moduleRecord]) => {
+  const id = parseDesignIdFromPath(path)
+  if (!id) return
+
+  const moduleValue = moduleRecord as ManifestModule
+  const manifestValue = moduleValue.default ?? moduleValue.manifest
+  manifestById.set(id, toManifest(manifestValue))
+})
 
 function toCatalogItem(entry: CatalogRecord): DesignCatalogItem | null {
   if (typeof entry?.id !== 'string') return null
@@ -52,4 +109,15 @@ export function isKnownDesignId(value: unknown): value is DesignId {
 export function findDesignById(id: DesignId | undefined | null): DesignCatalogItem | null {
   if (!id) return null
   return DESIGN_CATALOG.find((entry) => entry.id === id) ?? null
+}
+
+export function getDesignManifest(id: DesignId | undefined | null): Readonly<{
+  layout: DesignLayoutPreset
+  assets: DesignAssetSlots
+}> {
+  const manifest = id ? manifestById.get(id) : null
+  return {
+    layout: manifest?.layout ?? DEFAULT_DESIGN_MANIFEST.layout,
+    assets: manifest?.assets ?? {},
+  }
 }

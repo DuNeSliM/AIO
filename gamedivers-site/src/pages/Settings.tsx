@@ -1,4 +1,4 @@
-import { useI18n } from '../i18n/i18n'
+﻿import { useI18n } from '../i18n/i18n'
 import { useWishlist } from '../hooks/useWishlist'
 import { useCommander } from '../hooks/useCommander'
 import { restartOnboardingMission } from '../components/OnboardingMission'
@@ -33,23 +33,23 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="term-frame term-frame--orange">
-        <div className="term-panel rounded-[15px] p-6">
-          <div className="term-corners">
+      <header className="ui-surface ui-surface--accent">
+        <div className="ui-panel ui-panel-pad-lg">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
             <span />
           </div>
-          <p className="term-label">{t('settings.title')}</p>
+          <p className="ui-label">{t('settings.title')}</p>
           <h1 className="text-2xl tone-primary">{t('settings.title')}</h1>
-          <p className="text-sm term-subtle">{t('settings.subtitle')}</p>
+          <p className="text-sm ui-subtle">{t('settings.subtitle')}</p>
         </div>
       </header>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -58,18 +58,18 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.theme')}</div>
-              <div className="text-xs term-subtle">{t('settings.themeHint')}</div>
+              <div className="text-xs ui-subtle">{t('settings.themeHint')}</div>
             </div>
-            <button className="term-btn-primary" onClick={onToggleTheme}>
+            <button className="ui-btn-primary" onClick={onToggleTheme}>
               {isDark ? t('settings.dark') : t('settings.light')}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -78,10 +78,10 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.design')}</div>
-              <div className="text-xs term-subtle">{t('settings.designHint')}</div>
+              <div className="text-xs ui-subtle">{t('settings.designHint')}</div>
             </div>
             <select
-              className="term-select"
+              className="ui-select"
               value={commander.activeDesign ?? unlockedDesigns[0]?.id}
               disabled={unlockedDesigns.length === 0}
               onChange={(event) => {
@@ -99,9 +99,9 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
         </div>
       </div>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -110,18 +110,18 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.tutorial')}</div>
-              <div className="text-xs term-subtle">{t('settings.tutorialHint')}</div>
+              <div className="text-xs ui-subtle">{t('settings.tutorialHint')}</div>
             </div>
-            <button className="term-btn-secondary" onClick={restartOnboardingMission}>
+            <button className="ui-btn-secondary" onClick={restartOnboardingMission}>
               {t('settings.restartTutorial')}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -130,56 +130,56 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.language')}</div>
-              <div className="text-xs term-subtle">{t('settings.languageHint')}</div>
+              <div className="text-xs ui-subtle">{t('settings.languageHint')}</div>
             </div>
-            <button className="term-btn-secondary" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
+            <button className="ui-btn-secondary" onClick={() => setLang(lang === 'de' ? 'en' : 'de')}>
               {lang === 'de' ? 'Deutsch' : 'English'}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="term-frame">
-        <div className="term-panel rounded-[15px] p-5">
-          <div className="term-corners">
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
             <span />
           </div>
-          <div className="term-label">Wishlist Settings</div>
+          <div className="ui-label">Wishlist Settings</div>
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="term-subtle">{t('store.wishlist.notifications')}</span>
+              <span className="ui-subtle">{t('store.wishlist.notifications')}</span>
               <button
-                className="term-btn-secondary"
+                className="ui-btn-secondary"
                 onClick={() => (notificationsEnabled ? disableNotifications() : void enableNotifications())}
                 disabled={!notificationsSupported || (notificationPermission === 'denied' && !notificationsEnabled)}
               >
                 {notificationsEnabled ? t('store.wishlist.disable') : t('store.wishlist.enable')}
               </button>
-              {!notificationsSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
+              {!notificationsSupported && <span className="text-xs ui-subtle">{t('store.wishlist.notSupported')}</span>}
               {notificationsSupported && notificationPermission === 'denied' && (
                 <span className="text-xs text-amber-300">{t('store.wishlist.permissionDenied')}</span>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="term-subtle">{t('store.wishlist.onedrive')}</span>
+              <span className="ui-subtle">{t('store.wishlist.onedrive')}</span>
               {onedriveStatus === 'connected' ? (
-                <button className="term-btn-secondary" onClick={() => void disconnectOnedrive()}>
+                <button className="ui-btn-secondary" onClick={() => void disconnectOnedrive()}>
                   {t('store.wishlist.disconnect')}
                 </button>
               ) : onedriveStatus === 'permission-required' ? (
-                <button className="term-btn-secondary" onClick={() => void requestOnedriveAccess()}>
+                <button className="ui-btn-secondary" onClick={() => void requestOnedriveAccess()}>
                   {t('store.wishlist.grant')}
                 </button>
               ) : (
-                <button className="term-btn-secondary" onClick={() => void connectOnedrive()} disabled={!onedriveSupported}>
+                <button className="ui-btn-secondary" onClick={() => void connectOnedrive()} disabled={!onedriveSupported}>
                   {t('store.wishlist.connect')}
                 </button>
               )}
-              {!onedriveSupported && <span className="text-xs term-subtle">{t('store.wishlist.notSupported')}</span>}
-              {onedriveSupported && onedriveStatus === 'connected' && <span className="term-chip">{t('store.wishlist.connected')}</span>}
+              {!onedriveSupported && <span className="text-xs ui-subtle">{t('store.wishlist.notSupported')}</span>}
+              {onedriveSupported && onedriveStatus === 'connected' && <span className="ui-chip">{t('store.wishlist.connected')}</span>}
             </div>
           </div>
         </div>
@@ -187,3 +187,5 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
     </div>
   )
 }
+
+

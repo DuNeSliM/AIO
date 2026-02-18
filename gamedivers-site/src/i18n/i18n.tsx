@@ -56,6 +56,17 @@ const translations: Record<Language, TranslationTree> = {
       compare: 'Preis vergleichen',
       region: 'Region',
       empty: 'Keine Treffer. Tipp: Spielnamen genauer eingeben.',
+      errorPrefix: 'Fehler',
+      skipScan: 'Ueberspringen',
+      telemetry: {
+        lockingMarket: 'MARKT WIRD GELADEN',
+        scanningStores: 'STORES WERDEN GESCANNT',
+        calibratingLinks: 'LINKS WERDEN KALIBRIERT',
+        pingingMarket: 'MARKT WIRD ANGEPINGT',
+      },
+      searchHit: 'SUCHTREFFER',
+      bestPriceSteam: 'BESTPREIS: STEAM (-{diff}{currency})',
+      bestPriceEpic: 'BESTPREIS: EPIC (-{diff}{currency})',
       steam: 'Steam',
       epic: 'Epic Games',
       cheapest: 'Guenstigster Preis',
@@ -64,10 +75,16 @@ const translations: Record<Language, TranslationTree> = {
         title: 'Wishlist',
         add: 'Merken',
         remove: 'Entfernen',
+        show: 'Wishlist anzeigen',
+        hide: 'Wishlist ausblenden',
+        jump: 'Zur Wishlist',
         empty: 'Keine Wunschlisteintraege.',
         targetPlaceholder: 'Zielpreis',
         onSale: 'Im Sale',
         belowTarget: 'Unter Ziel',
+        sourceSteam: 'STEAM',
+        sourceManual: 'MANUELL',
+        sourceUnknown: 'Store',
         syncSteam: 'Steam Wishlist laden',
         loginRequired: 'Steam Login erforderlich, um die Wishlist zu laden.',
         steamPrivate: 'Steam Profil/Wunschliste muss auf "Oeffentlich" stehen.',
@@ -136,14 +153,20 @@ const translations: Record<Language, TranslationTree> = {
         total: 'Gesamt',
       },
       activityEmpty: 'Keine aktuellen Events',
+      devTools: 'DEV CREDITS',
+      creditsAmount: '{amount} CR',
+      devCreditButton: '+{amount} CR',
       purchase: 'Kaufen',
       buyDesign: 'Freischalten',
       equip: 'Aktivieren',
+      preview: 'Vorschau',
+      clearPreview: 'Vorschau beenden',
       reroll: 'Neu wuerfeln',
       status: {
         complete: 'ABGESCHLOSSEN',
         owned: 'BESITZT',
         active: 'AKTIV',
+        preview: 'VORSCHAU',
       },
       toasts: {
         notEnoughCredits: 'NICHT GENUG CREDITS',
@@ -160,8 +183,11 @@ const translations: Record<Language, TranslationTree> = {
         rerolled: 'MISSION GEREROLLT',
         designPurchased: 'DESIGN GEKAUFT: {design}',
         designEquipped: 'DESIGN AKTIVIERT: {design}',
+        designPreviewed: 'DESIGN VORSCHAU: {design}',
+        designPreviewCleared: 'DESIGN-VORSCHAU BEENDET',
         designOwned: 'DESIGN BEREITS FREIGESCHALTET',
         designLocked: 'DESIGN NOCH GESPERRT',
+        devCreditsAdded: 'DEV CREDITS +{amount}',
       },
       pool: {
         'scan-sector': 'Markt-Scans ausfuehren',
@@ -171,6 +197,22 @@ const translations: Record<Language, TranslationTree> = {
         'launch-drop': 'Ungespielte Titel starten',
         'price-audit': 'Deal-Checks ausfuehren',
         'search-burst': 'Neue Titel suchen',
+      },
+      badges: {
+        catalog: {
+          'badge-steam': {
+            name: 'Steam Vanguard',
+            description: 'Zeige deine Steam-Fraktion.',
+          },
+          'badge-epic': {
+            name: 'Epic Vanguard',
+            description: 'Zeige deine Epic-Fraktion.',
+          },
+          'badge-elite': {
+            name: 'Elite Scout',
+            description: 'Auszeichnung fuer Top-Explorer.',
+          },
+        },
       },
       designs: {
         catalog: {
@@ -189,6 +231,14 @@ const translations: Record<Language, TranslationTree> = {
           'ghost-protocol': {
             name: 'Ghost Protocol',
             description: 'Dunkles Stealth-Layout mit reduzierter Leuchtwirkung.',
+          },
+          'meadow-bloom': {
+            name: 'Meadow Bloom',
+            description: 'Chilliger Wiesen-Look mit Blumenlichtern und ruhigen Gruentoenen.',
+          },
+          'kawaii-overdrive': {
+            name: 'Kawaii Overdrive',
+            description: 'Anime-inspirierte Pink-Cyan-Energie mit extra viel visueller Action.',
           },
         },
       },
@@ -272,6 +322,17 @@ const translations: Record<Language, TranslationTree> = {
       compare: 'Compare price',
       region: 'Region',
       empty: 'No results. Tip: use a more specific title.',
+      errorPrefix: 'Error',
+      skipScan: 'Skip',
+      telemetry: {
+        lockingMarket: 'LOCKING MARKET',
+        scanningStores: 'SCANNING STORES',
+        calibratingLinks: 'CALIBRATING LINKS',
+        pingingMarket: 'PINGING MARKET',
+      },
+      searchHit: 'SEARCH HIT',
+      bestPriceSteam: 'BEST PRICE: STEAM (-{diff}{currency})',
+      bestPriceEpic: 'BEST PRICE: EPIC (-{diff}{currency})',
       steam: 'Steam',
       epic: 'Epic Games',
       cheapest: 'Cheapest price',
@@ -280,10 +341,16 @@ const translations: Record<Language, TranslationTree> = {
         title: 'Wishlist',
         add: 'Add',
         remove: 'Remove',
+        show: 'Show wishlist',
+        hide: 'Hide wishlist',
+        jump: 'Jump to wishlist',
         empty: 'No wishlist items yet.',
         targetPlaceholder: 'Target price',
         onSale: 'On sale',
         belowTarget: 'Below target',
+        sourceSteam: 'STEAM',
+        sourceManual: 'MANUAL',
+        sourceUnknown: 'Store',
         syncSteam: 'Load Steam wishlist',
         loginRequired: 'Steam login required to load wishlist.',
         steamPrivate: 'Your Steam profile/wishlist must be set to public.',
@@ -352,14 +419,20 @@ const translations: Record<Language, TranslationTree> = {
         total: 'Total savings',
       },
       activityEmpty: 'No recent events',
+      devTools: 'DEV CREDITS',
+      creditsAmount: '{amount} CR',
+      devCreditButton: '+{amount} CR',
       purchase: 'Purchase',
       buyDesign: 'Unlock',
       equip: 'Equip',
+      preview: 'Preview',
+      clearPreview: 'End preview',
       reroll: 'Reroll',
       status: {
         complete: 'COMPLETE',
         owned: 'OWNED',
         active: 'ACTIVE',
+        preview: 'PREVIEW',
       },
       toasts: {
         notEnoughCredits: 'NOT ENOUGH CREDITS',
@@ -376,8 +449,11 @@ const translations: Record<Language, TranslationTree> = {
         rerolled: 'MISSION REROLLED',
         designPurchased: 'DESIGN PURCHASED: {design}',
         designEquipped: 'DESIGN EQUIPPED: {design}',
+        designPreviewed: 'DESIGN PREVIEW: {design}',
+        designPreviewCleared: 'DESIGN PREVIEW ENDED',
         designOwned: 'DESIGN ALREADY OWNED',
         designLocked: 'DESIGN IS LOCKED',
+        devCreditsAdded: 'DEV CREDITS +{amount}',
       },
       pool: {
         'scan-sector': 'Run market scans',
@@ -387,6 +463,22 @@ const translations: Record<Language, TranslationTree> = {
         'launch-drop': 'Launch unplayed titles',
         'price-audit': 'Run deal checks',
         'search-burst': 'Search fresh titles',
+      },
+      badges: {
+        catalog: {
+          'badge-steam': {
+            name: 'Steam Vanguard',
+            description: 'Rep the Steam faction.',
+          },
+          'badge-epic': {
+            name: 'Epic Vanguard',
+            description: 'Rep the Epic faction.',
+          },
+          'badge-elite': {
+            name: 'Elite Scout',
+            description: 'Awarded to top explorers.',
+          },
+        },
       },
       designs: {
         catalog: {
@@ -405,6 +497,14 @@ const translations: Record<Language, TranslationTree> = {
           'ghost-protocol': {
             name: 'Ghost Protocol',
             description: 'Stealth-focused dark layout with muted glow.',
+          },
+          'meadow-bloom': {
+            name: 'Meadow Bloom',
+            description: 'Chill grass-and-flower atmosphere with soft green highlights.',
+          },
+          'kawaii-overdrive': {
+            name: 'Kawaii Overdrive',
+            description: 'Anime-inspired pink-cyan overload with high-energy visual chaos.',
           },
         },
       },
@@ -488,7 +588,7 @@ export function I18nProvider({ children }: I18nProviderProps) {
       lang,
       setLang,
       t: (key, vars) => {
-        const text = getValue(translations[lang], key) || key
+        const text = getValue(translations[lang], key) ?? getValue(translations.en, key) ?? key
         return interpolate(text, vars)
       },
     }

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import CommanderHud from './components/CommanderHud'
 import OnboardingMission, { OPEN_ONBOARDING_EVENT, shouldShowOnboardingMission } from './components/OnboardingMission'
-import { DESIGN_CLASS_NAMES, findDesignById } from './designs/registry'
+import { DEFAULT_DESIGN_ID, DESIGN_CLASS_NAMES, findDesignById, getDesignManifest } from './designs/registry'
 import { useCommander } from './hooks/useCommander'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { I18nProvider } from './i18n/i18n'
+import AppLayout from './layouts/AppLayout'
 import ForgotPassword from './pages/ForgotPassword'
 import GameLibrary from './pages/GameLibrary'
 import Login from './pages/Login'
@@ -14,7 +15,7 @@ import Register from './pages/Register'
 import Settings from './pages/Settings'
 import Store from './pages/Store'
 import type { Page, Theme } from './types'
-import { evaluateDailyMissionsFromStorage } from './utils/gameify'
+import { DESIGN_PREVIEW_EVENT, evaluateDailyMissionsFromStorage, loadDesignPreview } from './utils/gameify'
 
 const PUBLIC_PAGES: Page[] = ['login', 'register', 'forgot-password']
 
@@ -35,6 +36,11 @@ function AppShell() {
   const [page, setPage] = useState<Page>(() => (hasStoredSession() ? 'library' : 'login'))
   const [theme, setTheme] = useState<Theme>(() => getStoredTheme())
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowOnboardingMission())
+  const [previewDesign, setPreviewDesign] = useState(() => loadDesignPreview())
+  const activeDesignId = previewDesign ?? commander.activeDesign ?? DEFAULT_DESIGN_ID
+  const activeDesign = findDesignById(activeDesignId) ?? findDesignById(DEFAULT_DESIGN_ID)
+  const activeDesignClass = activeDesign?.className ?? DESIGN_CLASS_NAMES[0]
+  const activeManifest = getDesignManifest(activeDesign?.id ?? DEFAULT_DESIGN_ID)
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
@@ -43,11 +49,36 @@ function AppShell() {
 
   useEffect(() => {
     DESIGN_CLASS_NAMES.forEach((className) => document.body.classList.remove(className))
-    const activeClass = findDesignById(commander.activeDesign)?.className ?? DESIGN_CLASS_NAMES[0]
-    if (activeClass) {
-      document.body.classList.add(activeClass)
+    if (activeDesignClass) {
+      document.body.classList.add(activeDesignClass)
     }
-  }, [commander.activeDesign])
+  }, [activeDesignClass])
+
+  useEffect(() => {
+    const manifest = getDesignManifest(activeDesign?.id ?? DEFAULT_DESIGN_ID)
+    const bodyStyle = document.body.style
+
+    const setRuntimeLayer = (variable: string, value: string | undefined) => {
+      if (value) {
+        bodyStyle.setProperty(variable, value)
+        return
+      }
+      bodyStyle.removeProperty(variable)
+    }
+
+    setRuntimeLayer('--ui-runtime-panel-bg', manifest.assets.panelTexture)
+    setRuntimeLayer('--ui-runtime-btn-primary-bg', manifest.assets.buttonTexture)
+    setRuntimeLayer('--ui-runtime-btn-secondary-bg', manifest.assets.buttonTexture)
+    setRuntimeLayer('--ui-runtime-btn-ghost-bg', manifest.assets.buttonTexture)
+    setRuntimeLayer('--ui-runtime-btn-soft-bg', manifest.assets.buttonTexture)
+    setRuntimeLayer('--ui-runtime-sidebar-bg', manifest.assets.sidebarTexture)
+  }, [activeDesign?.id])
+
+  useEffect(() => {
+    const handler = () => setPreviewDesign(loadDesignPreview())
+    window.addEventListener(DESIGN_PREVIEW_EVENT, handler)
+    return () => window.removeEventListener(DESIGN_PREVIEW_EVENT, handler)
+  }, [])
 
   useEffect(() => {
     const syncMissions = () => {
@@ -96,19 +127,15 @@ function AppShell() {
   }
 
   return (
-    <div className="hud-shell">
-      <div className="relative z-10 flex min-h-screen">
-        <Sidebar activePage={page} onNavigate={setPage} />
-        <main className="flex-1 px-6 py-8 lg:px-10">
-          <div className="mb-6">
-            <CommanderHud />
-          </div>
-          {page === 'store' && <Store />}
-          {page === 'downloads' && <Missions />}
-          {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
-          {page === 'library' && <GameLibrary />}
-        </main>
-      </div>
+    <div className="ui-shell">
+      <div className="ui-shell-art" aria-hidden="true" />
+      <div className="ui-shell-art ui-shell-art--front" aria-hidden="true" />
+      <AppLayout preset={activeManifest.layout} sidebar={<Sidebar activePage={page} onNavigate={setPage} />} header={<CommanderHud />}>
+        {page === 'store' && <Store />}
+        {page === 'downloads' && <Missions />}
+        {page === 'settings' && <Settings theme={theme} onToggleTheme={toggleTheme} />}
+        {page === 'library' && <GameLibrary />}
+      </AppLayout>
 
       {showOnboarding && <OnboardingMission onNavigate={setPage} onClose={() => setShowOnboarding(false)} />}
     </div>

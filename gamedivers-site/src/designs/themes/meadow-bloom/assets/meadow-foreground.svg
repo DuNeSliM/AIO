@@ -1,0 +1,26 @@
+<svg width="960" height="640" viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="vine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9fd77b" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#6aa64b" stop-opacity="0.4"/>
+    </linearGradient>
+  </defs>
+
+  <g fill="none" stroke="url(#vine)" stroke-width="5" stroke-linecap="round" opacity="0.7">
+    <path d="M-20 96 C 80 64, 180 96, 260 142"/>
+    <path d="M700 36 C 790 12, 900 24, 992 92"/>
+    <path d="M-30 590 C 130 520, 310 544, 470 624"/>
+    <path d="M560 620 C 700 548, 860 560, 995 610"/>
+  </g>
+
+  <g fill="#f5d788" opacity="0.45">
+    <circle cx="145" cy="110" r="7"/>
+    <circle cx="210" cy="138" r="6"/>
+    <circle cx="790" cy="74" r="7"/>
+    <circle cx="882" cy="88" r="6"/>
+    <circle cx="140" cy="572" r="7"/>
+    <circle cx="260" cy="598" r="8"/>
+    <circle cx="770" cy="590" r="7"/>
+    <circle cx="885" cy="606" r="6"/>
+  </g>
+</svg>

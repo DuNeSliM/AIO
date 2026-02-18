@@ -3,36 +3,41 @@ import type { CSSProperties } from 'react'
 import { useCommander } from '../hooks/useCommander'
 import { useI18n } from '../i18n/i18n'
 import {
+  DESIGN_PREVIEW_EVENT,
   DESIGN_CATALOG,
   buildMissionMetrics,
+  clearDesignPreview,
   equipDesign,
+  grantCredits,
   getDailyMissionCards,
   getDailyMissionMeta,
   loadCounters,
+  loadDesignPreview,
   loadEventLog,
   loadMissionPreferences,
   purchaseBadge,
   purchaseDesign,
   rerollDailyMission,
   saveMissionPreferences,
+  setDesignPreview,
   type DesignId,
   type MissionDifficulty,
 } from '../utils/gameify'
 
 type BadgeItem = {
   id: string
-  title: string
   cost: number
-  description: string
 }
 
 const BADGES: BadgeItem[] = [
-  { id: 'badge-steam', title: 'Steam Vanguard', cost: 120, description: 'Rep the Steam faction.' },
-  { id: 'badge-epic', title: 'Epic Vanguard', cost: 120, description: 'Rep the Epic faction.' },
-  { id: 'badge-elite', title: 'Elite Scout', cost: 200, description: 'Awarded to top explorers.' },
+  { id: 'badge-steam', cost: 120 },
+  { id: 'badge-epic', cost: 120 },
+  { id: 'badge-elite', cost: 200 },
 ]
 
 const DIFFICULTY_OPTIONS: MissionDifficulty[] = ['relaxed', 'standard', 'hardcore']
+const ENABLED_ENV_VALUES = new Set(['1', 'true', 'yes', 'on'])
+const DEV_CREDITS_ENABLED = ENABLED_ENV_VALUES.has((import.meta.env.VITE_ENABLE_CREDIT_CHEAT ?? '').trim().toLowerCase())
 
 function loadWishlistCount() {
   const raw = localStorage.getItem('wishlist')
@@ -67,12 +72,14 @@ export default function Missions() {
   const [missionMeta, setMissionMeta] = useState(() => getDailyMissionMeta())
   const [toast, setToast] = useState<string | null>(null)
   const [events, setEvents] = useState(() => loadEventLog())
+  const [previewDesign, setPreviewDesignState] = useState<DesignId | null>(() => loadDesignPreview())
 
   const refreshMissionData = useCallback(() => {
     setCounters(loadCounters())
     setPreferences(loadMissionPreferences())
     setMissionMeta(getDailyMissionMeta())
     setEvents(loadEventLog())
+    setPreviewDesignState(loadDesignPreview())
   }, [])
 
   useEffect(() => {
@@ -82,6 +89,14 @@ export default function Missions() {
     window.addEventListener('mission-update', handler)
     return () => window.removeEventListener('mission-update', handler)
   }, [refreshMissionData])
+
+  useEffect(() => {
+    const handler = () => {
+      setPreviewDesignState(loadDesignPreview())
+    }
+    window.addEventListener(DESIGN_PREVIEW_EVENT, handler)
+    return () => window.removeEventListener(DESIGN_PREVIEW_EVENT, handler)
+  }, [])
 
   useEffect(() => {
     if (!toast) return
@@ -148,13 +163,36 @@ export default function Missions() {
     [t],
   )
 
+  const getLocalizedBadgeName = useCallback(
+    (badgeId: string) => {
+      const key = `missions.badges.catalog.${badgeId}.name`
+      const localized = t(key)
+      return localized === key ? badgeId : localized
+    },
+    [t],
+  )
+
+  const getLocalizedBadgeDescription = useCallback(
+    (badgeId: string) => {
+      const key = `missions.badges.catalog.${badgeId}.description`
+      const localized = t(key)
+      return localized === key ? badgeId : localized
+    },
+    [t],
+  )
+
+  const formatCredits = useCallback(
+    (amount: number) => t('missions.creditsAmount', { amount }),
+    [t],
+  )
+
   const onBuy = (badge: BadgeItem) => {
     const ok = purchaseBadge(badge.id, badge.cost)
     if (!ok) {
       setToast(t('missions.toasts.notEnoughCredits'))
       return
     }
-    setToast(t('missions.toasts.purchased', { title: badge.title }))
+    setToast(t('missions.toasts.purchased', { title: getLocalizedBadgeName(badge.id) }))
   }
 
   const onSetDifficulty = (difficulty: MissionDifficulty) => {
@@ -226,28 +264,48 @@ export default function Missions() {
     setToast(t('missions.toasts.designEquipped', { design: getLocalizedDesignName(designId) }))
   }
 
+  const onPreviewDesign = (designId: DesignId) => {
+    setDesignPreview(designId)
+    setPreviewDesignState(designId)
+    setToast(t('missions.toasts.designPreviewed', { design: getLocalizedDesignName(designId) }))
+  }
+
+  const onClearPreview = () => {
+    clearDesignPreview()
+    setPreviewDesignState(null)
+    setToast(t('missions.toasts.designPreviewCleared'))
+  }
+
+  const onGrantDevCredits = (amount: number) => {
+    if (!DEV_CREDITS_ENABLED) return
+    const ok = grantCredits(amount)
+    if (!ok) return
+    refreshMissionData()
+    setToast(t('missions.toasts.devCreditsAdded', { amount }))
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <header className="term-frame term-frame--orange">
-        <div className="term-panel rounded-[15px] p-6">
-          <div className="term-corners">
+      <header className="ui-surface ui-surface--accent">
+        <div className="ui-panel ui-panel-pad-lg">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
             <span />
           </div>
-          <div className="term-label">{t('missions.label')}</div>
+          <div className="ui-label">{t('missions.label')}</div>
           <h1 className="mt-3 text-2xl tone-primary">{t('missions.title')}</h1>
-          <p className="mt-2 text-sm term-subtle">{t('missions.subtitle')}</p>
+          <p className="mt-2 text-sm ui-subtle">{t('missions.subtitle')}</p>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button className="term-btn-secondary" onClick={onToggleMissions}>
+            <button className="ui-btn-secondary" onClick={onToggleMissions}>
               {preferences.missionsEnabled ? t('missions.enabledOn') : t('missions.enabledOff')}
             </button>
 
             <span className="text-xs uppercase tracking-[0.18em] text-white/50">{t('missions.difficulty')}</span>
             <select
-              className="term-select"
+              className="ui-select"
               value={preferences.difficulty}
               onChange={(event) => onSetDifficulty(event.target.value as MissionDifficulty)}
               disabled={!preferences.missionsEnabled}
@@ -259,7 +317,7 @@ export default function Missions() {
               ))}
             </select>
 
-            <button className="term-btn-secondary" onClick={onToggleRerolls} disabled={!preferences.missionsEnabled}>
+            <button className="ui-btn-secondary" onClick={onToggleRerolls} disabled={!preferences.missionsEnabled}>
               {preferences.rerollsEnabled ? t('missions.rerollsOn') : t('missions.rerollsOff')}
             </button>
 
@@ -277,15 +335,27 @@ export default function Missions() {
               <span className="text-xs uppercase tracking-[0.18em] text-white/45">{t('missions.disabledInfo')}</span>
             )}
           </div>
+
+          {DEV_CREDITS_ENABLED && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-[0.18em] text-white/45">{t('missions.devTools')}</span>
+              <button className="ui-btn-secondary" onClick={() => onGrantDevCredits(100)}>
+                {t('missions.devCreditButton', { amount: 100 })}
+              </button>
+              <button className="ui-btn-secondary" onClick={() => onGrantDevCredits(500)}>
+                {t('missions.devCreditButton', { amount: 500 })}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      {toast && <div className="term-toast">{toast}</div>}
+      {toast && <div className="ui-toast">{toast}</div>}
 
       {recentRewards.length > 0 && (
         <div className="flex flex-col gap-2">
           {recentRewards.map((reward) => (
-            <div key={reward.id} className="term-toast">
+            <div key={reward.id} className="ui-toast">
               {reward.message}
             </div>
           ))}
@@ -293,32 +363,32 @@ export default function Missions() {
       )}
 
       <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel ui-panel-pad-md">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-label">{t('missions.sections.daily')}</div>
+            <div className="ui-label">{t('missions.sections.daily')}</div>
             <div className="mt-4 grid gap-3">
               {!preferences.missionsEnabled && (
-                <div className="term-mission">
+                <div className="ui-item">
                   <div className="text-xs uppercase tracking-[0.2em] text-white/60">{t('missions.disabledMessage')}</div>
                 </div>
               )}
               {preferences.missionsEnabled &&
                 dailyMissions.map((mission) => (
-                  <div key={mission.id} className="term-mission">
+                  <div key={mission.id} className="ui-item">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
                       <span>{getLocalizedMissionLabel(mission.id, mission.label)}</span>
                       <span>{mission.done ? t('missions.status.complete') : mission.rewardLabel}</span>
                     </div>
                     <div className="mt-3 flex items-center gap-3 text-xs text-white/50">
                       <div
-                        className="term-meter"
-                        style={{ '--term-meter': `${(mission.progress / mission.target) * 100}%` } as CSSProperties}
+                        className="ui-meter"
+                        style={{ '--ui-meter': `${(mission.progress / mission.target) * 100}%` } as CSSProperties}
                       />
                       <span>
                         {mission.progress}/{mission.target}
@@ -326,7 +396,7 @@ export default function Missions() {
                     </div>
                     {preferences.rerollsEnabled && !mission.done && (
                       <button
-                        className="term-btn-secondary mt-3"
+                        className="ui-btn-secondary mt-3"
                         onClick={() => onRerollMission(mission.id)}
                         disabled={missionMeta.rerollsUsed >= missionMeta.rerollsLimit}
                       >
@@ -339,15 +409,15 @@ export default function Missions() {
           </div>
         </div>
 
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel ui-panel-pad-md">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-label">{t('missions.sections.report')}</div>
+            <div className="ui-label">{t('missions.sections.report')}</div>
             <div className="mt-4 flex flex-col gap-3 text-xs uppercase tracking-[0.2em] text-white/60">
               <div className="flex items-center justify-between">
                 <span>{t('missions.report.steam')}</span>
@@ -357,7 +427,7 @@ export default function Missions() {
                 <span>{t('missions.report.epic')}</span>
                 <span>{report.epic.toFixed(2)}</span>
               </div>
-              <div className="term-divider" />
+              <div className="ui-divider" />
               <div className="flex items-center justify-between">
                 <span>{t('missions.report.total')}</span>
                 <span>{(report.steam + report.epic).toFixed(2)}</span>
@@ -368,27 +438,27 @@ export default function Missions() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel ui-panel-pad-md">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-label">{t('missions.sections.badges')}</div>
+            <div className="ui-label">{t('missions.sections.badges')}</div>
             <div className="mt-4 grid gap-3">
               {BADGES.map((badge) => {
                 const owned = commander.badges?.includes(badge.id)
                 return (
-                  <div key={badge.id} className="term-mission">
+                  <div key={badge.id} className="ui-item">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
-                      <span>{badge.title}</span>
-                      <span>{owned ? t('missions.status.owned') : `${badge.cost} CR`}</span>
+                      <span>{getLocalizedBadgeName(badge.id)}</span>
+                      <span>{owned ? t('missions.status.owned') : formatCredits(badge.cost)}</span>
                     </div>
-                    <div className="mt-2 text-xs text-white/50">{badge.description}</div>
+                    <div className="mt-2 text-xs text-white/50">{getLocalizedBadgeDescription(badge.id)}</div>
                     {!owned && (
-                      <button className="term-btn-secondary mt-3" onClick={() => onBuy(badge)}>
+                      <button className="ui-btn-secondary mt-3" onClick={() => onBuy(badge)}>
                         {t('missions.purchase')}
                       </button>
                     )}
@@ -398,35 +468,56 @@ export default function Missions() {
             </div>
           </div>
         </div>
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel ui-panel-pad-md">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-label">{t('missions.sections.designs')}</div>
+            <div className="ui-label">{t('missions.sections.designs')}</div>
+            {previewDesign && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
+                <span className="ui-chip">{t('missions.status.preview')}</span>
+                <span>{getLocalizedDesignName(previewDesign)}</span>
+                <button className="ui-btn-secondary" onClick={onClearPreview}>
+                  {t('missions.clearPreview')}
+                </button>
+              </div>
+            )}
             <div className="mt-4 grid gap-3">
               {DESIGN_CATALOG.map((design) => {
                 const unlocked = commander.unlockedDesigns?.includes(design.id) ?? false
                 const active = commander.activeDesign === design.id
+                const previewing = previewDesign === design.id
                 return (
-                  <div key={design.id} className="term-mission">
+                  <div key={design.id} className="ui-item">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
                       <span>{getLocalizedDesignName(design.id)}</span>
-                      <span>{unlocked ? t('missions.status.owned') : `${design.cost} CR`}</span>
+                      <span>{unlocked ? t('missions.status.owned') : formatCredits(design.cost)}</span>
                     </div>
                     <div className="mt-2 text-xs text-white/50">{getLocalizedDesignDescription(design.id)}</div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {active && <span className="term-chip">{t('missions.status.active')}</span>}
+                      {active && <span className="ui-chip">{t('missions.status.active')}</span>}
+                      {previewing && <span className="ui-chip">{t('missions.status.preview')}</span>}
+                      {!previewing && (
+                        <button className="ui-btn-secondary" onClick={() => onPreviewDesign(design.id)}>
+                          {t('missions.preview')}
+                        </button>
+                      )}
+                      {previewing && (
+                        <button className="ui-btn-secondary" onClick={onClearPreview}>
+                          {t('missions.clearPreview')}
+                        </button>
+                      )}
                       {!active && unlocked && (
-                        <button className="term-btn-secondary" onClick={() => onEquipDesign(design.id)}>
+                        <button className="ui-btn-secondary" onClick={() => onEquipDesign(design.id)}>
                           {t('missions.equip')}
                         </button>
                       )}
                       {!unlocked && (
-                        <button className="term-btn-secondary" onClick={() => onBuyDesign(design.id)}>
+                        <button className="ui-btn-secondary" onClick={() => onBuyDesign(design.id)}>
                           {t('missions.buyDesign')}
                         </button>
                       )}
@@ -437,15 +528,15 @@ export default function Missions() {
             </div>
           </div>
         </div>
-        <div className="term-frame">
-          <div className="term-panel rounded-[15px] p-5">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel ui-panel-pad-md">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-label">{t('missions.sections.activity')}</div>
+            <div className="ui-label">{t('missions.sections.activity')}</div>
             <div className="mt-3 flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
               {events.length === 0 && <span>{t('missions.activityEmpty')}</span>}
               {events.slice(0, 6).map((entry) => (
@@ -458,3 +549,5 @@ export default function Missions() {
     </div>
   )
 }
+
+
