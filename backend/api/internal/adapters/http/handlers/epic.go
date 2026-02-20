@@ -100,7 +100,7 @@ func (h *EpicHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	redirectBase := h.allowedRedirect
 	if redirectBase == "" {
-		redirectBase = "http://localhost:5173"
+		redirectBase = requestScheme(r) + "://" + r.Host
 	}
 	allowedRedirect := h.allowedRedirect
 	if allowedRedirect == "" {
