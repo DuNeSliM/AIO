@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
@@ -31,23 +31,23 @@ export default function Register({ onSuccess }: RegisterPageProps) {
     setLocalError(null)
 
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
-      setLocalError('Username, email, and password are required')
+      setLocalError(t('auth.validation.requiredFields'))
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
-      setLocalError('Please enter a valid email address')
+      setLocalError(t('auth.validation.invalidEmail'))
       return
     }
 
     if (formData.password.length < 8) {
-      setLocalError('Password must be at least 8 characters long')
+      setLocalError(t('auth.validation.passwordTooShort'))
       return
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setLocalError('Passwords do not match')
+      setLocalError(t('auth.validation.passwordMismatch'))
       return
     }
 
@@ -217,5 +217,3 @@ export default function Register({ onSuccess }: RegisterPageProps) {
     </div>
   )
 }
-
-

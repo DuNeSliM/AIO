@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
+import { useI18n } from '../i18n/i18n'
 import { requestPasswordReset } from '../services/api'
 import type { Page } from '../types'
 
@@ -7,6 +8,7 @@ interface ForgotPasswordPageProps {
 }
 
 export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
+  const { t } = useI18n()
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -17,13 +19,13 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
     setError(null)
 
     if (!email.trim()) {
-      setError('Email address is required')
+      setError(t('auth.validation.emailRequired'))
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address')
+      setError(t('auth.validation.invalidEmail'))
       return
     }
 
@@ -119,5 +121,3 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
     </div>
   )
 }
-
-

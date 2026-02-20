@@ -26,6 +26,27 @@ function getStoredRefreshToken(): string | null {
   return getStoredValue(REFRESH_TOKEN_STORAGE_KEYS)
 }
 
+function decodeJwt(token: string): { exp?: number } {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return {}
+
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    const payload = JSON.parse(atob(padded)) as { exp?: number }
+    return payload
+  } catch {
+    return {}
+  }
+}
+
+export function isTokenExpiringSoon(token: string, thresholdSeconds = 300): boolean {
+  const decoded = decodeJwt(token)
+  if (!decoded.exp) return false
+  const now = Math.floor(Date.now() / 1000)
+  return decoded.exp - now < thresholdSeconds
+}
+
 export function clearPersistedAuthTokens() {
   if (typeof window === 'undefined') return
 
@@ -41,6 +62,10 @@ export function clearPersistedAuthTokens() {
     localStorage.removeItem(key)
     sessionStorage.removeItem(key)
   })
+}
+
+export function clearAuthTokens(): void {
+  clearPersistedAuthTokens()
 }
 
 function persistAuthTokens(accessToken: string, refreshToken?: string) {
@@ -117,6 +142,31 @@ async function fetchWithAuth(url: string, opts?: RequestInit): Promise<Response>
   if (!refreshedAccess) return first
 
   return fetch(url, withToken(opts, refreshedAccess))
+}
+
+export async function ensureValidToken(): Promise<string | null> {
+  const accessToken = resolveAuthToken()
+  if (!accessToken) return null
+
+  if (!isTokenExpiringSoon(accessToken)) {
+    return accessToken
+  }
+
+  return tryRefreshToken()
+}
+
+export async function authenticatedFetch<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
+  try {
+    const token = await ensureValidToken()
+    if (!token) return null
+
+    const res = await fetchWithAuth(url, withToken(opts, token))
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return (await res.json()) as T
+  } catch (error) {
+    console.error('Authenticated API Error:', error)
+    return null
+  }
 }
 
 async function tryJson<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
@@ -241,7 +291,7 @@ export async function syncStore(store: string, credentials?: { steamId?: string;
   let url
   let headers: HeadersInit | undefined
   if (store === 'steam' && credentials?.steamId) {
-    url = `${API_BASE}/v1/steam/sync?steamid=${credentials.steamId}`
+    url = `${API_BASE}/v1/steam/sync?steamid=${encodeURIComponent(credentials.steamId)}`
   } else if (store === 'epic' && credentials?.accessToken) {
     url = `${API_BASE}/v1/epic/sync`
     headers = { Authorization: `Bearer ${credentials.accessToken}` }

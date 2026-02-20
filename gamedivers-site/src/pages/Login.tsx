@@ -1,4 +1,4 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
