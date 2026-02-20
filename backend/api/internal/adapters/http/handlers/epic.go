@@ -48,7 +48,7 @@ func (h *EpicHandler) LoginRedirect(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 	})
 
 	loginURL := h.client.GetLoginURL(state)
@@ -75,7 +75,7 @@ func (h *EpicHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 		MaxAge:   -1,
 	})
 

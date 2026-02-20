@@ -1,7 +1,6 @@
 import type { AuthResponse, Game, ItadPricesResponse, ItadSearchItem, User } from '../types'
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
-const ENV_AUTH_TOKEN = (import.meta.env.VITE_AUTH_ACCESS_TOKEN || import.meta.env.VITE_AUTH_TOKEN || '').trim()
 const AUTH_TOKEN_STORAGE_KEYS = ['accessToken', 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
 const REFRESH_TOKEN_STORAGE_KEYS = ['refreshToken', 'authRefreshToken'] as const
 
@@ -57,7 +56,6 @@ function persistAuthTokens(accessToken: string, refreshToken?: string) {
 function resolveAuthToken(): string | null {
   const stored = getStoredToken()
   if (stored) return stored
-  if (ENV_AUTH_TOKEN) return ENV_AUTH_TOKEN
   return null
 }
 

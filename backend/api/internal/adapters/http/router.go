@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/time/rate"
 
 	"gamedivers.de/api/internal/adapters/http/handlers"
 	authmw "gamedivers.de/api/internal/adapters/http/middleware"
@@ -16,7 +18,7 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Logger)
+	r.Use(requestLogMiddleware)
 	r.Use(middleware.Recoverer)
 
 	allowedOrigins := map[string]struct{}{}
@@ -27,6 +29,8 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 		allowedOrigins["http://localhost:3000"] = struct{}{}
 		allowedOrigins["http://localhost:5173"] = struct{}{}
 	}
+	sensitiveAuthLimiter := authmw.NewIPRateLimiter(rate.Every(12*time.Second), 5, 15*time.Minute)
+	tokenAuthLimiter := authmw.NewIPRateLimiter(rate.Every(time.Second), 20, 15*time.Minute)
 
 	// CORS middleware for frontend
 	r.Use(func(next http.Handler) http.Handler {
@@ -78,12 +82,12 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 
 		// Public auth endpoints (no authentication required)
 		r.Route("/auth", func(r chi.Router) {
-			r.Post("/register", authh.Register)
-			r.Post("/login", authh.Login)
-			r.Post("/refresh", authh.RefreshToken)
-			r.Post("/logout", authh.Logout)
-			r.Post("/forgot-password", authh.ForgotPassword)
-			r.Post("/resend-verification", authh.ResendVerification)
+			r.With(sensitiveAuthLimiter.Middleware).Post("/register", authh.Register)
+			r.With(sensitiveAuthLimiter.Middleware).Post("/login", authh.Login)
+			r.With(tokenAuthLimiter.Middleware).Post("/refresh", authh.RefreshToken)
+			r.With(tokenAuthLimiter.Middleware).Post("/logout", authh.Logout)
+			r.With(sensitiveAuthLimiter.Middleware).Post("/forgot-password", authh.ForgotPassword)
+			r.With(sensitiveAuthLimiter.Middleware).Post("/resend-verification", authh.ResendVerification)
 
 			// Protected auth endpoint
 			r.Group(func(r chi.Router) {

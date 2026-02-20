@@ -37,10 +37,7 @@ func NewSteamHandler(steamAPIKey, callbackURL, frontendOrigin string, repo repo.
 // GET /v1/steam/login
 func (h *SteamHandler) LoginRedirect(w http.ResponseWriter, r *http.Request) {
 	// Build callback URL
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
+	scheme := requestScheme(r)
 	returnURL := fmt.Sprintf("%s://%s/v1/steam/callback", scheme, r.Host)
 
 	state, err := newStateToken()
@@ -54,7 +51,7 @@ func (h *SteamHandler) LoginRedirect(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 	})
 
 	loginURL := h.steamClient.GetLoginURL(withState(returnURL, state))
@@ -80,7 +77,7 @@ func (h *SteamHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   isSecureRequest(r),
 		MaxAge:   -1,
 	})
 

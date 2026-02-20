@@ -4,9 +4,9 @@ metadata:
   name: go-api-config
 data:
   PORT: '8080'
-  FRONTEND_ORIGIN: 'http://localhost:3000'
+  FRONTEND_ORIGIN: 'https://gamedivers.de'
   KEYCLOAK_URL: 'https://auth.gamedivers.de'
   KEYCLOAK_REALM: 'gamedivers'
   KEYCLOAK_REQUIRE_EMAIL_VERIFIED: 'true'
-  STEAM_CALLBACK_URL: 'http://localhost:8080/auth/steam/callback'
-  EPIC_CALLBACK_URL: 'http://localhost:8080/auth/epic/callback'
+  STEAM_CALLBACK_URL: 'https://gamedivers.de/api/v1/steam/callback'
+  EPIC_CALLBACK_URL: 'https://gamedivers.de/api/v1/epic/callback'
