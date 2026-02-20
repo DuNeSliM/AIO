@@ -99,7 +99,7 @@ func (h *SteamHandler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	// Store session (simplified - in production use proper session management)
 	// For now, redirect to frontend with steamID as query param
-	frontendURL := h.safeSteamRedirect(steamID)
+	frontendURL := h.safeSteamRedirect(r, steamID)
 	if len(players) > 0 {
 		frontendURL += fmt.Sprintf("&username=%s", url.QueryEscape(players[0].PersonaName))
 	}
@@ -323,17 +323,20 @@ func (h *SteamHandler) verifyState(state string, r *http.Request) error {
 
 func sanitizeFrontendOrigin(origin string) string {
 	if origin == "" {
-		return "http://localhost:3000"
+		return ""
 	}
 	u, err := url.Parse(origin)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return "http://localhost:3000"
+		return ""
 	}
 	return strings.TrimRight(origin, "/")
 }
 
-func (h *SteamHandler) safeSteamRedirect(steamID string) string {
+func (h *SteamHandler) safeSteamRedirect(r *http.Request, steamID string) string {
 	base := h.frontendURL
+	if base == "" {
+		base = fmt.Sprintf("%s://%s", requestScheme(r), r.Host)
+	}
 	u, err := url.Parse(base)
 	if err != nil {
 		return base
