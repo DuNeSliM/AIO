@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from '../services/api'
 
 type EpicAuth = {
   epicId: string | null
@@ -50,7 +51,6 @@ export function useEpicAuth(): EpicAuth {
   }, [])
 
   const login = () => {
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
     window.location.href = `${API_BASE}/v1/epic/login`
   }
 
