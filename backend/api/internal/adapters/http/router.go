@@ -60,97 +60,113 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	r.Route("/v1", func(r chi.Router) {
-		// Game endpoints: keep a single mount path to avoid chi route collisions
-		r.Route("/games", func(r chi.Router) {
-			r.Get("/installed", gameHandler.GetInstalledGames)
+	register := func(router chi.Router) {
+		registerV1Routes(router, itadh, gameHandler, steamHandler, epicHandler, authh, jwtMw, sensitiveAuthLimiter, tokenAuthLimiter)
+	}
+	r.Route("/v1", register)
+	// Compatibility route for ingress setups that forward /api without stripping the prefix.
+	r.Route("/api/v1", register)
 
-			// Authenticated launch endpoints
-			r.With(jwtMw.Authenticate).Post("/steam/{appid}/start", gameHandler.StartSteamGame)
-			r.With(jwtMw.Authenticate).Post("/epic/{appname}/start", gameHandler.StartEpicGame)
-			r.With(jwtMw.Authenticate).Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
+	return r
+}
 
-			// Authenticated local library endpoints
-			r.With(jwtMw.Authenticate).Get("/steam/library", gameHandler.GetSteamLibrary)
-			r.With(jwtMw.Authenticate).Get("/epic/library", gameHandler.GetEpicLibrary)
-			r.With(jwtMw.Authenticate).Get("/gog/library", gameHandler.GetGOGLibrary)
-		})
+func registerV1Routes(
+	r chi.Router,
+	itadh *handlers.ITADHandler,
+	gameHandler *handlers.GameHandler,
+	steamHandler *handlers.SteamHandler,
+	epicHandler *handlers.EpicHandler,
+	authh *handlers.AuthHandler,
+	jwtMw *authmw.JWTMiddleware,
+	sensitiveAuthLimiter *authmw.IPRateLimiter,
+	tokenAuthLimiter *authmw.IPRateLimiter,
+) {
+	// Game endpoints: keep a single mount path to avoid chi route collisions
+	r.Route("/games", func(r chi.Router) {
+		r.Get("/installed", gameHandler.GetInstalledGames)
 
-		// Public auth endpoints (no authentication required)
-		r.Route("/auth", func(r chi.Router) {
-			r.With(sensitiveAuthLimiter.Middleware).Post("/register", authh.Register)
-			r.With(sensitiveAuthLimiter.Middleware).Post("/login", authh.Login)
-			r.With(tokenAuthLimiter.Middleware).Post("/refresh", authh.RefreshToken)
-			r.With(tokenAuthLimiter.Middleware).Post("/logout", authh.Logout)
-			r.With(sensitiveAuthLimiter.Middleware).Post("/forgot-password", authh.ForgotPassword)
-			r.With(sensitiveAuthLimiter.Middleware).Post("/resend-verification", authh.ResendVerification)
+		// Authenticated launch endpoints
+		r.With(jwtMw.Authenticate).Post("/steam/{appid}/start", gameHandler.StartSteamGame)
+		r.With(jwtMw.Authenticate).Post("/epic/{appname}/start", gameHandler.StartEpicGame)
+		r.With(jwtMw.Authenticate).Post("/gog/{gamename}/start", gameHandler.StartGOGGame)
 
-			// Protected auth endpoint
-			r.Group(func(r chi.Router) {
-				r.Use(jwtMw.Authenticate)
-				r.Get("/me", authh.GetMe)
-				r.Put("/password", authh.ChangePassword)
-				r.Put("/profile", authh.UpdateProfile)
-			})
-		})
+		// Authenticated local library endpoints
+		r.With(jwtMw.Authenticate).Get("/steam/library", gameHandler.GetSteamLibrary)
+		r.With(jwtMw.Authenticate).Get("/epic/library", gameHandler.GetEpicLibrary)
+		r.With(jwtMw.Authenticate).Get("/gog/library", gameHandler.GetGOGLibrary)
+	})
 
-		// Steam endpoints
-		r.Route("/steam", func(r chi.Router) {
-			r.Get("/login", steamHandler.LoginRedirect)
-			r.Get("/callback", steamHandler.Callback)
+	// Public auth endpoints (no authentication required)
+	r.Route("/auth", func(r chi.Router) {
+		r.With(sensitiveAuthLimiter.Middleware).Post("/register", authh.Register)
+		r.With(sensitiveAuthLimiter.Middleware).Post("/login", authh.Login)
+		r.With(tokenAuthLimiter.Middleware).Post("/refresh", authh.RefreshToken)
+		r.With(tokenAuthLimiter.Middleware).Post("/logout", authh.Logout)
+		r.With(sensitiveAuthLimiter.Middleware).Post("/forgot-password", authh.ForgotPassword)
+		r.With(sensitiveAuthLimiter.Middleware).Post("/resend-verification", authh.ResendVerification)
 
-			// Authenticated Steam endpoints
-			r.With(jwtMw.Authenticate).Get("/library", steamHandler.GetLibrary)
-			r.With(jwtMw.Authenticate).Get("/wishlist", steamHandler.GetWishlist)
-			r.With(jwtMw.Authenticate).Post("/wishlist/sync", steamHandler.SyncWishlistToWatchlist)
-			r.With(jwtMw.Authenticate).Post("/sync", steamHandler.SyncLibrary)
-		})
-
-		// Epic endpoints
-		r.Route("/epic", func(r chi.Router) {
-			r.Get("/login", epicHandler.LoginRedirect)
-			r.Get("/callback", epicHandler.Callback)
-
-			// Authenticated Epic endpoints
-			r.With(jwtMw.Authenticate).Get("/library", epicHandler.GetLibrary)
-			r.With(jwtMw.Authenticate).Post("/sync", epicHandler.SyncLibrary)
-		})
-
-		// Protected API endpoints (authentication required)
+		// Protected auth endpoint
 		r.Group(func(r chi.Router) {
 			r.Use(jwtMw.Authenticate)
-
-			// IsThereAnyDeal endpoints - provides prices from all stores including Steam
-			r.Route("/itad", func(r chi.Router) {
-				// Search for games
-				r.Get("/search", itadh.Search)
-
-				// Get all available stores
-				r.Get("/stores", itadh.GetStores)
-
-				// Get price overview for multiple games
-				r.Get("/overview", itadh.GetOverview)
-
-				// Game-specific endpoints
-				r.Route("/games/{gameId}", func(r chi.Router) {
-					// Get combined game details (info + prices + history)
-					r.Get("/", itadh.GetGameDetails)
-
-					// Get just game info
-					r.Get("/info", itadh.GetGameInfo)
-
-					// Get current prices across stores
-					r.Get("/prices", itadh.GetGamePrices)
-
-					// Get historical lowest price
-					r.Get("/historylow", itadh.GetHistoricalLow)
-				})
-			})
-
+			r.Get("/me", authh.GetMe)
+			r.Put("/password", authh.ChangePassword)
+			r.Put("/profile", authh.UpdateProfile)
 		})
 	})
 
-	return r
+	// Steam endpoints
+	r.Route("/steam", func(r chi.Router) {
+		r.Get("/login", steamHandler.LoginRedirect)
+		r.Get("/callback", steamHandler.Callback)
+
+		// Authenticated Steam endpoints
+		r.With(jwtMw.Authenticate).Get("/library", steamHandler.GetLibrary)
+		r.With(jwtMw.Authenticate).Get("/wishlist", steamHandler.GetWishlist)
+		r.With(jwtMw.Authenticate).Post("/wishlist/sync", steamHandler.SyncWishlistToWatchlist)
+		r.With(jwtMw.Authenticate).Post("/sync", steamHandler.SyncLibrary)
+	})
+
+	// Epic endpoints
+	r.Route("/epic", func(r chi.Router) {
+		r.Get("/login", epicHandler.LoginRedirect)
+		r.Get("/callback", epicHandler.Callback)
+
+		// Authenticated Epic endpoints
+		r.With(jwtMw.Authenticate).Get("/library", epicHandler.GetLibrary)
+		r.With(jwtMw.Authenticate).Post("/sync", epicHandler.SyncLibrary)
+	})
+
+	// Protected API endpoints (authentication required)
+	r.Group(func(r chi.Router) {
+		r.Use(jwtMw.Authenticate)
+
+		// IsThereAnyDeal endpoints - provides prices from all stores including Steam
+		r.Route("/itad", func(r chi.Router) {
+			// Search for games
+			r.Get("/search", itadh.Search)
+
+			// Get all available stores
+			r.Get("/stores", itadh.GetStores)
+
+			// Get price overview for multiple games
+			r.Get("/overview", itadh.GetOverview)
+
+			// Game-specific endpoints
+			r.Route("/games/{gameId}", func(r chi.Router) {
+				// Get combined game details (info + prices + history)
+				r.Get("/", itadh.GetGameDetails)
+
+				// Get just game info
+				r.Get("/info", itadh.GetGameInfo)
+
+				// Get current prices across stores
+				r.Get("/prices", itadh.GetGamePrices)
+
+				// Get historical lowest price
+				r.Get("/historylow", itadh.GetHistoricalLow)
+			})
+		})
+	})
 }
 
 func normalizeOrigin(origin string) string {

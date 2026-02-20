@@ -191,6 +191,28 @@ async function readApiError(res: Response): Promise<Error> {
   return new Error(`HTTP ${res.status}`)
 }
 
+async function readResponseErrorMessage(res: Response, fallback: string): Promise<string> {
+  const contentType = res.headers.get('content-type')?.toLowerCase() || ''
+  if (contentType.includes('application/json')) {
+    try {
+      const payload = (await res.json()) as { error?: string; message?: string }
+      const msg = payload.message?.trim() || payload.error?.trim()
+      if (msg) return msg
+    } catch {
+      // fall back to text
+    }
+  }
+
+  try {
+    const body = (await res.text()).trim()
+    if (body) return body
+  } catch {
+    // ignore read errors
+  }
+
+  return fallback
+}
+
 export async function fetchGames(): Promise<Game[]> {
   const res = await tryJson<Game[] | { error?: unknown }>(`${API_BASE}/v1/games/installed`)
   if (Array.isArray(res)) return res
@@ -319,8 +341,7 @@ export async function register(
     body: JSON.stringify({ username, email, password, firstName, lastName }),
   })
   if (!res.ok) {
-    const error = (await res.json()) as { error?: string; message?: string }
-    throw new Error(error.message || error.error || 'Registration failed')
+    throw new Error(await readResponseErrorMessage(res, 'Registration failed'))
   }
   return (await res.json()) as User
 }
@@ -332,8 +353,7 @@ export async function login(username: string, password: string): Promise<AuthRes
     body: JSON.stringify({ username, password }),
   })
   if (!res.ok) {
-    const error = (await res.json()) as { error?: string; message?: string }
-    throw new Error(error.message || error.error || 'Login failed')
+    throw new Error(await readResponseErrorMessage(res, 'Login failed'))
   }
   return (await res.json()) as AuthResponse
 }
@@ -353,7 +373,7 @@ export async function refreshToken(refreshToken: string): Promise<AuthResponse> 
     body: JSON.stringify({ refreshToken }),
   })
   if (!res.ok) {
-    throw new Error('Token refresh failed')
+    throw new Error(await readResponseErrorMessage(res, 'Token refresh failed'))
   }
   return (await res.json()) as AuthResponse
 }
@@ -363,7 +383,7 @@ export async function getMe(accessToken: string): Promise<User> {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) {
-    throw new Error('Failed to get user info')
+    throw new Error(await readResponseErrorMessage(res, 'Failed to get user info'))
   }
   return (await res.json()) as User
 }
@@ -375,8 +395,7 @@ export async function requestPasswordReset(email: string): Promise<{ message: st
     body: JSON.stringify({ email }),
   })
   if (!res.ok) {
-    const error = (await res.json()) as { error?: string; message?: string }
-    throw new Error(error.message || error.error || 'Failed to request password reset')
+    throw new Error(await readResponseErrorMessage(res, 'Failed to request password reset'))
   }
   return (await res.json()) as { message: string }
 }
