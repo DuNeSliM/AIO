@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { API_BASE } from '../services/api'
 
 type SteamAuth = {
   steamId: string | null
@@ -36,7 +37,6 @@ export function useSteamAuth(): SteamAuth {
   }, [])
 
   const login = () => {
-    const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
     window.location.href = `${API_BASE}/v1/steam/login`
   }
 
