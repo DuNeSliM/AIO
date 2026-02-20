@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getItadPrices } from '../services/api'
-import type { ItadDeal, ItadPrice, ItadPricesResponse, WishlistItem } from '../types'
+import { getItadPrices, searchItad } from '../services/api'
+import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem, WishlistItem } from '../types'
 import { idbDel, idbGet, idbSet } from '../utils/idb'
 
 type StorageMode = 'local' | 'onedrive'
@@ -19,6 +19,8 @@ const STORAGE_MODE_KEY = 'wishlistStorageMode'
 const NOTIFY_KEY = 'wishlistNotifyEnabled'
 const ONEDRIVE_HANDLE_KEY = 'wishlistOnedriveHandle'
 const WISHLIST_FILE = 'gamedivers-wishlist.json'
+const STEAM_NAME_CACHE_KEY = 'steamWishlistNameCache'
+const ITAD_LOOKUP_CACHE_KEY = 'wishlistItadLookupCache'
 const CHECK_INTERVAL_MINUTES = 30
 
 const defaultCurrency = 'EUR'
@@ -32,6 +34,294 @@ function parseWishlist(raw: string | null): WishlistItem[] {
     console.error('Failed to parse wishlist:', error)
     return []
   }
+}
+
+function isSteamPlaceholderTitle(title: string): boolean {
+  const normalized = title.trim().toLowerCase()
+  if (!normalized) return true
+  return /^steam:\d+$/.test(normalized) || /^app\s+\d+$/.test(normalized) || /^steam app\s+\d+$/.test(normalized) || /^\d+$/.test(normalized)
+}
+
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function parseSteamAppID(value: string): number | null {
+  const match = value.match(/\b(\d{3,})\b/)
+  if (!match) return null
+  const parsed = Number.parseInt(match[1] ?? '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function getSteamAppIDFromItem(item: WishlistItem): number | null {
+  if (typeof item.steamAppId === 'number' && item.steamAppId > 0) return item.steamAppId
+
+  const fromID = parseSteamAppID(item.id)
+  if (fromID) return fromID
+
+  const fromTitle = parseSteamAppID(item.title ?? '')
+  if (fromTitle && isSteamPlaceholderTitle(item.title ?? '')) return fromTitle
+  return null
+}
+
+function isLegacySteamID(id: string, steamAppId?: number): boolean {
+  if (!steamAppId || steamAppId <= 0) return false
+  const raw = String(steamAppId)
+  return id === raw || id === `steam:${raw}`
+}
+
+function wishlistItemQualityScore(item: WishlistItem): number {
+  let value = 0
+  if (item.source === 'itad' || !!item.itadId) value += 4
+  if (!isSteamPlaceholderTitle(item.title || '')) value += 2
+  if (item.image || item.imageBackup) value += 1
+  if ((item.dealsTop3?.length ?? 0) > 0) value += 1
+  return value
+}
+
+function dedupeSteamDuplicates(items: WishlistItem[]): WishlistItem[] {
+  const remove = new Set<number>()
+  const bestBySteamAppID = new Map<number, number>()
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i]
+    const appID = item.steamAppId
+    if (!appID || appID <= 0) continue
+
+    const prevIndex = bestBySteamAppID.get(appID)
+    if (prevIndex === undefined) {
+      bestBySteamAppID.set(appID, i)
+      continue
+    }
+
+    const prev = items[prevIndex]
+    const keepCurrent = wishlistItemQualityScore(item) > wishlistItemQualityScore(prev)
+    if (keepCurrent) {
+      remove.add(prevIndex)
+      bestBySteamAppID.set(appID, i)
+    } else {
+      remove.add(i)
+    }
+  }
+
+  if (remove.size === 0) return items
+  return items.filter((_, index) => !remove.has(index))
+}
+
+function dedupeByID(items: WishlistItem[]): WishlistItem[] {
+  const keep = new Set<number>()
+  const bestByID = new Map<string, number>()
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i]
+    const prevIndex = bestByID.get(item.id)
+    if (prevIndex === undefined) {
+      bestByID.set(item.id, i)
+      keep.add(i)
+      continue
+    }
+
+    const prev = items[prevIndex]
+    const keepCurrent = wishlistItemQualityScore(item) > wishlistItemQualityScore(prev)
+    if (keepCurrent) {
+      keep.delete(prevIndex)
+      keep.add(i)
+      bestByID.set(item.id, i)
+    }
+  }
+
+  if (keep.size === items.length) return items
+  return items.filter((_, index) => keep.has(index))
+}
+
+type ItadLookupCacheEntry = {
+  id: string
+  title?: string
+}
+
+type ItadLookupCache = Record<string, ItadLookupCacheEntry>
+
+function readItadLookupCache(): ItadLookupCache {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = localStorage.getItem(ITAD_LOOKUP_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as ItadLookupCache
+  } catch {
+    return {}
+  }
+}
+
+function writeItadLookupCache(cache: ItadLookupCache): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(ITAD_LOOKUP_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore storage write failures
+  }
+}
+
+function normalizeSearchResults(
+  data: ItadSearchItem[] | { data?: ItadSearchItem[]; results?: ItadSearchItem[] },
+): ItadSearchItem[] {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.results)) return data.results
+  return []
+}
+
+function pickBestItadMatch(queryTitle: string, candidates: ItadSearchItem[]): ItadSearchItem | null {
+  if (!candidates.length) return null
+  const queryKey = normalizeTitle(queryTitle)
+  if (!queryKey) return candidates[0] ?? null
+
+  const exact = candidates.find((item) => normalizeTitle(item.title) === queryKey)
+  if (exact) return exact
+
+  const startsWith = candidates.find((item) => normalizeTitle(item.title).startsWith(queryKey))
+  if (startsWith) return startsWith
+
+  const contains = candidates.find((item) => {
+    const candidateKey = normalizeTitle(item.title)
+    return candidateKey.includes(queryKey) || queryKey.includes(candidateKey)
+  })
+  return contains ?? candidates[0] ?? null
+}
+
+async function resolveWishlistItemItad(
+  item: WishlistItem,
+  cache: ItadLookupCache,
+  queryCache: Map<string, ItadLookupCacheEntry | null>,
+): Promise<ItadLookupCacheEntry | null> {
+  const steamAppID = getSteamAppIDFromItem(item)
+  const title = item.title?.trim() ?? ''
+  const titleKey = normalizeTitle(title)
+
+  const lookupKeys: string[] = []
+  if (steamAppID) lookupKeys.push(`steam:${steamAppID}`)
+  if (titleKey) lookupKeys.push(`title:${titleKey}`)
+
+  for (const key of lookupKeys) {
+    const found = cache[key]
+    if (found?.id) return found
+  }
+
+  const queries: Array<{ query: string; expectedTitle?: string; strictSingle?: boolean }> = []
+  if (title && !isSteamPlaceholderTitle(title)) {
+    queries.push({ query: title, expectedTitle: title })
+  }
+  if (steamAppID) {
+    queries.push({
+      query: String(steamAppID),
+      expectedTitle: title && !isSteamPlaceholderTitle(title) ? title : undefined,
+      strictSingle: !title || isSteamPlaceholderTitle(title),
+    })
+  }
+
+  for (const candidate of queries) {
+    const queryKey = `q:${normalizeTitle(candidate.query) || candidate.query}`
+
+    let resolved = queryCache.get(queryKey)
+    if (resolved === undefined) {
+      try {
+        const raw = await searchItad(candidate.query, 6)
+        const results = normalizeSearchResults(raw)
+        let best: ItadSearchItem | null = null
+
+        if (candidate.strictSingle) {
+          best = results.length === 1 ? results[0] ?? null : null
+        } else if (candidate.expectedTitle) {
+          best = pickBestItadMatch(candidate.expectedTitle, results)
+        } else {
+          best = pickBestItadMatch(candidate.query, results)
+        }
+
+        resolved = best
+          ? {
+              id: best.id,
+              title: best.title?.trim() || undefined,
+            }
+          : null
+      } catch {
+        resolved = null
+      }
+      queryCache.set(queryKey, resolved)
+    }
+
+    if (!resolved?.id) {
+      continue
+    }
+
+    for (const key of lookupKeys) {
+      cache[key] = resolved
+    }
+    return resolved
+  }
+
+  return null
+}
+
+function normalizeStoredWishlistItems(items: WishlistItem[]): WishlistItem[] {
+  if (items.length === 0) return items
+
+  let steamNameCache: Record<string, string> = {}
+  try {
+    const raw = localStorage.getItem(STEAM_NAME_CACHE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed === 'object') {
+        steamNameCache = parsed as Record<string, string>
+      }
+    }
+  } catch {
+    // keep empty cache
+  }
+
+  const normalized = items.map((item) => {
+    const steamAppID = getSteamAppIDFromItem(item)
+    const source = item.source ?? (steamAppID ? 'steam' : 'itad')
+    const id =
+      source === 'steam' && steamAppID && !item.itadId
+        ? `steam:${steamAppID}`
+        : item.id
+
+    let title = item.title
+    if (steamAppID && isSteamPlaceholderTitle(title ?? '')) {
+      const cached = steamNameCache[String(steamAppID)]?.trim()
+      if (cached && !isSteamPlaceholderTitle(cached)) {
+        title = cached
+      }
+    }
+
+    if (steamAppID && title && !isSteamPlaceholderTitle(title)) {
+      steamNameCache[String(steamAppID)] = title
+    }
+
+    const nextSource: 'itad' | 'steam' =
+      source === 'itad' || !!item.itadId ? 'itad' : 'steam'
+
+    return {
+      ...item,
+      id,
+      title: title || item.id,
+      source: nextSource,
+      steamAppId: steamAppID ?? undefined,
+      itadId: item.itadId ?? (nextSource === 'itad' ? id : undefined),
+    }
+  })
+
+  try {
+    localStorage.setItem(STEAM_NAME_CACHE_KEY, JSON.stringify(steamNameCache))
+  } catch {
+    // ignore storage write failures
+  }
+
+  return dedupeSteamDuplicates(dedupeByID(normalized))
 }
 
 function pickLowestDeal(deals?: ItadDeal[] | null): ItadDeal | null {
@@ -100,10 +390,16 @@ function getPicker(): (() => Promise<DirectoryHandle>) | null {
 }
 
 export function useWishlist(region: string) {
+  const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window
+  const onedriveSupported = typeof window !== 'undefined' && !!getPicker()
+
   const [items, setItems] = useState<WishlistItem[]>([])
   const [storageMode, setStorageMode] = useState<StorageMode>('local')
   const [onedriveStatus, setOnedriveStatus] = useState<OnedriveStatus>('disconnected')
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(
+    notificationsSupported ? Notification.permission : 'unsupported',
+  )
   const [alerts, setAlerts] = useState<WishlistAlert[]>([])
   const [checking, setChecking] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null)
@@ -112,19 +408,33 @@ export function useWishlist(region: string) {
   const itemsRef = useRef<WishlistItem[]>([])
   const checkingRef = useRef(false)
 
-  const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window
-  const onedriveSupported = typeof window !== 'undefined' && !!getPicker()
+  const syncNotificationState = useCallback(() => {
+    if (!notificationsSupported) {
+      setNotificationPermission('unsupported')
+      setNotificationsEnabled(false)
+      localStorage.setItem(NOTIFY_KEY, 'false')
+      return
+    }
+    const permission = Notification.permission
+    setNotificationPermission(permission)
+    const wantsNotifications = localStorage.getItem(NOTIFY_KEY) === 'true'
+    const enabled = wantsNotifications && permission === 'granted'
+    setNotificationsEnabled(enabled)
+    if (wantsNotifications !== enabled) {
+      localStorage.setItem(NOTIFY_KEY, enabled ? 'true' : 'false')
+    }
+  }, [notificationsSupported])
 
   useEffect(() => {
     itemsRef.current = items
   }, [items])
 
   useEffect(() => {
-    const storedItems = parseWishlist(localStorage.getItem(WISHLIST_KEY))
+    const storedItems = normalizeStoredWishlistItems(parseWishlist(localStorage.getItem(WISHLIST_KEY)))
     setItems(storedItems)
     const storedMode = localStorage.getItem(STORAGE_MODE_KEY) === 'onedrive' ? 'onedrive' : 'local'
     setStorageMode(storedMode)
-    setNotificationsEnabled(localStorage.getItem(NOTIFY_KEY) === 'true')
+    syncNotificationState()
 
     if (!onedriveSupported) {
       setOnedriveStatus('unsupported')
@@ -145,14 +455,41 @@ export function useWishlist(region: string) {
           return
         }
         const fileItems = await readWishlistFile(handle)
-        if (fileItems) setItems(fileItems)
+        if (fileItems) setItems(normalizeStoredWishlistItems(fileItems))
         setOnedriveStatus('connected')
       })()
     }
-  }, [onedriveSupported])
+  }, [onedriveSupported, syncNotificationState])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleFocus = () => syncNotificationState()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncNotificationState()
+      }
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === NOTIFY_KEY) {
+        syncNotificationState()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('storage', handleStorage)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [syncNotificationState])
 
   useEffect(() => {
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(items))
+    window.dispatchEvent(new Event('mission-update'))
     if (storageMode !== 'onedrive') return
     if (onedriveStatus !== 'connected') return
     const handle = handleRef.current
@@ -178,13 +515,21 @@ export function useWishlist(region: string) {
 
   const enableNotifications = useCallback(async () => {
     if (!notificationsSupported) return false
+    if (Notification.permission === 'denied') {
+      setNotificationPermission('denied')
+      setNotificationsEnabled(false)
+      localStorage.setItem(NOTIFY_KEY, 'false')
+      return false
+    }
     if (Notification.permission === 'granted') {
+      setNotificationPermission('granted')
       setNotificationsEnabled(true)
       localStorage.setItem(NOTIFY_KEY, 'true')
       return true
     }
     const permission = await Notification.requestPermission()
     const granted = permission === 'granted'
+    setNotificationPermission(permission)
     setNotificationsEnabled(granted)
     localStorage.setItem(NOTIFY_KEY, granted ? 'true' : 'false')
     return granted
@@ -195,14 +540,80 @@ export function useWishlist(region: string) {
     localStorage.setItem(NOTIFY_KEY, 'false')
   }, [])
 
-  const addItem = useCallback((item: { id: string; title: string; source?: 'itad' | 'steam'; steamAppId?: number; itadId?: string; addedAt?: number }) => {
+  const addItem = useCallback((item: { id: string; title: string; image?: string; imageBackup?: string; source?: 'itad' | 'steam'; steamAppId?: number; itadId?: string; addedAt?: number }) => {
     setItems((prev) => {
-      if (prev.some((entry) => entry.id === item.id)) return prev
       const source = item.source ?? 'itad'
-      return [
+      const canonicalID =
+        source === 'steam' && !item.itadId && item.steamAppId && item.steamAppId > 0
+          ? `steam:${item.steamAppId}`
+          : item.id
+      const incomingTitle = item.title?.trim() ?? ''
+      const normalizedIncomingTitle = normalizeTitle(incomingTitle)
+      const incomingSteamAppID = item.steamAppId
+
+      let index = prev.findIndex((entry) => entry.id === canonicalID || entry.id === item.id)
+      if (index < 0 && incomingSteamAppID && incomingSteamAppID > 0) {
+        index = prev.findIndex(
+          (entry) =>
+            entry.steamAppId === incomingSteamAppID ||
+            isLegacySteamID(entry.id, incomingSteamAppID),
+        )
+      }
+      if (index < 0 && normalizedIncomingTitle) {
+        index = prev.findIndex((entry) => normalizeTitle(entry.title) === normalizedIncomingTitle)
+      }
+
+      if (index >= 0) {
+        const existing = prev[index]
+        const existingTitle = existing.title?.trim() ?? ''
+        const existingLooksLikeID = source === 'steam' && isSteamPlaceholderTitle(existingTitle)
+        const incomingLooksLikeID = source === 'steam' && isSteamPlaceholderTitle(incomingTitle)
+        const nextTitle =
+          incomingTitle && (!incomingLooksLikeID || existingLooksLikeID || !existingTitle)
+            ? incomingTitle
+            : existingTitle || incomingTitle || item.id
+
+        const nextImage = item.image?.trim() || existing.image
+        const nextBackup = item.imageBackup?.trim() || existing.imageBackup
+        const nextSteamAppID = existing.steamAppId ?? item.steamAppId
+        const nextItadID = existing.itadId ?? item.itadId ?? (source === 'itad' ? item.id : undefined)
+        const nextSource: 'itad' | 'steam' =
+          existing.source === 'itad' || source === 'itad' || !!nextItadID
+            ? 'itad'
+            : 'steam'
+
+        const updated: WishlistItem = {
+          ...existing,
+          title: nextTitle,
+          image: nextImage,
+          imageBackup: nextBackup,
+          source: nextSource,
+          steamAppId: nextSteamAppID,
+          itadId: nextItadID,
+        }
+
+        if (
+          updated.title === existing.title &&
+          updated.image === existing.image &&
+          updated.imageBackup === existing.imageBackup &&
+          updated.source === existing.source &&
+          updated.steamAppId === existing.steamAppId &&
+          updated.itadId === existing.itadId
+        ) {
+          return prev
+        }
+
+        const next = [...prev]
+        next[index] = updated
+        return dedupeSteamDuplicates(dedupeByID(next))
+      }
+
+      const next = [
         {
-          id: item.id,
+          id: canonicalID,
           title: item.title,
+          image: item.image,
+          imageBackup: item.imageBackup,
           source,
           steamAppId: item.steamAppId,
           itadId: item.itadId ?? (source === 'itad' ? item.id : undefined),
@@ -211,6 +622,7 @@ export function useWishlist(region: string) {
         },
         ...prev,
       ]
+      return dedupeSteamDuplicates(dedupeByID(next))
     })
   }, [])
 
@@ -267,7 +679,7 @@ export function useWishlist(region: string) {
       return false
     }
     const fileItems = await readWishlistFile(handle)
-    if (fileItems) setItems(fileItems)
+    if (fileItems) setItems(normalizeStoredWishlistItems(fileItems))
     setOnedriveStatus('connected')
     return true
   }, [])
@@ -276,13 +688,39 @@ export function useWishlist(region: string) {
     if (checkingRef.current) return
     checkingRef.current = true
     setChecking(true)
+    const lookupCache = readItadLookupCache()
+    const queryCache = new Map<string, ItadLookupCacheEntry | null>()
+    let lookupCacheDirty = false
     const updated: WishlistItem[] = []
     for (const item of itemsRef.current) {
       try {
         const source = item.source ?? (item.id.startsWith('steam:') ? 'steam' : 'itad')
-        const itadId = item.itadId ?? (source === 'itad' ? item.id : null)
+        const steamAppID = getSteamAppIDFromItem(item)
+        const placeholderTitle = isSteamPlaceholderTitle(item.title ?? '')
+        let resolvedTitle = item.title
+        let resolvedSource: 'itad' | 'steam' = source
+        let itadId = item.itadId ?? (source === 'itad' && !item.id.startsWith('steam:') ? item.id : null)
+
         if (!itadId) {
-          updated.push({ ...item, lastCheckedAt: Date.now() })
+          const resolved = await resolveWishlistItemItad(item, lookupCache, queryCache)
+          if (resolved?.id) {
+            itadId = resolved.id
+            resolvedSource = 'itad'
+            if (resolved.title && (placeholderTitle || !resolvedTitle)) {
+              resolvedTitle = resolved.title
+            }
+            lookupCacheDirty = true
+          }
+        }
+
+        if (!itadId) {
+          updated.push({
+            ...item,
+            title: resolvedTitle || item.title,
+            source: resolvedSource,
+            steamAppId: steamAppID ?? item.steamAppId,
+            lastCheckedAt: Date.now(),
+          })
           continue
         }
 
@@ -320,6 +758,11 @@ export function useWishlist(region: string) {
 
         updated.push({
           ...item,
+          id: itadId,
+          title: resolvedTitle || item.title,
+          source: 'itad',
+          steamAppId: steamAppID ?? item.steamAppId,
+          itadId,
           lastPrice: amount ?? item.lastPrice,
           currency,
           onSale,
@@ -332,7 +775,10 @@ export function useWishlist(region: string) {
         updated.push({ ...item, lastCheckedAt: Date.now() })
       }
     }
-    setItems(updated)
+    if (lookupCacheDirty) {
+      writeItadLookupCache(lookupCache)
+    }
+    setItems(dedupeSteamDuplicates(dedupeByID(updated)))
     setLastCheckedAt(Date.now())
     setChecking(false)
     checkingRef.current = false
@@ -359,6 +805,7 @@ export function useWishlist(region: string) {
     requestOnedriveAccess,
     notificationsEnabled,
     notificationsSupported,
+    notificationPermission,
     enableNotifications,
     disableNotifications,
     alerts,

@@ -1,0 +1,33 @@
+<svg width="960" height="640" viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bubblePink" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#ffd7f3" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ff84d8" stop-opacity="0.2"/>
+    </radialGradient>
+    <radialGradient id="bubbleCyan" cx="40%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#d8faff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#75ecff" stop-opacity="0.2"/>
+    </radialGradient>
+  </defs>
+
+  <g opacity="0.75">
+    <circle cx="118" cy="128" r="58" fill="url(#bubblePink)"/>
+    <circle cx="262" cy="84" r="33" fill="url(#bubbleCyan)"/>
+    <circle cx="448" cy="154" r="44" fill="url(#bubblePink)"/>
+    <circle cx="640" cy="92" r="56" fill="url(#bubbleCyan)"/>
+    <circle cx="814" cy="168" r="48" fill="url(#bubblePink)"/>
+
+    <circle cx="96" cy="442" r="52" fill="url(#bubbleCyan)"/>
+    <circle cx="284" cy="534" r="40" fill="url(#bubblePink)"/>
+    <circle cx="502" cy="470" r="58" fill="url(#bubbleCyan)"/>
+    <circle cx="716" cy="548" r="46" fill="url(#bubblePink)"/>
+    <circle cx="886" cy="470" r="54" fill="url(#bubbleCyan)"/>
+  </g>
+
+  <g stroke="#fff" stroke-opacity="0.45" fill="none" stroke-width="2">
+    <circle cx="118" cy="128" r="58"/>
+    <circle cx="640" cy="92" r="56"/>
+    <circle cx="502" cy="470" r="58"/>
+    <circle cx="886" cy="470" r="54"/>
+  </g>
+</svg>

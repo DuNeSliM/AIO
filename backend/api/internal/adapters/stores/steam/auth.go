@@ -211,6 +211,11 @@ type WishlistItem struct {
 	Added   int64  `json:"added"`
 }
 
+type AppMetadata struct {
+	Name    string
+	Capsule string
+}
+
 var ErrSteamWishlistPrivate = errors.New("steam_wishlist_private")
 
 // GetWishlist retrieves the user's Steam wishlist via the public store endpoint.
@@ -233,7 +238,7 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch wishlist: %w", err)
+		return nil, fmt.Errorf("failed to fetch wishlist")
 	}
 	defer resp.Body.Close()
 
@@ -247,7 +252,7 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("wishlist api error: %d - %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("wishlist api error: %d", resp.StatusCode)
 	}
 
 	var raw struct {
@@ -268,17 +273,23 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 		appIDs = append(appIDs, entry.AppID)
 	}
 
-	nameByID := c.getAppNamesBatch(appIDs, 50)
+	metadataByID := c.getAppMetadataBatch(appIDs, 50)
 	items := make([]WishlistItem, 0, len(raw.Response.Items))
 	for _, entry := range raw.Response.Items {
-		name := nameByID[entry.AppID]
+		meta := metadataByID[entry.AppID]
+		name := strings.TrimSpace(meta.Name)
 		if name == "" {
 			name = "App " + strconv.Itoa(entry.AppID)
 		}
+		capsule := strings.TrimSpace(meta.Capsule)
+		if capsule == "" {
+			capsule = defaultCapsuleURL(entry.AppID)
+		}
 		items = append(items, WishlistItem{
-			AppID: entry.AppID,
-			Name:  name,
-			Added: entry.DateAdded,
+			AppID:   entry.AppID,
+			Name:    name,
+			Capsule: capsule,
+			Added:   entry.DateAdded,
 		})
 	}
 
@@ -286,13 +297,13 @@ func (c *Client) GetWishlist(steamID string) ([]WishlistItem, error) {
 	return items, nil
 }
 
-func (c *Client) getAppNamesBatch(appIDs []int, chunkSize int) map[int]string {
-	out := make(map[int]string, len(appIDs))
+func (c *Client) getAppMetadataBatch(appIDs []int, chunkSize int) map[int]AppMetadata {
+	out := make(map[int]AppMetadata, len(appIDs))
 	if len(appIDs) == 0 {
 		return out
 	}
 	if chunkSize <= 0 {
-		chunkSize = 50
+		chunkSize = 25
 	}
 
 	for i := 0; i < len(appIDs); i += chunkSize {
@@ -301,37 +312,118 @@ func (c *Client) getAppNamesBatch(appIDs []int, chunkSize int) map[int]string {
 			end = len(appIDs)
 		}
 		chunk := appIDs[i:end]
-		names, err := c.fetchAppDetailsChunk(chunk)
+		metadata, err := c.fetchAppDetailsChunk(chunk)
 		if err != nil {
 			continue
 		}
-		for id, name := range names {
-			if name != "" {
-				out[id] = name
+		for id, meta := range metadata {
+			current := out[id]
+			if current.Name == "" {
+				current.Name = strings.TrimSpace(meta.Name)
+			}
+			if current.Capsule == "" {
+				current.Capsule = strings.TrimSpace(meta.Capsule)
+			}
+			if current.Name != "" || current.Capsule != "" {
+				out[id] = current
 			}
 		}
 	}
 
 	missing := make([]int, 0)
 	for _, id := range appIDs {
-		if out[id] == "" {
+		if strings.TrimSpace(out[id].Name) == "" {
 			missing = append(missing, id)
 		}
 	}
+
+	if len(missing) > 0 {
+		for _, id := range missing {
+			meta, err := c.fetchSingleAppMetadata(id)
+			if err != nil {
+				continue
+			}
+			current := out[id]
+			if current.Name == "" {
+				current.Name = strings.TrimSpace(meta.Name)
+			}
+			if current.Capsule == "" {
+				current.Capsule = strings.TrimSpace(meta.Capsule)
+			}
+			if current.Name != "" || current.Capsule != "" {
+				out[id] = current
+			}
+		}
+
+		missing = missing[:0]
+		for _, id := range appIDs {
+			if strings.TrimSpace(out[id].Name) == "" {
+				missing = append(missing, id)
+			}
+		}
+	}
+
 	if len(missing) > 0 {
 		if fromList, err := c.getAppNamesFromList(missing); err == nil {
 			for id, name := range fromList {
-				if name != "" && out[id] == "" {
-					out[id] = name
+				if strings.TrimSpace(name) == "" {
+					continue
 				}
+				meta := out[id]
+				if meta.Name == "" {
+					meta.Name = name
+				}
+				out[id] = meta
 			}
 		}
+	}
+
+	for _, id := range appIDs {
+		meta := out[id]
+		if strings.TrimSpace(meta.Capsule) == "" {
+			meta.Capsule = defaultCapsuleURL(id)
+		}
+		out[id] = meta
 	}
 
 	return out
 }
 
-func (c *Client) fetchAppDetailsChunk(appIDs []int) (map[int]string, error) {
+func (c *Client) fetchSingleAppMetadata(appID int) (AppMetadata, error) {
+	metadata, err := c.fetchAppDetailsChunk([]int{appID})
+	if err != nil {
+		return AppMetadata{}, err
+	}
+
+	meta := metadata[appID]
+	if strings.TrimSpace(meta.Name) == "" {
+		// Retry once without "basic" filters. Some app pages return a name only in the unfiltered payload.
+		retry, retryErr := c.fetchAppDetailsChunkWithFilters([]int{appID}, "")
+		if retryErr == nil {
+			retryMeta := retry[appID]
+			if strings.TrimSpace(meta.Name) == "" {
+				meta.Name = strings.TrimSpace(retryMeta.Name)
+			}
+			if strings.TrimSpace(meta.Capsule) == "" {
+				meta.Capsule = strings.TrimSpace(retryMeta.Capsule)
+			}
+		}
+	}
+	if strings.TrimSpace(meta.Capsule) == "" {
+		meta.Capsule = defaultCapsuleURL(appID)
+	}
+
+	if strings.TrimSpace(meta.Name) == "" {
+		return meta, fmt.Errorf("metadata missing name")
+	}
+	return meta, nil
+}
+
+func (c *Client) fetchAppDetailsChunk(appIDs []int) (map[int]AppMetadata, error) {
+	return c.fetchAppDetailsChunkWithFilters(appIDs, "basic")
+}
+
+func (c *Client) fetchAppDetailsChunkWithFilters(appIDs []int, filters string) (map[int]AppMetadata, error) {
 	if c.limiter != nil {
 		if err := c.limiter.Wait(context.Background()); err != nil {
 			return nil, err
@@ -342,7 +434,15 @@ func (c *Client) fetchAppDetailsChunk(appIDs []int) (map[int]string, error) {
 	for _, id := range appIDs {
 		ids = append(ids, strconv.Itoa(id))
 	}
-	endpoint := fmt.Sprintf("https://store.steampowered.com/api/appdetails?appids=%s&filters=basic", strings.Join(ids, ","))
+
+	params := url.Values{}
+	params.Set("appids", strings.Join(ids, ","))
+	params.Set("l", "english")
+	params.Set("cc", "us")
+	if strings.TrimSpace(filters) != "" {
+		params.Set("filters", filters)
+	}
+	endpoint := fmt.Sprintf("https://store.steampowered.com/api/appdetails?%s", params.Encode())
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -363,25 +463,41 @@ func (c *Client) fetchAppDetailsChunk(appIDs []int) (map[int]string, error) {
 	var parsed map[string]struct {
 		Success bool `json:"success"`
 		Data    struct {
-			Name string `json:"name"`
+			Name         string `json:"name"`
+			CapsuleImage string `json:"capsule_image"`
+			HeaderImage  string `json:"header_image"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, err
 	}
 
-	out := make(map[int]string, len(parsed))
+	out := make(map[int]AppMetadata, len(parsed))
 	for key, entry := range parsed {
-		if !entry.Success || entry.Data.Name == "" {
+		if !entry.Success {
 			continue
 		}
 		id, err := strconv.Atoi(key)
 		if err != nil {
 			continue
 		}
-		out[id] = entry.Data.Name
+		capsule := strings.TrimSpace(entry.Data.CapsuleImage)
+		if capsule == "" {
+			capsule = strings.TrimSpace(entry.Data.HeaderImage)
+		}
+		if capsule == "" {
+			capsule = defaultCapsuleURL(id)
+		}
+		out[id] = AppMetadata{
+			Name:    strings.TrimSpace(entry.Data.Name),
+			Capsule: capsule,
+		}
 	}
 	return out, nil
+}
+
+func defaultCapsuleURL(appID int) string {
+	return fmt.Sprintf("https://cdn.cloudflare.steamstatic.com/steam/apps/%d/capsule_184x69.jpg", appID)
 }
 
 func (c *Client) getAppNamesFromList(appIDs []int) (map[int]string, error) {
@@ -458,9 +574,14 @@ func (c *Client) GetOwnedGames(steamID string) ([]Game, error) {
 	params.Set("include_played_free_games", "1")
 	params.Set("format", "json")
 
-	resp, err := c.httpClient.Get(endpoint + "?" + params.Encode())
+	req, err := http.NewRequest(http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch games: %w", err)
+		return nil, fmt.Errorf("failed to build games request")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch games")
 	}
 	defer resp.Body.Close()
 
@@ -491,9 +612,14 @@ func (c *Client) GetPlayerSummaries(steamIDs []string) ([]PlayerSummary, error) 
 	params.Set("steamids", steamIDs[0]) // For simplicity, just get first one
 	params.Set("format", "json")
 
-	resp, err := c.httpClient.Get(endpoint + "?" + params.Encode())
+	req, err := http.NewRequest(http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch player: %w", err)
+		return nil, fmt.Errorf("failed to build player request")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch player")
 	}
 	defer resp.Body.Close()
 

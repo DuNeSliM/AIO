@@ -199,7 +199,7 @@ func (m *JWTMiddleware) Authenticate(next http.Handler) http.Handler {
 			jwt.WithIssuer(m.issuer))
 
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "invalid token: %s"}`, err.Error()), http.StatusUnauthorized)
+			http.Error(w, `{"error": "invalid token"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -212,6 +212,11 @@ func (m *JWTMiddleware) Authenticate(next http.Handler) http.Handler {
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			http.Error(w, `{"error": "invalid token claims"}`, http.StatusUnauthorized)
+			return
+		}
+
+		if !validateAudience(claims, m.clientID) {
+			http.Error(w, `{"error": "invalid token audience"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -268,4 +273,32 @@ func getRolesClaim(claims jwt.MapClaims) []string {
 	}
 
 	return roles
+}
+
+func validateAudience(claims jwt.MapClaims, clientID string) bool {
+	if clientID == "" {
+		return true
+	}
+
+	if azp, ok := claims["azp"].(string); ok && azp == clientID {
+		return true
+	}
+
+	aud, ok := claims["aud"]
+	if !ok {
+		return false
+	}
+
+	switch value := aud.(type) {
+	case string:
+		return value == clientID
+	case []interface{}:
+		for _, entry := range value {
+			if text, ok := entry.(string); ok && text == clientID {
+				return true
+			}
+		}
+	}
+
+	return false
 }

@@ -139,6 +139,12 @@ paths:
                 properties:
                   message:
                     type: string
+        "502":
+          description: Password reset provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /v1/auth/resend-verification:
     post:
       summary: Resend email verification link

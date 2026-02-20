@@ -11,7 +11,7 @@ type LaunchButtonProps = {
 
 function LaunchButton({ onClick, loading }: LaunchButtonProps) {
   return (
-    <button className="term-btn-primary text-xs" onClick={onClick} disabled={loading}>
+    <button className="ui-btn-primary text-xs" onClick={onClick} disabled={loading}>
       {loading ? '...' : 'Start'}
     </button>
   )
@@ -66,19 +66,19 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
   }
 
   return (
-    <article className="term-card">
+    <article className="ui-card">
       <div
-        className={`term-panel flex gap-4 rounded-[15px] p-4 transition hover:border-neon/40 ${
+        className={`ui-panel flex gap-4 ui-panel-pad-sm transition hover:border-neon/40 ${
           viewMode === 'list' ? 'items-center' : 'flex-col'
         }`}
       >
-        <div className="term-corners">
+        <div className="ui-corners">
           <span />
           <span />
           <span />
           <span />
         </div>
-        <div className="term-cardHeader" />
+        <div className="ui-cardHeader" />
         <div className={viewMode === 'list' ? 'flex h-16 w-24 shrink-0 items-center' : 'w-full'}>
           {imageSrc ? (
             <img
@@ -93,10 +93,10 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
         </div>
         <div className="flex flex-1 flex-col gap-3">
           <div>
-            <p className="term-label">ID: {assetId}</p>
+            <p className="ui-label">ID: {assetId}</p>
             <h3 className="text-lg tone-primary">{name}</h3>
           </div>
-          <div className="space-y-1 text-xs term-subtle">
+          <div className="space-y-1 text-xs ui-subtle">
             <div className="flex items-center justify-between">
               <span>Last played</span>
               <span className="tone-soft">{getLastPlayedDate(lastPlayed)}</span>
@@ -109,7 +109,7 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
             )}
           </div>
           <div className="flex items-center justify-between">
-            <span className="term-chip">Store: {nodeLabel}</span>
+            <span className="ui-chip">Store: {nodeLabel}</span>
             <LaunchButton onClick={start} loading={launching} />
           </div>
         </div>
@@ -117,3 +117,6 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
     </article>
   )
 }
+
+
+

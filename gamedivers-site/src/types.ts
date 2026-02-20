@@ -2,7 +2,22 @@ export type ViewMode = 'grid' | 'list'
 
 export type Theme = 'dark' | 'light'
 
-export type Page = 'library' | 'store' | 'settings' | 'downloads'
+export type Page = 'library' | 'store' | 'settings' | 'downloads' | 'login' | 'register' | 'forgot-password'
+
+export type User = {
+  id: string
+  username: string
+  email: string
+  firstName?: string
+  lastName?: string
+}
+
+export type AuthResponse = {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  tokenType: string
+}
 
 export type Game = {
   id?: string | number
@@ -54,6 +69,8 @@ export type ItadPricesResponse =
 export type WishlistItem = {
   id: string
   title: string
+  image?: string
+  imageBackup?: string
   addedAt: number
   source?: 'itad' | 'steam'
   steamAppId?: number

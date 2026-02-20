@@ -18,23 +18,27 @@ func (h *PriceHandler) AddSteamWatch(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().Unix()
 
 	if err := h.Repo.UpsertUser(r.Context(), userID, now); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("upsert user failed", err)
+		writeInternalError(w)
 		return
 	}
 
 	if err := h.Repo.AddWatch(r.Context(), userID, "steam", appid, "de", now); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("add steam watch failed", err)
+		writeInternalError(w)
 		return
 	}
 
 	if err := h.Repo.TrackGame(r.Context(), "steam", appid, "de", now); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("track watched game failed", err)
+		writeInternalError(w)
 		return
 	}
 
 	if r.URL.Query().Get("prefetch") == "1" {
 		if err := h.Pricing.EnsureSteamDEPriceFresh(r.Context(), appid, true); err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
+			logSafeError("prefetch steam price failed", err)
+			writeBadGateway(w)
 			return
 		}
 	}
@@ -51,7 +55,8 @@ func (h *PriceHandler) RemoveSteamWatch(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := h.Repo.RemoveWatch(r.Context(), userID, "steam", appid, "de"); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logSafeError("remove steam watch failed", err)
+		writeInternalError(w)
 		return
 	}
 

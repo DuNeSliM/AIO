@@ -52,11 +52,14 @@ type AuthResponse struct {
 
 // UserResponse represents the user info response
 type UserResponse struct {
-	ID        string `json:"id"`
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	FirstName string `json:"firstName,omitempty"`
-	LastName  string `json:"lastName,omitempty"`
+	ID                        string `json:"id"`
+	Username                  string `json:"username"`
+	Email                     string `json:"email"`
+	FirstName                 string `json:"firstName,omitempty"`
+	LastName                  string `json:"lastName,omitempty"`
+	VerificationEmailRequired *bool  `json:"verificationEmailRequired,omitempty"`
+	VerificationEmailSent     *bool  `json:"verificationEmailSent,omitempty"`
+	Warning                   string `json:"warning,omitempty"`
 }
 
 // ErrorResponse represents an error response
@@ -107,7 +110,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "user_exists", "User already exists")
 			return
 		}
-		writeError(w, http.StatusBadGateway, "keycloak_error", err.Error())
+		logSafeError("register upstream auth failed", err)
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Authentication service unavailable")
 		return
 	}
 
@@ -121,12 +125,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	verificationEmailRequired := kcUser.VerificationEmailRequired
+	verificationEmailSent := kcUser.VerificationEmailSent
 	json.NewEncoder(w).Encode(UserResponse{
-		ID:        kcUser.ID,
-		Username:  kcUser.Username,
-		Email:     kcUser.Email,
-		FirstName: kcUser.FirstName,
-		LastName:  kcUser.LastName,
+		ID:                        kcUser.ID,
+		Username:                  kcUser.Username,
+		Email:                     kcUser.Email,
+		FirstName:                 kcUser.FirstName,
+		LastName:                  kcUser.LastName,
+		VerificationEmailRequired: &verificationEmailRequired,
+		VerificationEmailSent:     &verificationEmailSent,
+		Warning:                   kcUser.VerificationEmailWarning,
 	})
 }
 
@@ -149,11 +158,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
+		if strings.Contains(err.Error(), "account not verified") {
+			writeError(w, http.StatusForbidden, "account_not_verified", "Account is not verified. Please verify your email.")
+			return
+		}
+		if strings.Contains(err.Error(), "account disabled") {
+			writeError(w, http.StatusForbidden, "account_disabled", "Account is disabled.")
+			return
+		}
 		if strings.Contains(err.Error(), "invalid username or password") {
 			writeError(w, http.StatusUnauthorized, "invalid_credentials", "Invalid username or password")
 			return
 		}
-		writeError(w, http.StatusBadGateway, "keycloak_error", err.Error())
+		logSafeError("login upstream auth failed", err)
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Authentication service unavailable")
 		return
 	}
 
@@ -283,7 +301,8 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid_password", "Current password is incorrect")
 			return
 		}
-		writeError(w, http.StatusBadGateway, "keycloak_error", err.Error())
+		logSafeError("change password upstream auth failed", err)
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Authentication service unavailable")
 		return
 	}
 
@@ -317,7 +336,8 @@ func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		LastName:  req.LastName,
 	})
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "keycloak_error", err.Error())
+		logSafeError("update profile upstream auth failed", err)
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Authentication service unavailable")
 		return
 	}
 
@@ -356,8 +376,13 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send password reset email
-	// Note: We don't reveal whether the email exists or not for security
-	_ = h.Keycloak.SendPasswordResetEmail(r.Context(), req.Email)
+	// Note: We don't reveal whether the email exists or not for security.
+	// SendPasswordResetEmail returns nil when the email does not exist, so
+	// returning an error here only indicates an infrastructure/provider issue.
+	if err := h.Keycloak.SendPasswordResetEmail(r.Context(), req.Email); err != nil {
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Unable to process password reset request")
+		return
+	}
 
 	// Always return success to prevent email enumeration attacks
 	w.Header().Set("Content-Type", "application/json")
