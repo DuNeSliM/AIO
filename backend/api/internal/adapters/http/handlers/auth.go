@@ -376,8 +376,13 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send password reset email
-	// Note: We don't reveal whether the email exists or not for security
-	_ = h.Keycloak.SendPasswordResetEmail(r.Context(), req.Email)
+	// Note: We don't reveal whether the email exists or not for security.
+	// SendPasswordResetEmail returns nil when the email does not exist, so
+	// returning an error here only indicates an infrastructure/provider issue.
+	if err := h.Keycloak.SendPasswordResetEmail(r.Context(), req.Email); err != nil {
+		writeError(w, http.StatusBadGateway, "keycloak_error", "Unable to process password reset request")
+		return
+	}
 
 	// Always return success to prevent email enumeration attacks
 	w.Header().Set("Content-Type", "application/json")
