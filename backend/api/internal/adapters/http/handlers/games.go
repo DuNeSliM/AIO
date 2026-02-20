@@ -47,19 +47,21 @@ func (h *GameHandler) StartSteamGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate that appID is numeric
-	if _, err := strconv.ParseInt(appID, 10, 64); err != nil {
+	parsedAppID, err := strconv.ParseUint(appID, 10, 64)
+	if err != nil {
 		http.Error(w, "invalid appid: must be numeric", http.StatusBadRequest)
 		return
 	}
+	canonicalAppID := strconv.FormatUint(parsedAppID, 10)
 
 	// Start the Steam game
-	if err := startSteamApp(appID); err != nil {
+	if err := startSteamApp(parsedAppID); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]any{
 			"success": false,
 			"message": err.Error(),
-			"app_id":  appID,
+			"app_id":  canonicalAppID,
 		})
 		return
 	}
@@ -69,26 +71,30 @@ func (h *GameHandler) StartSteamGame(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(StartGameResponse{
 		Success: true,
 		Message: "Game started successfully",
-		AppID:   appID,
+		AppID:   canonicalAppID,
 	})
 }
 
 // startSteamApp launches a Steam game using the steam:// protocol
-func startSteamApp(appID string) error {
+func startSteamApp(appID uint64) error {
+	launchURI := "steam://rungameid/" + strconv.FormatUint(appID, 10)
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
 	case "windows":
 		// On Windows, use steam:// URI scheme
-		cmd = exec.Command("cmd", "/c", "start", "steam://rungameid/"+appID)
+		cmd = exec.Command("cmd", "/c", "start", launchURI)
 
 	case "darwin":
 		// On macOS, use open command with steam:// URI
-		cmd = exec.Command("open", "steam://rungameid/"+appID)
+		cmd = exec.Command("open", launchURI)
 
 	case "linux":
-		// On Linux, try xdg-open first, then steam
-		cmd = exec.Command("bash", "-c", "xdg-open steam://rungameid/"+appID+" || steam steam://rungameid/"+appID)
+		// On Linux, try xdg-open first, then steam.
+		if err := exec.Command("xdg-open", launchURI).Run(); err == nil {
+			return nil
+		}
+		cmd = exec.Command("steam", launchURI)
 
 	default:
 		return ErrUnsupportedOS

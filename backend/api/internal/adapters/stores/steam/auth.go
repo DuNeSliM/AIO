@@ -167,7 +167,7 @@ func (c *Client) VerifyCallback(values url.Values) (string, error) {
 
 	// Extract Steam ID from claimed_id
 	claimedID := values.Get("openid.claimed_id")
-	re := regexp.MustCompile(`https://steamcommunity\.com/openid/id/(\d+)`)
+	re := regexp.MustCompile(`^https://steamcommunity\.com/openid/id/([0-9]{17})/?$`)
 	matches := re.FindStringSubmatch(claimedID)
 	if len(matches) < 2 {
 		return "", fmt.Errorf("failed to extract steam id")
