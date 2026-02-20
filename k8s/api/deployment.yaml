@@ -28,8 +28,6 @@ spec:
             - configMapRef:
                 name: go-api-config
             - secretRef:
-                name: go-api-secrets
-            - secretRef:
                 name: go-api-env-secrets
           readinessProbe:
             httpGet:
