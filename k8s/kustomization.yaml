@@ -5,10 +5,13 @@ resources:
   - api/deployment.yaml
   - api/service.yaml
   - api/ingress.yaml
+  - api/configmap.yaml
   - api/secret.yaml
+  - api/secret-env.yaml
   - web/deployment.yaml
   - web/service.yaml
   - web/ingress.yaml
+  - web/secret.yaml
   - postgres/secret.yaml
   - postgres/service.yaml
   - postgres/statefulset.yaml

@@ -308,7 +308,7 @@ func (c *Client) doRequest(ctx context.Context, method string, endpoint string, 
 
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("itad request build failed")
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -319,13 +319,13 @@ func (c *Client) doRequest(ctx context.Context, method string, endpoint string, 
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
+		return nil, fmt.Errorf("itad request failed")
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
+		return nil, fmt.Errorf("itad response read failed")
 	}
 
 	if resp.StatusCode == 429 {
@@ -335,7 +335,7 @@ func (c *Client) doRequest(ctx context.Context, method string, endpoint string, 
 		return nil, fmt.Errorf("ITAD unauthorized: check API key")
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("ITAD error: %d - %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("ITAD error: %d", resp.StatusCode)
 	}
 
 	return json.RawMessage(respBody), nil

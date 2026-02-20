@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useAuth } from '../hooks/useAuth'
+import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
 
@@ -57,7 +57,7 @@ const SidebarIcon = ({ icon, label, onClick, className }: SidebarIconProps) => (
     title={label}
     onClick={onClick}
   >
-    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-neon/20 bg-panel/80 text-neon shadow-glow transition group-hover:-translate-y-0.5 group-hover:border-neon/60">
+    <div className="ui-sidebarIcon rounded-xl">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         {icon}
       </svg>
@@ -72,8 +72,8 @@ type SidebarProps = {
 }
 
 export default function Sidebar({ activePage = 'library', onNavigate }: SidebarProps) {
-  const steamAuth = useSteamAuth()
   const { user, logout, isLoading } = useAuth()
+  const steamAuth = useSteamAuth()
   const { t } = useI18n()
 
   const handleLogout = async () => {
@@ -82,10 +82,10 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-24 flex flex-col items-center gap-8 border-r border-neon/10 bg-panel/60 px-3 py-6 backdrop-blur overflow-hidden z-50">
+    <aside className="ui-sidebar">
       <div className="flex flex-col items-center gap-3">
         <div className="font-display text-xl text-ember">AIO</div>
-        <div className="hud-divider w-10" />
+        <div className="ui-divider w-10" />
         {user && (
           <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={user.username}>
             {user.username}
@@ -125,24 +125,20 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
       </nav>
       <div className="mt-auto flex w-full flex-col gap-3">
         {user && (
-          <button 
-            className="btn-ghost w-full text-xs" 
-            onClick={handleLogout}
-            disabled={isLoading}
-          >
-            {isLoading ? t('auth.loggingOut') : t('auth.logout')}
+          <button className="ui-btn-ghost w-full text-xs" onClick={() => void handleLogout()} disabled={isLoading}>
+            {isLoading ? t('auth.loggingOut') : t('auth.accountLogout')}
           </button>
         )}
         {!steamAuth.isLoggedIn ? (
-          <button className="btn-primary w-full text-xs" onClick={steamAuth.login}>
+          <button className="ui-btn-primary w-full text-xs" onClick={steamAuth.login}>
             {t('auth.steamLogin')}
           </button>
         ) : (
-          <button className="btn-ghost w-full text-xs" onClick={steamAuth.logout}>
+          <button className="ui-btn-ghost w-full text-xs" onClick={steamAuth.logout}>
             {t('auth.steamLogout')}
           </button>
         )}
-        <button className="btn-soft w-full text-xs" onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}>
+        <button className="ui-btn-soft w-full text-xs" onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}>
           {t('epic.localSync')}
         </button>
         <small className="text-center text-[10px] tone-muted">v0.1</small>

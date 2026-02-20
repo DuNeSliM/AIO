@@ -1,0 +1,39 @@
+﻿body.design-ghost-protocol {
+  --tone-primary: #dfe7e6;
+  --tone-muted: #96a6a5;
+  --tone-soft: #bbc8c7;
+
+  --ui-frame-gradient: linear-gradient(135deg, rgba(156, 176, 173, 0.35), rgba(106, 124, 121, 0.14), rgba(61, 77, 74, 0.22));
+  --ui-frame-shadow: 0 0 20px rgba(134, 149, 147, 0.16);
+  --ui-frame-accent-gradient: linear-gradient(135deg, rgba(168, 183, 180, 0.4), rgba(106, 124, 121, 0.14), rgba(80, 98, 95, 0.2));
+  --ui-frame-accent-shadow: 0 0 22px rgba(134, 149, 147, 0.18);
+
+  --ui-panel-bg: rgba(16, 24, 23, 0.84);
+  --ui-panel-border: rgba(154, 172, 169, 0.25);
+
+  --ui-btn-primary-bg: #b8c5c3;
+  --ui-btn-primary-color: #182423;
+  --ui-btn-primary-hover-shadow: 0 10px 22px rgba(134, 149, 147, 0.28);
+
+  --ui-btn-secondary-border: rgba(164, 181, 178, 0.45);
+  --ui-btn-secondary-color: rgba(214, 226, 224, 0.92);
+
+  --ui-chip-border: rgba(158, 175, 172, 0.42);
+  --ui-chip-color: rgba(205, 219, 217, 0.92);
+
+  --ui-item-bg: rgba(17, 24, 24, 0.45);
+  --ui-item-border: rgba(138, 157, 154, 0.25);
+
+  --ui-toast-bg: rgba(16, 21, 21, 0.86);
+  --ui-toast-border: rgba(161, 178, 175, 0.38);
+  --ui-toast-color: #d1dfdd;
+}
+
+body.design-ghost-protocol .ui-shell::after {
+  background-image:
+    radial-gradient(circle at 40% 16%, rgba(156, 176, 173, 0.16), transparent 55%),
+    radial-gradient(circle at 84% 8%, rgba(97, 115, 112, 0.18), transparent 55%),
+    radial-gradient(circle at 48% 100%, rgba(67, 84, 81, 0.16), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.018) 1px, transparent 2px, transparent 4px);
+}
+

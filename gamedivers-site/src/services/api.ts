@@ -1,24 +1,45 @@
-import type { Game, ItadPricesResponse, ItadSearchItem, User, AuthResponse } from '../types'
+import type { AuthResponse, Game, ItadPricesResponse, ItadSearchItem, User } from '../types'
 
 export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+const AUTH_TOKEN_STORAGE_KEYS = ['accessToken', 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
+const REFRESH_TOKEN_STORAGE_KEYS = ['refreshToken', 'authRefreshToken'] as const
 
-const ACCESS_TOKEN_KEY = 'accessToken'
-const REFRESH_TOKEN_KEY = 'refreshToken'
-const USER_KEY = 'user'
+function getStoredValue(keys: readonly string[]): string | null {
+  if (typeof window === 'undefined') return null
 
-// Decode JWT token and extract expiration time
+  for (const key of keys) {
+    const sessionToken = sessionStorage.getItem(key)?.trim()
+    if (sessionToken) return sessionToken
+
+    const localToken = localStorage.getItem(key)?.trim()
+    if (localToken) return localToken
+  }
+
+  return null
+}
+
+function getStoredToken(): string | null {
+  return getStoredValue(AUTH_TOKEN_STORAGE_KEYS)
+}
+
+function getStoredRefreshToken(): string | null {
+  return getStoredValue(REFRESH_TOKEN_STORAGE_KEYS)
+}
+
 function decodeJwt(token: string): { exp?: number } {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return {}
-    const decoded = JSON.parse(atob(parts[1]))
-    return decoded
+
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')
+    const payload = JSON.parse(atob(padded)) as { exp?: number }
+    return payload
   } catch {
     return {}
   }
 }
 
-// Check if token is expiring soon (within 5 minutes)
 export function isTokenExpiringSoon(token: string, thresholdSeconds = 300): boolean {
   const decoded = decodeJwt(token)
   if (!decoded.exp) return false
@@ -26,53 +47,120 @@ export function isTokenExpiringSoon(token: string, thresholdSeconds = 300): bool
   return decoded.exp - now < thresholdSeconds
 }
 
-// Clear auth tokens from localStorage
-export function clearAuthTokens(): void {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
+export function clearPersistedAuthTokens() {
+  if (typeof window === 'undefined') return
+
+  const keys = new Set<string>([
+    ...AUTH_TOKEN_STORAGE_KEYS,
+    ...REFRESH_TOKEN_STORAGE_KEYS,
+    'accessToken',
+    'refreshToken',
+    'user',
+  ])
+
+  keys.forEach((key) => {
+    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
+  })
 }
 
-// Refresh token if it's expiring soon
-export async function ensureValidToken(): Promise<string | null> {
-  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+export function clearAuthTokens(): void {
+  clearPersistedAuthTokens()
+}
 
-  if (!accessToken || !refreshToken) return null
+function persistAuthTokens(accessToken: string, refreshToken?: string) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem('accessToken', accessToken)
+  sessionStorage.setItem('accessToken', accessToken)
+  if (refreshToken) {
+    localStorage.setItem('refreshToken', refreshToken)
+    sessionStorage.setItem('refreshToken', refreshToken)
+  }
+}
 
-  // If token is expiring soon, refresh it
-  if (isTokenExpiringSoon(accessToken)) {
-    try {
-      const newTokens = await refreshTokenRequest(refreshToken)
-      localStorage.setItem(ACCESS_TOKEN_KEY, newTokens.accessToken)
-      localStorage.setItem(REFRESH_TOKEN_KEY, newTokens.refreshToken)
-      return newTokens.accessToken
-    } catch (err) {
-      console.error('Token refresh failed:', err)
-      clearAuthTokens()
+function resolveAuthToken(): string | null {
+  const stored = getStoredToken()
+  if (stored) return stored
+  return null
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshToken = getStoredRefreshToken()
+  if (!refreshToken) return null
+
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) {
+      clearPersistedAuthTokens()
       return null
     }
+
+    const payload = (await res.json()) as { accessToken?: string; refreshToken?: string }
+    const nextAccess = payload.accessToken?.trim()
+    if (!nextAccess) {
+      clearPersistedAuthTokens()
+      return null
+    }
+
+    persistAuthTokens(nextAccess, payload.refreshToken?.trim())
+    return nextAccess
+  } catch {
+    clearPersistedAuthTokens()
+    return null
+  }
+}
+
+function withAuth(opts?: RequestInit): RequestInit {
+  const token = resolveAuthToken()
+  if (!token) return opts ?? {}
+
+  const headers = new Headers(opts?.headers)
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
   }
 
-  return accessToken
+  return { ...opts, headers }
 }
 
-// Make authenticated API calls with automatic token refresh
-export async function authenticatedFetch<T = unknown>(
-  url: string,
-  opts?: RequestInit,
-): Promise<T | null> {
+function withToken(opts: RequestInit | undefined, token: string): RequestInit {
+  const headers = new Headers(opts?.headers)
+  if (!headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  return { ...opts, headers }
+}
+
+async function fetchWithAuth(url: string, opts?: RequestInit): Promise<Response> {
+  const first = await fetch(url, withAuth(opts))
+  if (first.status !== 401) return first
+
+  const refreshedAccess = await tryRefreshToken()
+  if (!refreshedAccess) return first
+
+  return fetch(url, withToken(opts, refreshedAccess))
+}
+
+export async function ensureValidToken(): Promise<string | null> {
+  const accessToken = resolveAuthToken()
+  if (!accessToken) return null
+
+  if (!isTokenExpiringSoon(accessToken)) {
+    return accessToken
+  }
+
+  return tryRefreshToken()
+}
+
+export async function authenticatedFetch<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
   try {
-    // Ensure token is valid before making request
-    const accessToken = await ensureValidToken()
-    if (!accessToken) {
-      return null
-    }
+    const token = await ensureValidToken()
+    if (!token) return null
 
-    const headers = new Headers(opts?.headers || {})
-    headers.set('Authorization', `Bearer ${accessToken}`)
-
-    const res = await fetch(url, { ...opts, headers })
+    const res = await fetchWithAuth(url, withToken(opts, token))
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return (await res.json()) as T
   } catch (error) {
@@ -83,7 +171,7 @@ export async function authenticatedFetch<T = unknown>(
 
 async function tryJson<T = unknown>(url: string, opts?: RequestInit): Promise<T | null> {
   try {
-    const res = await fetch(url, opts)
+    const res = await fetchWithAuth(url, opts)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     return (await res.json()) as T
   } catch (error) {
@@ -112,7 +200,7 @@ export async function fetchGames(): Promise<Game[]> {
 
 export async function fetchSteamLibrary(steamId: string): Promise<Game[]> {
   if (!steamId) return []
-  const res = await fetch(`${API_BASE}/v1/steam/library?steamid=${steamId}`)
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/library?steamid=${encodeURIComponent(steamId)}`)
   if (!res.ok) throw await readApiError(res)
   const data = (await res.json()) as Game[]
   return Array.isArray(data) ? data : []
@@ -132,10 +220,22 @@ export type SteamWishlistEntry = {
 
 export async function fetchSteamWishlist(steamId: string): Promise<SteamWishlistEntry[]> {
   if (!steamId) return []
-  const res = await fetch(`${API_BASE}/v1/steam/wishlist?steamid=${steamId}`)
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/wishlist?steamid=${encodeURIComponent(steamId)}`)
   if (!res.ok) throw await readApiError(res)
   const data = (await res.json()) as SteamWishlistEntry[]
   return Array.isArray(data) ? data : []
+}
+
+export async function syncSteamWishlistToBackend(appIds: number[]): Promise<void> {
+  const unique = Array.from(new Set(appIds.filter((id) => Number.isInteger(id) && id > 0)))
+  if (unique.length === 0) return
+
+  const res = await fetchWithAuth(`${API_BASE}/v1/steam/wishlist/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appIds: unique }),
+  })
+  if (!res.ok) throw await readApiError(res)
 }
 
 export async function searchItad(
@@ -178,7 +278,7 @@ export async function launchGame(platform: string, id: string | number, appName?
         throw new Error(`Unsupported platform: ${platform}`)
     }
 
-    const res = await fetch(url, { method: 'POST' })
+    const res = await fetchWithAuth(url, { method: 'POST' })
     if (!res.ok) throw new Error(`Launch failed: ${res.status}`)
     return await res.json()
   } catch (error) {
@@ -189,30 +289,37 @@ export async function launchGame(platform: string, id: string | number, appName?
 
 export async function syncStore(store: string, credentials?: { steamId?: string; accessToken?: string }) {
   let url
+  let headers: HeadersInit | undefined
   if (store === 'steam' && credentials?.steamId) {
-    url = `${API_BASE}/v1/steam/sync?steamid=${credentials.steamId}`
+    url = `${API_BASE}/v1/steam/sync?steamid=${encodeURIComponent(credentials.steamId)}`
   } else if (store === 'epic' && credentials?.accessToken) {
-    url = `${API_BASE}/v1/epic/sync?access_token=${credentials.accessToken}`
+    url = `${API_BASE}/v1/epic/sync`
+    headers = { Authorization: `Bearer ${credentials.accessToken}` }
   } else {
     url = `${API_BASE}/v1/games/${store}/library`
   }
 
-  const res = await tryJson(url, { method: 'POST' })
+  const res = await tryJson(url, { method: 'POST', headers })
   if (res && !(res as { error?: unknown }).error) return res
 
   await new Promise((resolve) => setTimeout(resolve, 700))
   return { ok: true }
 }
 
-// Auth endpoints
-export async function register(username: string, email: string, password: string, firstName?: string, lastName?: string): Promise<User> {
+export async function register(
+  username: string,
+  email: string,
+  password: string,
+  firstName?: string,
+  lastName?: string,
+): Promise<User> {
   const res = await fetch(`${API_BASE}/v1/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, email, password, firstName, lastName }),
   })
   if (!res.ok) {
-    const error = await res.json() as { error?: string; message?: string }
+    const error = (await res.json()) as { error?: string; message?: string }
     throw new Error(error.message || error.error || 'Registration failed')
   }
   return (await res.json()) as User
@@ -225,7 +332,7 @@ export async function login(username: string, password: string): Promise<AuthRes
     body: JSON.stringify({ username, password }),
   })
   if (!res.ok) {
-    const error = await res.json() as { error?: string; message?: string }
+    const error = (await res.json()) as { error?: string; message?: string }
     throw new Error(error.message || error.error || 'Login failed')
   }
   return (await res.json()) as AuthResponse
@@ -239,27 +346,21 @@ export async function logout(refreshToken: string): Promise<void> {
   })
 }
 
-async function refreshTokenRequest(refreshToken: string): Promise<AuthResponse> {
+export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   })
   if (!res.ok) {
-    // Clear tokens if refresh fails
-    clearAuthTokens()
     throw new Error('Token refresh failed')
   }
   return (await res.json()) as AuthResponse
 }
 
-export async function refreshToken(refreshToken: string): Promise<AuthResponse> {
-  return refreshTokenRequest(refreshToken)
-}
-
 export async function getMe(accessToken: string): Promise<User> {
   const res = await fetch(`${API_BASE}/v1/auth/me`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) {
     throw new Error('Failed to get user info')
@@ -274,7 +375,7 @@ export async function requestPasswordReset(email: string): Promise<{ message: st
     body: JSON.stringify({ email }),
   })
   if (!res.ok) {
-    const error = await res.json() as { error?: string; message?: string }
+    const error = (await res.json()) as { error?: string; message?: string }
     throw new Error(error.message || error.error || 'Failed to request password reset')
   }
   return (await res.json()) as { message: string }

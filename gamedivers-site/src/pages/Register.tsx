@@ -30,26 +30,22 @@ export default function Register({ onSuccess }: RegisterPageProps) {
     clearError()
     setLocalError(null)
 
-    // Validate required fields
     if (!formData.username.trim() || !formData.email.trim() || !formData.password.trim()) {
       setLocalError(t('auth.validation.requiredFields'))
       return
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(formData.email)) {
       setLocalError(t('auth.validation.invalidEmail'))
       return
     }
 
-    // Validate password length
     if (formData.password.length < 8) {
       setLocalError(t('auth.validation.passwordTooShort'))
       return
     }
 
-    // Check password confirmation
     if (formData.password !== formData.confirmPassword) {
       setLocalError(t('auth.validation.passwordMismatch'))
       return
@@ -61,9 +57,8 @@ export default function Register({ onSuccess }: RegisterPageProps) {
         formData.email,
         formData.password,
         formData.firstName || undefined,
-        formData.lastName || undefined
+        formData.lastName || undefined,
       )
-      // Redirect to login after successful registration
       onSuccess('login')
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Registration failed')
@@ -75,23 +70,19 @@ export default function Register({ onSuccess }: RegisterPageProps) {
   return (
     <div className="flex items-center justify-center min-h-screen px-4 py-8 bg-void">
       <div className="w-full max-w-md">
-        <div className="term-frame">
-          <div className="term-panel relative p-8">
-            <div className="term-corners">
+        <div className="ui-surface">
+          <div className="ui-panel relative p-8">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
               <span />
             </div>
-            <div className="term-notch" />
+            <div className="ui-notch" />
 
             <div className="relative z-10">
-              <h1 className="mb-2 text-4xl font-bold tracking-wide">
-                {t?.('register') || 'CREATE ACCOUNT'}
-              </h1>
-              <p className="mb-8 text-xs uppercase tracking-widest term-subtle">
-                Join us and manage your game library
-              </p>
+              <h1 className="mb-2 text-4xl font-bold tracking-wide">{t?.('register') || 'CREATE ACCOUNT'}</h1>
+              <p className="mb-8 text-xs uppercase tracking-widest ui-subtle">Join us and manage your game library</p>
 
               {displayError && (
                 <div className="mb-6 rounded-lg border border-ember/40 bg-black/50 p-4 text-xs text-ember/90">
@@ -102,7 +93,7 @@ export default function Register({ onSuccess }: RegisterPageProps) {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="firstName" className="term-label mb-3 block">
+                    <label htmlFor="firstName" className="ui-label mb-3 block">
                       First Name
                     </label>
                     <input
@@ -112,13 +103,13 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                       value={formData.firstName}
                       onChange={handleChange}
                       placeholder="JOHN"
-                      className="term-console w-full"
+                      className="ui-input w-full"
                       disabled={isLoading}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="lastName" className="term-label mb-3 block">
+                    <label htmlFor="lastName" className="ui-label mb-3 block">
                       Last Name
                     </label>
                     <input
@@ -128,14 +119,14 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                       value={formData.lastName}
                       onChange={handleChange}
                       placeholder="DOE"
-                      className="term-console w-full"
+                      className="ui-input w-full"
                       disabled={isLoading}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="username" className="term-label mb-3 block">
+                  <label htmlFor="username" className="ui-label mb-3 block">
                     Username
                   </label>
                   <input
@@ -145,13 +136,13 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                     value={formData.username}
                     onChange={handleChange}
                     placeholder="ENTER USERNAME"
-                    className="term-console w-full"
+                    className="ui-input w-full"
                     disabled={isLoading}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="email" className="term-label mb-3 block">
+                  <label htmlFor="email" className="ui-label mb-3 block">
                     Email
                   </label>
                   <input
@@ -161,13 +152,13 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="YOUR@EMAIL.COM"
-                    className="term-console w-full"
+                    className="ui-input w-full"
                     disabled={isLoading}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="term-label mb-3 block">
+                  <label htmlFor="password" className="ui-label mb-3 block">
                     Password
                   </label>
                   <input
@@ -177,13 +168,13 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                     value={formData.password}
                     onChange={handleChange}
                     placeholder="MIN. 8 CHARACTERS"
-                    className="term-console w-full"
+                    className="ui-input w-full"
                     disabled={isLoading}
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="confirmPassword" className="term-label mb-3 block">
+                  <label htmlFor="confirmPassword" className="ui-label mb-3 block">
                     Confirm Password
                   </label>
                   <input
@@ -193,23 +184,19 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                     value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="CONFIRM PASSWORD"
-                    className="term-console w-full"
+                    className="ui-input w-full"
                     disabled={isLoading}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="term-btn-primary w-full mt-6"
-                >
+                <button type="submit" disabled={isLoading} className="ui-btn-primary w-full mt-6">
                   {isLoading ? '... CREATING ACCOUNT ...' : 'CREATE ACCOUNT'}
                 </button>
               </form>
 
-              <div className="term-divider my-6" />
+              <div className="ui-divider my-6" />
 
-              <p className="text-center text-xs uppercase tracking-widest term-subtle">
+              <p className="text-center text-xs uppercase tracking-widest ui-subtle">
                 Already have credentials?{' '}
                 <button
                   type="button"
@@ -224,9 +211,7 @@ export default function Register({ onSuccess }: RegisterPageProps) {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest term-subtle">
-            AIO GAME LIBRARY v1.0
-          </p>
+          <p className="text-[10px] uppercase tracking-widest ui-subtle">AIO GAME LIBRARY v1.0</p>
         </div>
       </div>
     </div>

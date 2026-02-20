@@ -93,7 +93,18 @@ Erstelle eine `.env` Datei (siehe `.env.example`):
 
 ```env
 VITE_API_BASE=http://localhost:8080
+VITE_ENABLE_CREDIT_CHEAT=false
 ```
+
+## UI Theme System (Semantic)
+
+The UI now uses semantic classes plus CSS tokens, so themes can fully reshape the look without JSX rewrites.
+
+- Semantic class examples: `ui-surface`, `ui-panel`, `ui-btn-primary`, `ui-btn-secondary`, `ui-input`, `ui-select`, `ui-chip`, `ui-toast`, `ui-item`
+- Core tokens are defined in `src/styles/theme.css` (for example `--ui-frame-gradient`, `--ui-panel-bg`, `--ui-btn-primary-bg`, `--ui-radius-panel`, `--ui-font-body`)
+- Each design can override these tokens in `src/designs/themes/<theme-id>/theme.css`
+
+This allows full design packs (colors, spacing, radii, typography, motion, overlays, assets) with minimal component changes.
 
 ## Erweiterungen
 

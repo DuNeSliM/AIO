@@ -1,4 +1,2 @@
-import { useAuth, getAccessToken, getRefreshToken } from '../context/AuthContext'
-
-export { useAuth, getAccessToken, getRefreshToken }
+export { AuthProvider, getAccessToken, getRefreshToken, useAuth } from './useAuth.tsx'
 

@@ -40,6 +40,8 @@ bruno/
 *.test
 *.prof
 vendor/
+*.gocache
+*.gofmt
 
 # ==========================
 # Rust / Tauri

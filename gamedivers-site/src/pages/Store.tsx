@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { searchItad, getItadPrices, fetchSteamWishlist } from '../services/api'
+import { searchItad, getItadPrices, fetchSteamWishlist, syncSteamWishlistToBackend } from '../services/api'
 import { useI18n } from '../i18n/i18n'
 import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem } from '../types'
 import { useWishlist } from '../hooks/useWishlist'
@@ -9,10 +9,9 @@ import {
   addEventLog,
   award,
   loadCounters,
-  loadMissionProgress,
+  recordCompare,
   recordScan,
   recordSync,
-  saveMissionProgress,
 } from '../utils/gameify'
 
 function formatPrice(price?: ItadPrice) {
@@ -40,6 +39,68 @@ function pickLowestDeal(deals?: ItadDeal[] | null) {
   }, null)
 }
 
+function defaultSteamCapsuleUrl(appId: number): string {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/capsule_184x69.jpg`
+}
+
+function backupSteamHeaderUrl(appId: number): string {
+  return `https://cdn.cloudflare.steamstatic.com/steam/apps/${appId}/header.jpg`
+}
+
+const STEAM_NAME_CACHE_KEY = 'steamWishlistNameCache'
+
+function normalizeTitleKey(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function isSteamPlaceholderTitle(title: string): boolean {
+  const normalized = title.trim().toLowerCase()
+  if (!normalized) return true
+  return /^app\s+\d+$/.test(normalized) || /^steam app\s+\d+$/.test(normalized) || /^steam:\d+$/.test(normalized) || /^\d+$/.test(normalized)
+}
+
+function pickBestItadMatch(queryTitle: string, candidates: ItadSearchItem[]): ItadSearchItem | null {
+  if (!candidates.length) return null
+  const queryKey = normalizeTitleKey(queryTitle)
+  if (!queryKey) return candidates[0] ?? null
+
+  const exact = candidates.find((item) => normalizeTitleKey(item.title) === queryKey)
+  if (exact) return exact
+
+  const contains = candidates.find((item) => {
+    const candidateKey = normalizeTitleKey(item.title)
+    return candidateKey.includes(queryKey) || queryKey.includes(candidateKey)
+  })
+  return contains ?? candidates[0] ?? null
+}
+
+function readSteamNameCache(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(STEAM_NAME_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    return parsed as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+function writeSteamNameCache(cache: Record<string, string>): void {
+  try {
+    localStorage.setItem(STEAM_NAME_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // ignore storage write failures
+  }
+}
+
+function isNumeric(text: string): boolean {
+  return /^\d+$/.test(text.trim())
+}
+
 export default function Store() {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
@@ -51,10 +112,9 @@ export default function Store() {
   const [hasSearched, setHasSearched] = useState(false)
   const [region, setRegion] = useState(() => localStorage.getItem('storeRegion') || 'DE')
   const [scanning, setScanning] = useState(false)
-  const [telemetry, setTelemetry] = useState('LOCKING MARKET')
+  const [telemetryKey, setTelemetryKey] = useState('store.telemetry.lockingMarket')
   const [prefersReduced, setPrefersReduced] = useState(false)
   const [counters, setCounters] = useState(() => loadCounters())
-  const [missionProgress, setMissionProgress] = useState(() => loadMissionProgress().progress)
   const [priceCache, setPriceCache] = useState<Record<string, { steam?: number; epic?: number; currency?: string }>>({})
   const [showWishlist, setShowWishlist] = useState(() => localStorage.getItem('showWishlist') !== 'false')
   const [wishlistSyncing, setWishlistSyncing] = useState(false)
@@ -62,6 +122,7 @@ export default function Store() {
     items,
     addItem,
     removeItem,
+    updateThreshold,
     alerts,
     checking,
     lastCheckedAt,
@@ -70,6 +131,15 @@ export default function Store() {
   const steamAuth = useSteamAuth()
 
   const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items])
+  const sortedWishlistItems = useMemo(() => {
+    const score = (item: (typeof items)[number]) =>
+      (item.belowThreshold ? 4 : 0) + (item.onSale ? 2 : 0) + ((item.dealsTop3?.length ?? 0) > 0 ? 1 : 0)
+    return [...items].sort((a, b) => {
+      const scoreDiff = score(b) - score(a)
+      if (scoreDiff !== 0) return scoreDiff
+      return (b.addedAt ?? 0) - (a.addedAt ?? 0)
+    })
+  }, [items])
   const lastCheckedLabel = lastCheckedAt ? new Date(lastCheckedAt).toLocaleString() : t('store.wishlist.never')
   const pushLog = useCallback((entry: string) => addEventLog(entry), [])
   const compareRef = useRef<HTMLDivElement | null>(null)
@@ -86,7 +156,6 @@ export default function Store() {
   useEffect(() => {
     const handler = () => {
       setCounters(loadCounters())
-      setMissionProgress(loadMissionProgress().progress)
     }
     window.addEventListener('mission-update', handler)
     return () => window.removeEventListener('mission-update', handler)
@@ -111,8 +180,13 @@ export default function Store() {
     award(10, 5)
     recordScan()
     pushLog('SEARCH STARTED')
-    const telemetryOptions = ['LOCKING MARKET', 'SCANNING STORES', 'CALIBRATING LINKS', 'PINGING MARKET']
-    setTelemetry(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'LOCKING MARKET')
+    const telemetryOptions = [
+      'store.telemetry.lockingMarket',
+      'store.telemetry.scanningStores',
+      'store.telemetry.calibratingLinks',
+      'store.telemetry.pingingMarket',
+    ]
+    setTelemetryKey(telemetryOptions[Math.floor(Math.random() * telemetryOptions.length)] ?? 'store.telemetry.lockingMarket')
     setScanning(true)
     const started = Date.now()
     try {
@@ -144,6 +218,7 @@ export default function Store() {
     setLoading(true)
     setError(null)
     pushLog(`COMPARE: ${game.title}`)
+    recordCompare()
     try {
       const data = await getItadPrices(game.id, region)
       setPrices(data)
@@ -194,16 +269,120 @@ export default function Store() {
     try {
       const steamItems = await fetchSteamWishlist(steamAuth.steamId)
       const sorted = [...steamItems].sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
+      const titleLookupCache = new Map<string, ItadSearchItem | null>()
+      const steamNameCache = readSteamNameCache()
+      let steamNameCacheDirty = false
+      const existingBySteamAppId = new Map<number, (typeof items)[number]>()
+      for (const existing of items) {
+        if (typeof existing.steamAppId === 'number' && existing.steamAppId > 0) {
+          existingBySteamAppId.set(existing.steamAppId, existing)
+        }
+      }
+
+      const resolveItadMatch = async (query: string, expectedTitle?: string): Promise<ItadSearchItem | null> => {
+        const key = normalizeTitleKey(query)
+        if (!key) return null
+        if (titleLookupCache.has(key)) return titleLookupCache.get(key) ?? null
+
+        try {
+          const data = await searchItad(query, 6)
+          const candidates = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.data)
+              ? data.data
+              : Array.isArray(data?.results)
+                ? data.results
+                : []
+
+          let match: ItadSearchItem | null
+          if (expectedTitle && !isSteamPlaceholderTitle(expectedTitle)) {
+            match = pickBestItadMatch(expectedTitle, candidates)
+          } else if (isNumeric(query)) {
+            match = candidates.length === 1 ? candidates[0] ?? null : null
+          } else if (isSteamPlaceholderTitle(query)) {
+            match = null
+          } else {
+            match = pickBestItadMatch(query, candidates)
+          }
+
+          titleLookupCache.set(key, match)
+          return match
+        } catch {
+          titleLookupCache.set(key, null)
+          return null
+        }
+      }
+
+      const appIds: number[] = []
       for (const item of sorted) {
+        const appId = item.appId
+        const cachedSteamName = steamNameCache[String(appId)]?.trim() ?? ''
+        const rawSteamTitle = item.name?.trim() || cachedSteamName
+        const existing = existingBySteamAppId.get(appId)
+
+        let resolvedItadId = existing?.itadId
+        let resolvedTitle = existing?.title?.trim() || rawSteamTitle
+
+        if (!resolvedItadId && existing?.source === 'itad' && !existing.id.startsWith('steam:')) {
+          resolvedItadId = existing.id
+        }
+
+        let match: ItadSearchItem | null = null
+        if (!resolvedItadId && rawSteamTitle && !isSteamPlaceholderTitle(rawSteamTitle)) {
+          match = await resolveItadMatch(rawSteamTitle, rawSteamTitle)
+          resolvedItadId = match?.id
+          if (match?.title?.trim()) {
+            resolvedTitle = match.title.trim()
+          }
+        }
+
+        if (!resolvedItadId && (!resolvedTitle || isSteamPlaceholderTitle(resolvedTitle))) {
+          match = await resolveItadMatch(String(appId))
+          resolvedItadId = match?.id
+          if (match?.title?.trim()) {
+            resolvedTitle = match.title.trim()
+          }
+        }
+
+        if (!resolvedTitle || isSteamPlaceholderTitle(resolvedTitle)) {
+          resolvedTitle = rawSteamTitle && !isSteamPlaceholderTitle(rawSteamTitle)
+            ? rawSteamTitle
+            : `Steam App ${appId}`
+        }
+
+        if (!isSteamPlaceholderTitle(resolvedTitle)) {
+          if (steamNameCache[String(appId)] !== resolvedTitle) {
+            steamNameCache[String(appId)] = resolvedTitle
+            steamNameCacheDirty = true
+          }
+        }
+
+        const image = item.capsule?.trim() || defaultSteamCapsuleUrl(appId)
+        const targetID = resolvedItadId || `steam:${appId}`
         addItem({
-          id: `steam:${item.appId}`,
-          title: item.name,
-          source: 'steam',
-          steamAppId: item.appId,
+          id: targetID,
+          title: resolvedTitle,
+          image,
+          imageBackup: backupSteamHeaderUrl(appId),
+          source: resolvedItadId ? 'itad' : 'steam',
+          steamAppId: appId,
+          itadId: resolvedItadId,
           addedAt: item.added ? item.added * 1000 : Date.now(),
         })
+        appIds.push(appId)
+      }
+      if (steamNameCacheDirty) {
+        writeSteamNameCache(steamNameCache)
+      }
+      try {
+        await syncSteamWishlistToBackend(appIds)
+      } catch (backendError) {
+        console.error('Failed to sync Steam wishlist to backend:', backendError)
       }
       pushLog(`STEAM WISHLIST SYNC: ${steamItems.length} ITEMS`)
+      window.setTimeout(() => {
+        void checkPrices()
+      }, 150)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message === 'steam-private') {
@@ -218,45 +397,6 @@ export default function Store() {
     }
   }
 
-  useEffect(() => {
-    const progress = loadMissionProgress().progress
-    let updated = { ...progress }
-    let completed = false
-
-    if (!progress.scans && counters.scans >= 3) {
-      updated.scans = true
-      award(25, 20)
-      pushLog('REWARD EARNED: SEARCH RUNNER')
-      completed = true
-    }
-
-    if (!progress.cargo && items.length >= 5) {
-      updated.cargo = true
-      award(30, 30)
-      pushLog('REWARD EARNED: WATCHLIST TRACKER')
-      completed = true
-    }
-
-    if (!progress.launch && counters.launchUnplayed >= 1) {
-      updated.launch = true
-      award(40, 35)
-      pushLog('REWARD EARNED: FIRST LAUNCH')
-      completed = true
-    }
-
-    if (!progress.sync && counters.syncs >= 1) {
-      updated.sync = true
-      award(20, 10)
-      pushLog('REWARD EARNED: WATCHLIST SYNC')
-      completed = true
-    }
-
-    if (completed) {
-      saveMissionProgress(updated)
-      setMissionProgress(updated)
-    }
-  }, [counters, items.length, pushLog])
-
   const priceItem = Array.isArray(prices)
     ? prices.find((item) => item.id === selected?.id)
     : prices?.games?.[selected?.id ?? '']
@@ -270,9 +410,9 @@ export default function Store() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="term-frame term-frame--orange">
-        <div className="term-panel rounded-[15px] p-6">
-          <div className="term-corners">
+      <header className="ui-surface ui-surface--accent">
+        <div className="ui-panel ui-panel-pad-lg">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
@@ -280,46 +420,46 @@ export default function Store() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="term-label">{t('store.title')}</div>
+              <div className="ui-label">{t('store.title')}</div>
               <h1 className="mt-3 text-2xl tone-primary">{t('store.title')}</h1>
-              <p className="mt-2 text-sm term-subtle">{t('store.subtitle')}</p>
+              <p className="mt-2 text-sm ui-subtle">{t('store.subtitle')}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="term-btn-secondary"
+                className="ui-btn-secondary"
                 onClick={() => setShowWishlist((prev) => !prev)}
               >
-                {showWishlist ? 'Hide wishlist' : 'Show wishlist'}
+                {showWishlist ? t('store.wishlist.hide') : t('store.wishlist.show')}
               </button>
               <button
-                className="term-btn-secondary"
+                className="ui-btn-secondary"
                 onClick={() => wishlistRef.current?.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' })}
               >
-                Jump to wishlist
+                {t('store.wishlist.jump')}
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <form className="term-frame" onSubmit={onSearch}>
-        <div className="term-panel flex flex-wrap items-center gap-3 rounded-[15px] p-5">
-          <div className="term-corners">
+      <form className="ui-surface" onSubmit={onSearch}>
+        <div className="ui-panel flex flex-wrap items-center gap-3 ui-panel-pad-md">
+          <div className="ui-corners">
             <span />
             <span />
             <span />
             <span />
           </div>
           <input
-            className="term-console flex-1"
+            className="ui-input flex-1"
             type="text"
             placeholder={t('store.searchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <span className="term-label">{t('store.region')}</span>
+          <span className="ui-label">{t('store.region')}</span>
           <select
-            className="term-select"
+            className="ui-select"
             value={region}
             onChange={(event) => {
               const value = event.target.value
@@ -343,24 +483,24 @@ export default function Store() {
             <option value="CA">CA</option>
             <option value="AU">AU</option>
           </select>
-          <button type="submit" className="term-btn-primary" disabled={loading}>
+          <button type="submit" className="ui-btn-primary" disabled={loading}>
             {t('store.search')}
           </button>
         </div>
       </form>
 
-      {error && <div className="text-sm text-red-400">Fehler: {error}</div>}
+      {error && <div className="text-sm text-red-400">{t('store.errorPrefix')}: {error}</div>}
 
-      {hasSearched && !loading && results.length === 0 && <div className="text-sm term-subtle">{t('store.empty')}</div>}
+      {hasSearched && !loading && results.length === 0 && <div className="text-sm ui-subtle">{t('store.empty')}</div>}
 
       <div className="relative">
         {scanning && (
-          <div className="term-scanOverlay">
-            <div className="term-scanline" />
-            <span>{telemetry}</span>
-            {(prefersReduced || scanning) && (
-              <button className="term-btn-secondary" onClick={() => setScanning(false)}>
-                SKIP
+            <div className="ui-overlay">
+              <div className="ui-scanline" />
+              <span>{t(telemetryKey)}</span>
+              {(prefersReduced || scanning) && (
+                <button className="ui-btn-secondary" onClick={() => setScanning(false)}>
+                  {t('store.skipScan')}
               </button>
             )}
           </div>
@@ -374,32 +514,32 @@ export default function Store() {
             const diff = hasBoth ? Math.abs((cache?.steam ?? 0) - (cache?.epic ?? 0)) : 0
             const currency = cache?.currency ? ` ${cache.currency}` : ''
             const banner = steamCheaper
-              ? `BEST PRICE: STEAM (-${diff.toFixed(2)}${currency})`
+              ? t('store.bestPriceSteam', { diff: diff.toFixed(2), currency })
               : epicCheaper
-                ? `BEST PRICE: EPIC (-${diff.toFixed(2)}${currency})`
+                ? t('store.bestPriceEpic', { diff: diff.toFixed(2), currency })
                 : ''
 
             return (
-              <div key={game.id} className={`term-frame ${selected?.id === game.id ? 'term-frame--orange' : ''}`}>
-                <div className="term-panel rounded-[15px] p-4">
-                  <div className="term-corners">
+              <div key={game.id} className={`ui-surface ${selected?.id === game.id ? 'ui-surface--accent' : ''}`}>
+                <div className="ui-panel ui-panel-pad-sm">
+                  <div className="ui-corners">
                     <span />
                     <span />
                     <span />
                     <span />
                   </div>
-                  {banner && <div className="term-banner">{banner}</div>}
+                  {banner && <div className="ui-banner">{banner}</div>}
                   <div>
-                    <p className="term-label">SEARCH HIT</p>
+                    <p className="ui-label">{t('store.searchHit')}</p>
                     <div className="text-lg tone-primary">{game.title}</div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button className="term-btn-primary" onClick={() => onCompare(game)} disabled={loading}>
+                    <button className="ui-btn-primary" onClick={() => onCompare(game)} disabled={loading}>
                       {selected?.id === game.id && loading ? '...' : t('store.compare')}
                     </button>
                     {wishlistIds.has(game.id) ? (
                       <button
-                        className="term-btn-secondary"
+                        className="ui-btn-secondary"
                         onClick={() => {
                           removeItem(game.id)
                           pushLog(`WATCHLIST: REMOVE -> ${game.title}`)
@@ -409,7 +549,7 @@ export default function Store() {
                       </button>
                     ) : (
                       <button
-                        className="term-btn-secondary"
+                        className="ui-btn-secondary"
                         onClick={() => {
                           addItem({ id: game.id, title: game.title })
                           award(15, 10)
@@ -428,9 +568,9 @@ export default function Store() {
       </div>
 
       {selected && (
-        <section className="term-frame term-frame--orange" ref={compareRef}>
-          <div className="term-panel rounded-[15px] p-6">
-            <div className="term-corners">
+        <section className="ui-surface ui-surface--accent" ref={compareRef}>
+          <div className="ui-panel ui-panel-pad-lg">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
@@ -438,37 +578,37 @@ export default function Store() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="term-label">{t('store.compare')}</p>
+                <p className="ui-label">{t('store.compare')}</p>
                 <h2 className="text-xl tone-primary">{selected.title}</h2>
               </div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-                <div className="term-label">{t('store.steam')}</div>
+                <div className="ui-label">{t('store.steam')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(steamBest?.price)}</div>
                 {steamBest?.cut && steamBest.cut > 0 && <div className="text-sm text-ember">-{steamBest.cut}%</div>}
                 {steamBest?.url && (
-                  <a className="term-btn-secondary mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-secondary mt-3 inline-flex" href={steamBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
               </div>
               <div className="rounded-lg border border-neon/15 bg-black/20 p-4">
-                <div className="term-label">{t('store.epic')}</div>
+                <div className="ui-label">{t('store.epic')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(epicBest?.price)}</div>
                 {epicBest?.cut && epicBest.cut > 0 && <div className="text-sm text-ember">-{epicBest.cut}%</div>}
                 {epicBest?.url && (
-                  <a className="term-btn-secondary mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-secondary mt-3 inline-flex" href={epicBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
               </div>
               <div className="rounded-lg border border-ember/40 bg-black/30 p-4 shadow-ember">
-                <div className="term-label">{t('store.cheapest')}</div>
+                <div className="ui-label">{t('store.cheapest')}</div>
                 <div className="text-2xl tone-primary">{formatPrice(overallBest?.price)}</div>
                 {overallBest?.shop?.name && <div className="text-sm tone-muted">{overallBest.shop.name}</div>}
                 {overallBest?.url && (
-                  <a className="term-btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
+                  <a className="ui-btn-primary mt-3 inline-flex" href={overallBest.url} target="_blank" rel="noreferrer">
                     {t('store.offer')}
                   </a>
                 )}
@@ -479,9 +619,9 @@ export default function Store() {
       )}
 
       {showWishlist && (
-        <section className="term-frame" ref={wishlistRef}>
-          <div className="term-panel rounded-[15px] p-6">
-            <div className="term-corners">
+        <section className="ui-surface" ref={wishlistRef}>
+          <div className="ui-panel ui-panel-pad-lg">
+            <div className="ui-corners">
               <span />
               <span />
               <span />
@@ -489,37 +629,103 @@ export default function Store() {
             </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="term-label">{t('store.wishlist.title')}</p>
+              <p className="ui-label">{t('store.wishlist.title')}</p>
               <h2 className="text-xl tone-primary">{t('store.wishlist.title')}</h2>
-              <div className="text-xs term-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
+              <div className="text-xs ui-subtle">{t('store.wishlist.lastChecked', { date: lastCheckedLabel })}</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {steamAuth.isLoggedIn && (
-                <button className="term-btn-secondary" onClick={onSyncSteamWishlist} disabled={wishlistSyncing}>
+                <button className="ui-btn-secondary" onClick={onSyncSteamWishlist} disabled={wishlistSyncing}>
                   {wishlistSyncing ? '...' : t('store.wishlist.syncSteam')}
                 </button>
               )}
-              <button className="term-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
+              <button className="ui-btn-primary" onClick={onPing} disabled={checking || items.length === 0}>
                 {checking ? t('store.wishlist.checking') : t('store.wishlist.checkNow')}
               </button>
             </div>
           </div>
 
-          {items.length === 0 && <div className="mt-4 text-sm term-subtle">{t('store.wishlist.empty')}</div>}
+          {items.length === 0 && <div className="mt-4 text-sm ui-subtle">{t('store.wishlist.empty')}</div>}
 
           {items.length > 0 && (
             <div className="mt-4 grid gap-3">
-              {items.map((item) => (
+              {sortedWishlistItems.map((item) => {
+                const computedPrimaryImage =
+                  item.image ||
+                  (item.source === 'steam' && typeof item.steamAppId === 'number'
+                    ? defaultSteamCapsuleUrl(item.steamAppId)
+                    : undefined)
+                const computedBackupImage =
+                  item.imageBackup ||
+                  (item.source === 'steam' && typeof item.steamAppId === 'number'
+                    ? backupSteamHeaderUrl(item.steamAppId)
+                    : undefined)
+                const cheapestDeal = item.dealsTop3?.[0]
+
+                return (
                 <div
                   key={item.id}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-neon/10 bg-black/20 p-4"
                 >
-                  <div className="flex flex-col gap-2">
-                    <div className="text-base tone-primary">{item.title}</div>
+                  <div className="flex min-w-0 items-start gap-3">
+                    {(computedPrimaryImage || computedBackupImage) && (
+                      <img
+                        src={computedPrimaryImage || computedBackupImage}
+                        alt={item.title}
+                        className="h-14 w-28 rounded-md border border-neon/15 object-cover"
+                        loading="lazy"
+                        data-fallback={computedBackupImage}
+                        onError={(event) => {
+                          const fallback = event.currentTarget.dataset.fallback
+                          if (!fallback) return
+                          if (event.currentTarget.src === fallback) return
+                          event.currentTarget.src = fallback
+                        }}
+                      />
+                    )}
+                    <div className="flex min-w-0 flex-col gap-2">
+                      <div className="text-base tone-primary">{item.title}</div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.16em] text-white/55">
+                        <span>{item.source === 'steam' ? t('store.wishlist.sourceSteam') : t('store.wishlist.sourceManual')}</span>
+                        {typeof item.lastPrice === 'number' && (
+                          <span>
+                            {item.lastPrice.toFixed(2)} {item.currency ?? 'EUR'}
+                          </span>
+                        )}
+                        {item.lastCheckedAt && <span>{new Date(item.lastCheckedAt).toLocaleTimeString()}</span>}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
+                        {item.onSale && <span className="ui-chip">{t('store.wishlist.onSale')}</span>}
+                        {item.belowThreshold && <span className="ui-chip">{t('store.wishlist.belowTarget')}</span>}
+                      </div>
+                      {typeof cheapestDeal?.price === 'number' && (
+                        <div className="text-xs ui-subtle">
+                          {t('store.cheapest')}: {cheapestDeal.price.toFixed(2)} {cheapestDeal.currency ?? item.currency ?? 'EUR'}
+                          {cheapestDeal.shop ? ` - ${cheapestDeal.shop}` : ''}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      className="ui-input w-28"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder={t('store.wishlist.targetPlaceholder')}
+                      value={typeof item.threshold === 'number' ? item.threshold : ''}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        if (!raw) {
+                          updateThreshold(item.id, null)
+                          return
+                        }
+                        const parsed = Number.parseFloat(raw)
+                        updateThreshold(item.id, Number.isNaN(parsed) ? null : Math.max(0, parsed))
+                      }}
+                    />
                     <button
-                      className="term-btn-secondary"
+                      className="ui-btn-secondary"
                       onClick={() => {
                         removeItem(item.id)
                         pushLog(`WATCHLIST: REMOVE -> ${item.title}`)
@@ -536,7 +742,7 @@ export default function Store() {
                             key={`${item.id}-${index}`}
                             className="rounded-lg border border-neon/10 bg-black/25 p-3"
                           >
-                            <div className="text-xs term-subtle">{deal.shop || 'Store'}</div>
+                            <div className="text-xs ui-subtle">{deal.shop || t('store.wishlist.sourceUnknown')}</div>
                             <div className="text-lg tone-primary">
                               {typeof deal.price === 'number'
                                 ? `${deal.price.toFixed(2)} ${deal.currency ?? ''}`
@@ -544,7 +750,7 @@ export default function Store() {
                             </div>
                             {deal.cut && deal.cut > 0 && <div className="text-xs text-ember">-{deal.cut}%</div>}
                             {deal.url && (
-                              <a className="term-btn-secondary mt-2 inline-flex" href={deal.url} target="_blank" rel="noreferrer">
+                              <a className="ui-btn-secondary mt-2 inline-flex" href={deal.url} target="_blank" rel="noreferrer">
                                 {t('store.offer')}
                               </a>
                             )}
@@ -554,14 +760,14 @@ export default function Store() {
                     </div>
                   )}
                 </div>
-              ))}
+                )})}
             </div>
           )}
 
           {alerts.length > 0 && (
             <div className="mt-6 rounded-lg border border-neon/15 bg-black/20 p-4">
-              <div className="term-label">{t('store.wishlist.alerts')}</div>
-              <div className="mt-2 flex flex-col gap-2 text-xs term-subtle">
+              <div className="ui-label">{t('store.wishlist.alerts')}</div>
+              <div className="mt-2 flex flex-col gap-2 text-xs ui-subtle">
                 {alerts.map((alert) => (
                   <div key={alert.id} className="flex items-center justify-between gap-4">
                     <span>{alert.message}</span>
@@ -578,3 +784,5 @@ export default function Store() {
     </div>
   )
 }
+
+

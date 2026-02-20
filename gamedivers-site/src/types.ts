@@ -24,6 +24,7 @@ export type Game = {
   name: string
   platform?: string
   image?: string
+  imageFallback?: string
   appId?: string
   appName?: string
   gameName?: string
@@ -68,6 +69,8 @@ export type ItadPricesResponse =
 export type WishlistItem = {
   id: string
   title: string
+  image?: string
+  imageBackup?: string
   addedAt: number
   source?: 'itad' | 'steam'
   steamAppId?: number
