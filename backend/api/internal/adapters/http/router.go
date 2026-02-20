@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -17,21 +19,25 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	allowedOrigins := map[string]struct{}{
-		frontendOrigin:          {},
-		"http://localhost:3000": {},
-		"http://localhost:5173": {},
+	allowedOrigins := map[string]struct{}{}
+	if normalized := normalizeOrigin(frontendOrigin); normalized != "" {
+		allowedOrigins[normalized] = struct{}{}
+	}
+	if isLocalOrigin(frontendOrigin) {
+		allowedOrigins["http://localhost:3000"] = struct{}{}
+		allowedOrigins["http://localhost:5173"] = struct{}{}
 	}
 
 	// CORS middleware for frontend
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			origin := r.Header.Get("Origin")
-			if origin == "" {
+			rawOrigin := r.Header.Get("Origin")
+			if rawOrigin == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
 
+			origin := normalizeOrigin(rawOrigin)
 			if _, ok := allowedOrigins[origin]; ok {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Vary", "Origin")
@@ -145,4 +151,25 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 	})
 
 	return r
+}
+
+func normalizeOrigin(origin string) string {
+	u, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return strings.ToLower(u.Scheme) + "://" + strings.ToLower(u.Host)
+}
+
+func isLocalOrigin(origin string) bool {
+	u, err := url.Parse(strings.TrimSpace(origin))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
 }

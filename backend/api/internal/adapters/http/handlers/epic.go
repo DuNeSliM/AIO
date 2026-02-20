@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -101,7 +102,11 @@ func (h *EpicHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	if redirectBase == "" {
 		redirectBase = "http://localhost:5173"
 	}
-	redirectURL, err := safeRedirect(redirectBase, map[string]string{
+	allowedRedirect := h.allowedRedirect
+	if allowedRedirect == "" {
+		allowedRedirect = redirectBase
+	}
+	redirectURL, err := safeRedirect(redirectBase, allowedRedirect, map[string]string{
 		"epicid":       tokenResp.AccountID,
 		"username":     displayName,
 		"access_token": tokenResp.AccessToken,
@@ -194,25 +199,13 @@ func (h *EpicHandler) verifyState(r *http.Request, state string) error {
 	if err != nil {
 		return err
 	}
-	if subtleConstantTimeCompare(cookie.Value, state) {
-		return nil
+	if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(state)) != 1 {
+		return errors.New("state mismatch")
 	}
-	return errors.New("state mismatch")
+	return nil
 }
 
-func subtleConstantTimeCompare(a, b string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	// simple constant-time compare
-	var res byte
-	for i := 0; i < len(a); i++ {
-		res |= a[i] ^ b[i]
-	}
-	return res == 0
-}
-
-func safeRedirect(base string, params map[string]string) (string, error) {
+func safeRedirect(base, allowedBase string, params map[string]string) (string, error) {
 	u, err := url.Parse(base)
 	if err != nil {
 		return "", err
@@ -223,8 +216,18 @@ func safeRedirect(base string, params map[string]string) (string, error) {
 	if u.Host == "" {
 		return "", errors.New("empty host")
 	}
-	// only allow localhost or configured host
-	if !strings.HasPrefix(u.Host, "localhost") && !strings.Contains(u.Host, ".") {
+
+	allowedURL, err := url.Parse(allowedBase)
+	if err != nil {
+		return "", err
+	}
+	if allowedURL.Scheme != "http" && allowedURL.Scheme != "https" {
+		return "", errors.New("invalid allowed scheme")
+	}
+	if allowedURL.Host == "" {
+		return "", errors.New("empty allowed host")
+	}
+	if !strings.EqualFold(u.Host, allowedURL.Host) {
 		return "", errors.New("untrusted host")
 	}
 

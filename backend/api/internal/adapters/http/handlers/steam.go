@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -317,7 +318,7 @@ func (h *SteamHandler) verifyState(state string, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if cookie.Value != state {
+	if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(state)) != 1 {
 		return errors.New("state mismatch")
 	}
 	return nil
