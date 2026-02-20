@@ -4,28 +4,74 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"time"
 )
 
 type Config struct {
-	Port          string
-	DatabaseURL   string
-	PriceTTL      time.Duration
-	DailyInterval time.Duration
+	Port string
+
+	// IsThereAnyDeal API key
+	ITADAPIKey string
+
+	// Frontend origin for CORS/callbacks
+	FrontendOrigin string
+
+	// Optional Postgres connection string. When set, persistence is enabled.
+	DatabaseURL string
+
+	// Steam Web API key
+	SteamAPIKey string
+
+	// Steam OAuth callback URL
+	SteamCallbackURL string
+
+	// Epic Games OAuth credentials
+	EpicClientID     string
+	EpicClientSecret string
+	EpicCallbackURL  string
+	// Keycloak configuration
+	KeycloakURL                  string
+	KeycloakRealm                string
+	KeycloakClientID             string
+	KeycloakClientSecret         string
+	KeycloakRequireEmailVerified bool
 }
 
 func Load() Config {
 	port := getenv("PORT", "8080")
-	dsn := mustGetenv("DATABASE_URL")
+	itadAPIKey := mustGetenv("ISTHEREANYDEAL_API_KEY")
+	frontendOrigin := getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+	if frontendOrigin == "" {
+		frontendOrigin = "http://localhost:3000"
+	}
+	databaseURL := getenv("DATABASE_URL", "")
+	steamAPIKey := getenv("STEAM_API_KEY", "")
+	steamCallbackURL := getenv("STEAM_CALLBACK_URL", "http://localhost:8080/v1/steam/callback")
+	epicClientID := getenv("EPIC_CLIENT_ID", "")
+	epicClientSecret := getenv("EPIC_CLIENT_SECRET", "")
+	epicCallbackURL := getenv("EPIC_CALLBACK_URL", "http://localhost:8080/v1/epic/callback")
 
-	ttlHours := getenvInt("PRICE_TTL_HOURS", 12)
-	dailyHours := getenvInt("DAILY_UPDATE_HOURS", 24)
+	// Keycloak config
+	keycloakURL := mustGetenv("KEYCLOAK_URL")
+	keycloakRealm := mustGetenv("KEYCLOAK_REALM")
+	keycloakClientID := mustGetenv("KEYCLOAK_CLIENT_ID")
+	keycloakClientSecret := mustGetenv("KEYCLOAK_CLIENT_SECRET")
+	keycloakRequireEmailVerified := getenvBool("KEYCLOAK_REQUIRE_EMAIL_VERIFIED", true)
 
 	return Config{
-		Port:          port,
-		DatabaseURL:   dsn,
-		PriceTTL:      time.Duration(ttlHours) * time.Hour,
-		DailyInterval: time.Duration(dailyHours) * time.Hour,
+		Port:                         port,
+		ITADAPIKey:                   itadAPIKey,
+		FrontendOrigin:               frontendOrigin,
+		DatabaseURL:                  databaseURL,
+		SteamAPIKey:                  steamAPIKey,
+		SteamCallbackURL:             steamCallbackURL,
+		EpicClientID:                 epicClientID,
+		EpicClientSecret:             epicClientSecret,
+		EpicCallbackURL:              epicCallbackURL,
+		KeycloakURL:                  keycloakURL,
+		KeycloakRealm:                keycloakRealm,
+		KeycloakClientID:             keycloakClientID,
+		KeycloakClientSecret:         keycloakClientSecret,
+		KeycloakRequireEmailVerified: keycloakRequireEmailVerified,
 	}
 }
 
@@ -44,14 +90,17 @@ func getenv(key, def string) string {
 	return def
 }
 
-func getenvInt(key string, def int) int {
+func getenvBool(key string, def bool) bool {
 	v := os.Getenv(key)
 	if v == "" {
 		return def
 	}
-	n, err := strconv.Atoi(v)
+
+	parsed, err := strconv.ParseBool(v)
 	if err != nil {
+		log.Printf("invalid boolean value for %s, using default %t", key, def)
 		return def
 	}
-	return n
+
+	return parsed
 }

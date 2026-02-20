@@ -1,0 +1,368 @@
+body.design-kawaii-overdrive {
+  --tone-primary: #ffeefe;
+  --tone-muted: #ff9bdd;
+  --tone-soft: #ffd1f6;
+
+  --ui-font-body: 'M PLUS Rounded 1c', 'Baloo 2', system-ui, sans-serif;
+  --ui-font-display: 'Baloo 2', 'M PLUS Rounded 1c', system-ui, sans-serif;
+
+  --ui-radius-frame: 2rem;
+  --ui-radius-panel: 1.7rem;
+  --ui-radius-control: 999px;
+  --ui-radius-chip: 999px;
+  --ui-panel-pad-sm: 1.28rem;
+  --ui-panel-pad-md: 1.6rem;
+  --ui-panel-pad-lg: 1.95rem;
+
+  --ui-frame-gradient: linear-gradient(145deg, rgba(255, 119, 215, 0.88), rgba(255, 160, 236, 0.76), rgba(121, 240, 255, 0.58));
+  --ui-frame-shadow: 0 24px 50px rgba(88, 10, 90, 0.45);
+  --ui-frame-accent-gradient: linear-gradient(145deg, rgba(255, 152, 227, 0.96), rgba(255, 114, 212, 0.88), rgba(125, 244, 255, 0.62));
+  --ui-frame-accent-shadow: 0 26px 56px rgba(255, 95, 206, 0.38);
+
+  --ui-panel-bg:
+    linear-gradient(180deg, rgba(87, 17, 96, 0.94), rgba(61, 10, 78, 0.92)),
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.14) 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 68%, rgba(255, 255, 255, 0.1) 0 2px, transparent 3px);
+  --ui-panel-border: rgba(255, 184, 241, 0.65);
+  --ui-panel-sweep:
+    linear-gradient(110deg, transparent, rgba(255, 198, 246, 0.36), transparent),
+    radial-gradient(circle at 16% 26%, rgba(255, 255, 255, 0.24) 0 2px, transparent 3px),
+    radial-gradient(circle at 84% 34%, rgba(255, 255, 255, 0.18) 0 2px, transparent 3px);
+  --ui-panel-overlay:
+    linear-gradient(180deg, rgba(13, 4, 24, 0.44), transparent 24%, rgba(26, 6, 37, 0.72)),
+    url('./assets/kawaii-hearts-rain.svg'),
+    repeating-linear-gradient(135deg, rgba(255, 191, 244, 0.08) 0px, rgba(255, 191, 244, 0.08) 2px, transparent 3px, transparent 8px);
+
+  --ui-label-color: rgba(255, 237, 252, 0.96);
+  --ui-label-line: linear-gradient(to right, rgba(255, 163, 231, 0.04), rgba(255, 163, 231, 0.9), rgba(128, 246, 255, 0.9));
+  --ui-divider-line: linear-gradient(to right, transparent, rgba(255, 189, 242, 0.66), rgba(131, 246, 255, 0.66), transparent);
+
+  --ui-control-bg: rgba(79, 14, 90, 0.92);
+  --ui-control-border: rgba(255, 186, 241, 0.72);
+  --ui-control-border-focus: rgba(129, 246, 255, 0.95);
+  --ui-control-placeholder: rgba(255, 226, 247, 0.8);
+  --ui-control-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12), inset 0 0 14px rgba(255, 157, 233, 0.32);
+
+  --ui-btn-primary-bg: linear-gradient(145deg, #ffb8ef, #ff8fe3 44%, #ff72d8 100%);
+  --ui-btn-primary-color: #3b0448;
+  --ui-btn-primary-hover-shadow: 0 14px 30px rgba(255, 99, 210, 0.46);
+
+  --ui-btn-secondary-bg: linear-gradient(145deg, rgba(255, 152, 228, 0.86), rgba(220, 91, 190, 0.78));
+  --ui-btn-secondary-border: rgba(255, 202, 246, 0.82);
+  --ui-btn-secondary-color: rgba(255, 241, 253, 0.99);
+  --ui-btn-secondary-hover-bg: linear-gradient(145deg, rgba(255, 164, 234, 0.9), rgba(229, 99, 197, 0.84));
+
+  --ui-btn-ghost-bg: linear-gradient(145deg, rgba(255, 140, 221, 0.72), rgba(198, 74, 171, 0.64));
+  --ui-btn-ghost-border: rgba(255, 201, 245, 0.7);
+  --ui-btn-ghost-color: rgba(255, 236, 251, 0.97);
+  --ui-btn-ghost-hover-bg: linear-gradient(145deg, rgba(255, 155, 229, 0.78), rgba(211, 86, 183, 0.68));
+
+  --ui-btn-soft-bg: linear-gradient(145deg, rgba(255, 163, 233, 0.76), rgba(200, 79, 174, 0.68));
+  --ui-btn-soft-border: rgba(255, 198, 245, 0.62);
+  --ui-btn-soft-color: rgba(255, 234, 250, 0.96);
+  --ui-btn-soft-hover-bg: linear-gradient(145deg, rgba(255, 173, 238, 0.82), rgba(209, 89, 181, 0.74));
+
+  --ui-chip-bg: linear-gradient(145deg, rgba(103, 16, 109, 0.95), rgba(79, 11, 92, 0.95));
+  --ui-chip-border: rgba(137, 246, 255, 0.9);
+  --ui-chip-color: rgba(198, 250, 255, 0.99);
+
+  --ui-meter-bg: rgba(42, 8, 53, 0.9);
+  --ui-meter-border: rgba(255, 191, 243, 0.72);
+  --ui-meter-fill: linear-gradient(90deg, rgba(255, 136, 225, 0.98), rgba(255, 102, 210, 0.96), rgba(127, 245, 255, 0.98));
+
+  --ui-item-bg:
+    linear-gradient(180deg, rgba(76, 14, 88, 0.78), rgba(59, 10, 73, 0.82)),
+    url('./assets/kawaii-hearts-rain.svg');
+  --ui-item-border: rgba(255, 184, 239, 0.54);
+
+  --ui-toast-bg: rgba(84, 12, 85, 0.94);
+  --ui-toast-border: rgba(255, 194, 244, 0.86);
+  --ui-toast-color: #ffe4f8;
+  --ui-toast-shadow: 0 16px 36px rgba(255, 93, 204, 0.36);
+
+  --ui-overlay-bg: rgba(52, 8, 62, 0.9);
+  --ui-overlay-color: #ffd8f5;
+  --ui-overlay-pattern:
+    linear-gradient(180deg, rgba(255, 209, 246, 0.18), transparent 24%, rgba(26, 6, 37, 0.66)),
+    url('./assets/kawaii-hearts-rain.svg'),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 2px, transparent 5px);
+  --ui-scanline-bg: rgba(129, 244, 255, 0.96);
+
+  --ui-shell-grid: none;
+  --ui-shell-before-image:
+    url('./assets/kawaii-anime-stickers.svg'),
+    radial-gradient(circle at 8% 10%, rgba(255, 158, 229, 0.4), transparent 42%),
+    radial-gradient(circle at 90% 8%, rgba(129, 246, 255, 0.34), transparent 42%),
+    linear-gradient(180deg, rgba(56, 9, 66, 0.82), rgba(34, 5, 44, 0.95));
+  --ui-shell-before-opacity: 1;
+  --ui-shell-after-image:
+    url('./assets/kawaii-hearts-rain.svg'),
+    radial-gradient(circle at 12% 92%, rgba(255, 166, 232, 0.3), transparent 34%),
+    radial-gradient(circle at 90% 92%, rgba(126, 244, 255, 0.26), transparent 34%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 5px);
+  --ui-shell-after-opacity: 1;
+
+  --ui-shell-art-image: url('./assets/kawaii-bubbles.svg');
+  --ui-shell-art-size: cover;
+  --ui-shell-art-position: center;
+  --ui-shell-art-repeat: no-repeat;
+  --ui-shell-art-opacity: 0.66;
+  --ui-shell-art-blend: screen;
+  --ui-shell-art-filter: saturate(1.28) brightness(1.1);
+  --ui-shell-art-animation: ui-art-drift 14s ease-in-out infinite alternate;
+
+  --ui-shell-art-front-image: url('./assets/kawaii-sparkles.svg');
+  --ui-shell-art-front-size: cover;
+  --ui-shell-art-front-position: center;
+  --ui-shell-art-front-repeat: no-repeat;
+  --ui-shell-art-front-opacity: 0.58;
+  --ui-shell-art-front-blend: screen;
+  --ui-shell-art-front-filter: saturate(1.34) brightness(1.12);
+  --ui-shell-art-front-animation: kawaii-front-drift 7s ease-in-out infinite;
+
+  background: #220630;
+}
+
+body.design-kawaii-overdrive .ui-corners,
+body.design-kawaii-overdrive .ui-notch {
+  display: none;
+}
+
+body.design-kawaii-overdrive .ui-surface {
+  border-radius: calc(var(--ui-radius-frame) + 0.18rem);
+  box-shadow: 0 22px 46px rgba(50, 8, 58, 0.58), inset 0 0 0 1px rgba(255, 235, 251, 0.1);
+}
+
+body.design-kawaii-overdrive .ui-panel {
+  border-width: 2px;
+  border-radius: calc(var(--ui-radius-panel) - 0.04rem) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 251, 0.24), inset 0 -1px 0 rgba(0, 0, 0, 0.24);
+}
+
+body.design-kawaii-overdrive .ui-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: none;
+}
+
+body.design-kawaii-overdrive .ui-label::after {
+  width: 82px;
+  height: 2px;
+  border-radius: 999px;
+}
+
+body.design-kawaii-overdrive .ui-btn-primary,
+body.design-kawaii-overdrive .ui-btn-secondary,
+body.design-kawaii-overdrive .ui-btn-ghost,
+body.design-kawaii-overdrive .ui-btn-soft {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-width: 2px;
+  border-radius: 999px;
+  font-family: var(--ui-font-display);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.03em;
+}
+
+body.design-kawaii-overdrive .ui-btn-primary {
+  border-color: rgba(255, 218, 249, 0.88);
+}
+
+body.design-kawaii-overdrive .ui-btn-secondary,
+body.design-kawaii-overdrive .ui-btn-ghost,
+body.design-kawaii-overdrive .ui-btn-soft {
+  border-color: rgba(255, 212, 247, 0.78);
+}
+
+body.design-kawaii-overdrive .ui-btn-primary::after,
+body.design-kawaii-overdrive .ui-btn-secondary::after,
+body.design-kawaii-overdrive .ui-btn-ghost::after,
+body.design-kawaii-overdrive .ui-btn-soft::after {
+  content: '';
+  position: absolute;
+  inset: -60% -10%;
+  z-index: -1;
+  opacity: 0.26;
+  background-image: url('./assets/kawaii-hearts-rain.svg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  animation: kawaii-heart-rain 4.4s linear infinite;
+}
+
+body.design-kawaii-overdrive .ui-btn-primary:hover,
+body.design-kawaii-overdrive .ui-btn-secondary:hover,
+body.design-kawaii-overdrive .ui-btn-ghost:hover,
+body.design-kawaii-overdrive .ui-btn-soft:hover {
+  transform: translateY(-1px) scale(1.04);
+}
+
+body.design-kawaii-overdrive .ui-btn-primary:hover::after,
+body.design-kawaii-overdrive .ui-btn-secondary:hover::after,
+body.design-kawaii-overdrive .ui-btn-ghost:hover::after,
+body.design-kawaii-overdrive .ui-btn-soft:hover::after {
+  opacity: 0.42;
+}
+
+body.design-kawaii-overdrive .ui-input,
+body.design-kawaii-overdrive .ui-select {
+  border-width: 2px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+body.design-kawaii-overdrive .ui-chip {
+  border-width: 2px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: 0.08em;
+  animation: kawaii-chip-drift 2.8s ease-in-out infinite;
+}
+
+body.design-kawaii-overdrive .ui-banner {
+  border-width: 2px;
+  border-radius: 999px;
+  font-family: var(--ui-font-display);
+  text-transform: none;
+  letter-spacing: 0.08em;
+}
+
+body.design-kawaii-overdrive .ui-item {
+  border-width: 2px;
+  border-radius: 1.2rem;
+}
+
+body.design-kawaii-overdrive .ui-panel .rounded-lg {
+  border-radius: 1.2rem;
+  border-color: rgba(255, 195, 241, 0.54) !important;
+  background:
+    linear-gradient(180deg, rgba(90, 16, 102, 0.76), rgba(63, 11, 80, 0.84)),
+    url('./assets/kawaii-hearts-rain.svg') !important;
+  box-shadow: inset 0 1px 0 rgba(255, 229, 250, 0.12);
+}
+
+body.design-kawaii-overdrive .ui-overlay {
+  backdrop-filter: blur(3px);
+}
+
+body.design-kawaii-overdrive .ui-sidebar {
+  background: var(--ui-runtime-sidebar-bg), linear-gradient(180deg, rgba(101, 18, 112, 0.9), rgba(67, 10, 88, 0.94));
+  border-right-color: rgba(255, 185, 241, 0.36);
+}
+
+body.design-kawaii-overdrive .ui-sidebar .ui-sidebarIcon {
+  border-width: 2px;
+  border-color: rgba(255, 206, 247, 0.72);
+  border-radius: 999px;
+  background:
+    linear-gradient(145deg, rgba(255, 146, 225, 0.84), rgba(214, 95, 188, 0.74)),
+    url('./assets/kawaii-hearts-rain.svg');
+  color: rgba(255, 241, 253, 0.97);
+  box-shadow: inset 0 1px 0 rgba(255, 234, 251, 0.24);
+}
+
+body.design-kawaii-overdrive .ui-sidebar .tone-muted,
+body.design-kawaii-overdrive .ui-sidebar .group-hover\:text-neon {
+  color: rgba(255, 213, 247, 0.94) !important;
+}
+
+body.design-kawaii-overdrive .text-neon {
+  color: #ffcaf3 !important;
+}
+
+body.design-kawaii-overdrive .text-ember {
+  color: #ff9fe3 !important;
+}
+
+body.design-kawaii-overdrive .ui-panel::before {
+  animation: kawaii-sweep 4.7s linear infinite;
+}
+
+body.design-kawaii-overdrive .ui-shell::before {
+  animation: kawaii-sticker-pan 15s ease-in-out infinite alternate;
+}
+
+body.design-kawaii-overdrive .ui-shell::after {
+  animation: kawaii-pan 8s ease-in-out infinite alternate;
+}
+
+@keyframes kawaii-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  58% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes kawaii-pan {
+  0% {
+    filter: saturate(1.06) brightness(1);
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    filter: saturate(1.3) brightness(1.08);
+    transform: scale(1.03) translateY(-9px);
+  }
+}
+
+@keyframes kawaii-sticker-pan {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.03) translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes kawaii-chip-drift {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.05);
+  }
+}
+
+@keyframes kawaii-front-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes kawaii-heart-rain {
+  0% {
+    transform: translate3d(0, -6%, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(0, 8%, 0) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.design-kawaii-overdrive .ui-panel::before,
+  body.design-kawaii-overdrive .ui-shell::before,
+  body.design-kawaii-overdrive .ui-shell::after,
+  body.design-kawaii-overdrive .ui-shell-art,
+  body.design-kawaii-overdrive .ui-shell-art--front,
+  body.design-kawaii-overdrive .ui-chip,
+  body.design-kawaii-overdrive .ui-btn-primary::after,
+  body.design-kawaii-overdrive .ui-btn-secondary::after,
+  body.design-kawaii-overdrive .ui-btn-ghost::after,
+  body.design-kawaii-overdrive .ui-btn-soft::after {
+    animation: none;
+    transform: none;
+  }
+}

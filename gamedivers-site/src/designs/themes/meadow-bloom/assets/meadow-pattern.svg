@@ -1,0 +1,43 @@
+<svg width="960" height="640" viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="petalA" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#ffe7a8" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#f2c868" stop-opacity="0.15"/>
+    </radialGradient>
+    <radialGradient id="petalB" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#ffd8ef" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#f0a7cd" stop-opacity="0.12"/>
+    </radialGradient>
+    <radialGradient id="leaf" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#bce98f" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#7ec156" stop-opacity="0.1"/>
+    </radialGradient>
+  </defs>
+
+  <g opacity="0.75">
+    <ellipse cx="95" cy="96" rx="38" ry="24" fill="url(#leaf)" transform="rotate(-24 95 96)"/>
+    <ellipse cx="180" cy="155" rx="28" ry="17" fill="url(#leaf)" transform="rotate(20 180 155)"/>
+    <ellipse cx="850" cy="118" rx="44" ry="28" fill="url(#leaf)" transform="rotate(18 850 118)"/>
+    <ellipse cx="770" cy="212" rx="32" ry="20" fill="url(#leaf)" transform="rotate(-22 770 212)"/>
+    <ellipse cx="190" cy="540" rx="42" ry="26" fill="url(#leaf)" transform="rotate(-10 190 540)"/>
+    <ellipse cx="840" cy="536" rx="52" ry="28" fill="url(#leaf)" transform="rotate(8 840 536)"/>
+  </g>
+
+  <g opacity="0.7">
+    <circle cx="225" cy="250" r="18" fill="url(#petalA)"/>
+    <circle cx="750" cy="350" r="24" fill="url(#petalA)"/>
+    <circle cx="460" cy="130" r="16" fill="url(#petalB)"/>
+    <circle cx="530" cy="510" r="20" fill="url(#petalB)"/>
+    <circle cx="120" cy="420" r="15" fill="url(#petalA)"/>
+    <circle cx="870" cy="270" r="13" fill="url(#petalB)"/>
+  </g>
+
+  <g opacity="0.6" fill="#fff6dd">
+    <circle cx="230" cy="250" r="5"/>
+    <circle cx="755" cy="352" r="6"/>
+    <circle cx="462" cy="132" r="4"/>
+    <circle cx="534" cy="514" r="5"/>
+    <circle cx="123" cy="422" r="4"/>
+    <circle cx="874" cy="273" r="4"/>
+  </g>
+</svg>

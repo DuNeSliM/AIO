@@ -1,0 +1,525 @@
+body.design-meadow-bloom {
+  --tone-primary: #fff7de;
+  --tone-muted: #d6c79c;
+  --tone-soft: #efe2bd;
+
+  --ui-font-body: 'Nunito', 'M PLUS Rounded 1c', system-ui, sans-serif;
+  --ui-font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+
+  --ui-radius-frame: 1.35rem;
+  --ui-radius-panel: 1.12rem;
+  --ui-radius-control: 0.48rem;
+  --ui-radius-chip: 0.54rem;
+
+  --ui-panel-pad-sm: 1.15rem;
+  --ui-panel-pad-md: 1.45rem;
+  --ui-panel-pad-lg: 1.8rem;
+
+  --ui-frame-gradient: linear-gradient(148deg, rgba(173, 112, 54, 0.92), rgba(118, 73, 34, 0.9));
+  --ui-frame-shadow: 0 18px 34px rgba(27, 18, 8, 0.46);
+  --ui-frame-accent-gradient: linear-gradient(148deg, rgba(198, 142, 76, 0.94), rgba(143, 88, 45, 0.93));
+  --ui-frame-accent-shadow: 0 20px 40px rgba(34, 23, 10, 0.5);
+
+  --ui-panel-bg:
+    linear-gradient(180deg, rgba(63, 44, 21, 0.94), rgba(44, 32, 15, 0.92)),
+    radial-gradient(circle at 18% 26%, rgba(255, 240, 190, 0.08) 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 62%, rgba(255, 239, 188, 0.07) 0 2px, transparent 3px);
+  --ui-panel-border: rgba(244, 213, 117, 0.46);
+  --ui-panel-sweep: linear-gradient(120deg, transparent, rgba(255, 234, 168, 0.16), transparent);
+  --ui-panel-overlay:
+    linear-gradient(180deg, rgba(255, 236, 184, 0.08), transparent 26%, rgba(14, 12, 5, 0.5)),
+    repeating-linear-gradient(13deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 8px),
+    repeating-linear-gradient(-17deg, rgba(73, 48, 23, 0.22) 0px, rgba(73, 48, 23, 0.22) 1px, transparent 1px, transparent 9px);
+
+  --ui-label-color: rgba(255, 236, 185, 0.95);
+  --ui-label-line: linear-gradient(to right, rgba(255, 227, 140, 0.05), rgba(255, 223, 130, 0.88), rgba(255, 227, 140, 0.05));
+  --ui-divider-line: linear-gradient(to right, transparent, rgba(246, 210, 105, 0.7), transparent);
+
+  --ui-control-bg: rgba(45, 33, 17, 0.92);
+  --ui-control-border: rgba(237, 202, 105, 0.58);
+  --ui-control-border-focus: rgba(253, 229, 150, 0.92);
+  --ui-control-placeholder: rgba(241, 221, 161, 0.64);
+  --ui-control-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+
+  --ui-btn-primary-bg: linear-gradient(180deg, #f2ca70, #deae4f 56%, #c5903a);
+  --ui-btn-primary-color: #35220f;
+  --ui-btn-primary-hover-shadow: 0 10px 18px rgba(223, 174, 80, 0.34);
+
+  --ui-btn-secondary-bg: linear-gradient(180deg, rgba(95, 133, 64, 0.82), rgba(62, 99, 40, 0.85));
+  --ui-btn-secondary-border: rgba(218, 207, 123, 0.66);
+  --ui-btn-secondary-color: rgba(251, 241, 193, 0.98);
+  --ui-btn-secondary-hover-bg: linear-gradient(180deg, rgba(112, 151, 74, 0.86), rgba(70, 112, 46, 0.9));
+
+  --ui-btn-ghost-bg: linear-gradient(180deg, rgba(102, 79, 43, 0.74), rgba(79, 59, 30, 0.8));
+  --ui-btn-ghost-border: rgba(235, 197, 102, 0.58);
+  --ui-btn-ghost-color: rgba(255, 231, 170, 0.96);
+  --ui-btn-ghost-hover-bg: linear-gradient(180deg, rgba(120, 92, 51, 0.82), rgba(92, 69, 36, 0.86));
+
+  --ui-btn-soft-bg: linear-gradient(180deg, rgba(118, 98, 66, 0.8), rgba(88, 71, 46, 0.82));
+  --ui-btn-soft-border: rgba(230, 191, 102, 0.44);
+  --ui-btn-soft-color: rgba(247, 223, 159, 0.94);
+  --ui-btn-soft-hover-bg: linear-gradient(180deg, rgba(131, 108, 70, 0.84), rgba(98, 78, 50, 0.86));
+
+  --ui-btn-sunflower-shape: polygon(
+    50% 0%,
+    61% 8%,
+    74% 2%,
+    81% 14%,
+    94% 12%,
+    92% 26%,
+    100% 38%,
+    90% 50%,
+    100% 62%,
+    92% 74%,
+    94% 88%,
+    81% 86%,
+    74% 98%,
+    61% 92%,
+    50% 100%,
+    39% 92%,
+    26% 98%,
+    19% 86%,
+    6% 88%,
+    8% 74%,
+    0% 62%,
+    10% 50%,
+    0% 38%,
+    8% 26%,
+    6% 12%,
+    19% 14%,
+    26% 2%,
+    39% 8%
+  );
+  --ui-btn-primary-shape: var(--ui-btn-sunflower-shape);
+  --ui-btn-secondary-shape: var(--ui-btn-sunflower-shape);
+  --ui-btn-ghost-shape: var(--ui-btn-sunflower-shape);
+  --ui-btn-soft-shape: var(--ui-btn-sunflower-shape);
+
+  --ui-chip-bg: linear-gradient(180deg, rgba(78, 53, 24, 0.94), rgba(61, 41, 18, 0.92));
+  --ui-chip-border: rgba(241, 205, 109, 0.68);
+  --ui-chip-color: rgba(255, 233, 173, 0.97);
+
+  --ui-meter-bg: rgba(33, 23, 11, 0.88);
+  --ui-meter-border: rgba(241, 206, 111, 0.52);
+  --ui-meter-fill: linear-gradient(90deg, rgba(151, 206, 84, 0.96), rgba(236, 200, 103, 0.94));
+
+  --ui-item-bg:
+    linear-gradient(180deg, rgba(56, 39, 19, 0.86), rgba(46, 32, 15, 0.86)),
+    radial-gradient(circle at 14% 16%, rgba(255, 240, 184, 0.06) 0 2px, transparent 3px);
+  --ui-item-border: rgba(235, 198, 106, 0.42);
+
+  --ui-toast-bg: rgba(66, 42, 16, 0.92);
+  --ui-toast-border: rgba(248, 210, 116, 0.62);
+  --ui-toast-color: #ffe6a8;
+  --ui-toast-shadow: 0 12px 22px rgba(36, 23, 10, 0.4);
+
+  --ui-overlay-bg: rgba(37, 26, 11, 0.86);
+  --ui-overlay-color: #f8e3ad;
+  --ui-overlay-pattern:
+    linear-gradient(180deg, rgba(255, 240, 198, 0.14), transparent 30%, rgba(15, 13, 6, 0.58)),
+    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 2px, transparent 3px, transparent 7px);
+  --ui-scanline-bg: rgba(247, 220, 140, 0.75);
+
+  --ui-shell-grid: none;
+  --ui-shell-before-image:
+    radial-gradient(circle at 50% -16%, rgba(255, 228, 156, 0.44), transparent 48%),
+    linear-gradient(180deg, rgba(45, 77, 32, 0.66), rgba(21, 38, 16, 0.92)),
+    linear-gradient(0deg, rgba(77, 118, 50, 0.22) 0px, rgba(77, 118, 50, 0.22) 2px, transparent 2px, transparent 9px);
+  --ui-shell-before-opacity: 1;
+  --ui-shell-after-image:
+    radial-gradient(circle at 10% 85%, rgba(112, 167, 76, 0.34), transparent 36%),
+    radial-gradient(circle at 88% 84%, rgba(94, 152, 65, 0.34), transparent 36%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.015) 1px, transparent 2px, transparent 4px);
+  --ui-shell-after-opacity: 0.95;
+
+  --ui-shell-art-image: url('./assets/meadow-pattern.svg');
+  --ui-shell-art-size: cover;
+  --ui-shell-art-position: center;
+  --ui-shell-art-repeat: no-repeat;
+  --ui-shell-art-opacity: 0.38;
+  --ui-shell-art-blend: screen;
+  --ui-shell-art-filter: saturate(1.1) contrast(1.03);
+  --ui-shell-art-animation: ui-art-drift 24s ease-in-out infinite alternate;
+
+  --ui-shell-art-front-image: url('./assets/meadow-foreground.svg');
+  --ui-shell-art-front-size: cover;
+  --ui-shell-art-front-position: center;
+  --ui-shell-art-front-repeat: no-repeat;
+  --ui-shell-art-front-opacity: 0.3;
+  --ui-shell-art-front-blend: normal;
+  --ui-shell-art-front-filter: saturate(1.12);
+  --ui-shell-art-front-animation: meadow-petal-float 14s ease-in-out infinite;
+
+  background: #122013;
+}
+
+body.design-meadow-bloom .ui-corners,
+body.design-meadow-bloom .ui-notch {
+  display: none;
+}
+
+body.design-meadow-bloom .ui-surface {
+  border-radius: 1rem 1.12rem 0.94rem 1.08rem;
+  box-shadow: 0 16px 30px rgba(26, 18, 8, 0.46), inset 0 0 0 1px rgba(255, 222, 137, 0.1);
+}
+
+body.design-meadow-bloom .ui-surface--accent {
+  border-radius: 1.1rem 0.98rem 1.16rem 0.92rem;
+}
+
+body.design-meadow-bloom .ui-panel {
+  border-width: 2px;
+  border-radius: 0.94rem 1.08rem 0.88rem 1rem !important;
+  box-shadow: inset 0 1px 0 rgba(255, 227, 148, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.24);
+}
+
+body.design-meadow-bloom .ui-panel::before {
+  opacity: 0.5;
+  animation: meadow-sweep 12s linear infinite;
+}
+
+body.design-meadow-bloom .ui-panel::after {
+  opacity: 0.72;
+}
+
+body.design-meadow-bloom .ui-label {
+  font-family: var(--ui-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
+body.design-meadow-bloom .ui-label::after {
+  width: 64px;
+  height: 2px;
+  border-radius: 999px;
+}
+
+body.design-meadow-bloom .ui-divider {
+  height: 2px;
+  border-radius: 999px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(244, 211, 117, 0.72) 0px,
+    rgba(244, 211, 117, 0.72) 10px,
+    rgba(119, 83, 34, 0.18) 10px,
+    rgba(119, 83, 34, 0.18) 15px
+  );
+}
+
+body.design-meadow-bloom .ui-btn-primary,
+body.design-meadow-bloom .ui-btn-secondary,
+body.design-meadow-bloom .ui-btn-ghost,
+body.design-meadow-bloom .ui-btn-soft {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-width: 2px;
+  border-radius: 0;
+  padding-top: 0.58rem;
+  padding-bottom: 0.58rem;
+  font-family: var(--ui-font-display);
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+body.design-meadow-bloom .ui-btn-primary {
+  border-color: rgba(93, 61, 23, 0.78);
+  min-height: 2.6rem;
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
+  background:
+    var(--ui-runtime-btn-primary-bg),
+    linear-gradient(180deg, rgba(252, 227, 149, 0.32), rgba(201, 145, 55, 0.08)),
+    repeating-linear-gradient(17deg, rgba(118, 75, 30, 0.3) 0px, rgba(118, 75, 30, 0.3) 1px, transparent 1px, transparent 7px),
+    var(--ui-btn-primary-bg);
+  box-shadow: inset 0 2px 0 rgba(255, 234, 178, 0.36), 0 3px 0 rgba(112, 72, 26, 0.8), 0 12px 20px rgba(34, 22, 9, 0.24);
+  text-shadow: 0 1px 0 rgba(255, 241, 198, 0.38);
+}
+
+body.design-meadow-bloom .ui-btn-secondary {
+  background:
+    var(--ui-runtime-btn-secondary-bg),
+    radial-gradient(circle at 26% 34%, rgba(196, 230, 143, 0.24) 0 18%, transparent 22%),
+    repeating-linear-gradient(-12deg, rgba(38, 76, 37, 0.28) 0px, rgba(38, 76, 37, 0.28) 1px, transparent 1px, transparent 7px),
+    var(--ui-btn-secondary-bg);
+}
+
+body.design-meadow-bloom .ui-btn-ghost {
+  background:
+    var(--ui-runtime-btn-ghost-bg),
+    repeating-linear-gradient(0deg, rgba(255, 224, 156, 0.06) 0px, rgba(255, 224, 156, 0.06) 1px, transparent 1px, transparent 6px),
+    repeating-linear-gradient(14deg, rgba(90, 63, 31, 0.2) 0px, rgba(90, 63, 31, 0.2) 1px, transparent 1px, transparent 8px),
+    var(--ui-btn-ghost-bg);
+}
+
+body.design-meadow-bloom .ui-btn-soft {
+  background:
+    var(--ui-runtime-btn-soft-bg),
+    repeating-linear-gradient(-16deg, rgba(255, 222, 151, 0.09) 0px, rgba(255, 222, 151, 0.09) 1px, transparent 1px, transparent 9px),
+    repeating-linear-gradient(18deg, rgba(90, 67, 37, 0.25) 0px, rgba(90, 67, 37, 0.25) 1px, transparent 1px, transparent 8px),
+    var(--ui-btn-soft-bg);
+}
+
+body.design-meadow-bloom .ui-btn-primary::before,
+body.design-meadow-bloom .ui-btn-secondary::before,
+body.design-meadow-bloom .ui-btn-ghost::before,
+body.design-meadow-bloom .ui-btn-soft::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.35;
+  background:
+    radial-gradient(circle at 84% 20%, rgba(255, 240, 188, 0.86) 0 15%, transparent 18%),
+    radial-gradient(circle at 84% 20%, rgba(255, 240, 188, 0.46) 0 28%, transparent 32%),
+    repeating-conic-gradient(from 10deg at 84% 20%, rgba(255, 225, 136, 0.26) 0 8deg, transparent 8deg 16deg);
+  mix-blend-mode: screen;
+  animation: meadow-sun-glow 4.8s ease-in-out infinite;
+  transition: opacity 140ms ease;
+}
+
+body.design-meadow-bloom .ui-btn-primary::before {
+  opacity: 0.5;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(121, 73, 27, 0.84) 0 12%, rgba(75, 44, 13, 0.9) 13% 18%, transparent 19%),
+    repeating-conic-gradient(
+      from -6deg at 50% 50%,
+      rgba(252, 220, 108, 0.62) 0 10deg,
+      rgba(236, 179, 68, 0.66) 10deg 20deg,
+      transparent 20deg 30deg
+    ),
+    radial-gradient(circle at 84% 20%, rgba(255, 240, 188, 0.76) 0 15%, transparent 18%),
+    radial-gradient(circle at 84% 20%, rgba(255, 240, 188, 0.38) 0 28%, transparent 32%);
+  animation: meadow-sunflower-glow 5.4s ease-in-out infinite;
+}
+
+body.design-meadow-bloom .ui-btn-primary::after,
+body.design-meadow-bloom .ui-btn-secondary::after,
+body.design-meadow-bloom .ui-btn-ghost::after,
+body.design-meadow-bloom .ui-btn-soft::after {
+  content: '';
+  position: absolute;
+  inset: -12% -8%;
+  z-index: -1;
+  opacity: 0;
+  background:
+    repeating-linear-gradient(-26deg, transparent 0 7px, rgba(160, 214, 255, 0.7) 7px 9px, transparent 9px 17px),
+    linear-gradient(180deg, rgba(123, 185, 255, 0.18), rgba(71, 135, 214, 0.12));
+  transition: opacity 160ms ease;
+}
+
+body.design-meadow-bloom .ui-btn-primary:hover,
+body.design-meadow-bloom .ui-btn-secondary:hover,
+body.design-meadow-bloom .ui-btn-ghost:hover,
+body.design-meadow-bloom .ui-btn-soft:hover {
+  transform: translateY(-1px) rotate(-0.2deg);
+}
+
+body.design-meadow-bloom .ui-btn-primary:hover::before,
+body.design-meadow-bloom .ui-btn-secondary:hover::before,
+body.design-meadow-bloom .ui-btn-ghost:hover::before,
+body.design-meadow-bloom .ui-btn-soft:hover::before {
+  opacity: 0.12;
+}
+
+body.design-meadow-bloom .ui-btn-primary:hover::after,
+body.design-meadow-bloom .ui-btn-secondary:hover::after,
+body.design-meadow-bloom .ui-btn-ghost:hover::after,
+body.design-meadow-bloom .ui-btn-soft:hover::after {
+  opacity: 0.46;
+  animation: meadow-rain-sweep 640ms linear infinite;
+}
+
+body.design-meadow-bloom .ui-btn-primary:active,
+body.design-meadow-bloom .ui-btn-secondary:active,
+body.design-meadow-bloom .ui-btn-ghost:active,
+body.design-meadow-bloom .ui-btn-soft:active {
+  transform: translateY(1px);
+}
+
+body.design-meadow-bloom .ui-btn-secondary,
+body.design-meadow-bloom .ui-btn-ghost,
+body.design-meadow-bloom .ui-btn-soft {
+  border-color: rgba(241, 204, 108, 0.66);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 168, 0.14);
+}
+
+body.design-meadow-bloom .ui-input,
+body.design-meadow-bloom .ui-select {
+  border-width: 2px;
+  border-radius: 0.42rem 0.52rem 0.4rem 0.48rem;
+  font-weight: 600;
+  background:
+    linear-gradient(180deg, rgba(51, 37, 18, 0.9), rgba(41, 29, 14, 0.9)),
+    repeating-linear-gradient(-15deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 8px);
+}
+
+body.design-meadow-bloom .ui-chip {
+  border-width: 2px;
+  border-style: dashed;
+  border-radius: 0.48rem;
+  text-transform: none;
+  letter-spacing: 0.05em;
+  animation: meadow-chip-sway 4.6s ease-in-out infinite;
+}
+
+body.design-meadow-bloom .ui-item {
+  border-width: 2px;
+  border-radius: 0.74rem 0.86rem 0.7rem 0.82rem;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 138, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+}
+
+body.design-meadow-bloom .ui-toast {
+  border-width: 2px;
+  border-radius: 0.68rem 0.8rem 0.64rem 0.76rem;
+  text-transform: none;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+body.design-meadow-bloom .ui-banner {
+  border-width: 2px;
+  border-radius: 0.46rem 0.58rem 0.42rem 0.54rem;
+  font-family: var(--ui-font-display);
+  text-transform: none;
+  letter-spacing: 0.06em;
+}
+
+body.design-meadow-bloom .ui-progress {
+  border-color: rgba(240, 204, 108, 0.56);
+  background: rgba(37, 26, 11, 0.82);
+}
+
+body.design-meadow-bloom .ui-progress::after {
+  background: linear-gradient(90deg, rgba(137, 193, 71, 0.96), rgba(237, 197, 96, 0.95));
+  box-shadow: none;
+}
+
+body.design-meadow-bloom .ui-panel .rounded-lg {
+  border-radius: 0.68rem 0.82rem 0.64rem 0.78rem;
+  border-width: 2px;
+  border-color: rgba(239, 202, 106, 0.42) !important;
+  background:
+    linear-gradient(180deg, rgba(61, 42, 19, 0.8), rgba(47, 33, 15, 0.84)),
+    radial-gradient(circle at 80% 18%, rgba(255, 226, 145, 0.08) 0 2px, transparent 3px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 138, 0.1);
+}
+
+body.design-meadow-bloom .ui-overlay {
+  backdrop-filter: blur(1px);
+}
+
+body.design-meadow-bloom .ui-sidebar {
+  background: var(--ui-runtime-sidebar-bg), linear-gradient(180deg, rgba(43, 70, 31, 0.88), rgba(29, 48, 21, 0.95));
+  border-right-color: rgba(206, 170, 86, 0.34);
+}
+
+body.design-meadow-bloom .ui-sidebar .ui-sidebarIcon {
+  border-width: 2px;
+  border-color: rgba(231, 199, 112, 0.52);
+  background: linear-gradient(180deg, rgba(79, 58, 25, 0.78), rgba(57, 40, 17, 0.88));
+  color: rgba(255, 229, 162, 0.94);
+  border-radius: 0.5rem 0.62rem 0.48rem 0.58rem;
+  box-shadow: inset 0 1px 0 rgba(255, 236, 188, 0.16);
+}
+
+body.design-meadow-bloom .ui-sidebar .tone-muted,
+body.design-meadow-bloom .ui-sidebar .group-hover\:text-neon {
+  color: rgba(232, 214, 166, 0.86) !important;
+}
+
+body.design-meadow-bloom .text-neon {
+  color: #f3d99e !important;
+}
+
+body.design-meadow-bloom .text-ember {
+  color: #f2cf8a !important;
+}
+
+@keyframes meadow-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  60% {
+    transform: translateX(120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes meadow-chip-sway {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-0.4deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(0.4deg);
+  }
+}
+
+@keyframes meadow-petal-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0) scale(1.01);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes meadow-sun-glow {
+  0%,
+  100% {
+    filter: saturate(1) brightness(1);
+    transform: translateY(0);
+  }
+  50% {
+    filter: saturate(1.06) brightness(1.08);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes meadow-sunflower-glow {
+  0%,
+  100% {
+    filter: saturate(1) brightness(1);
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    filter: saturate(1.12) brightness(1.12);
+    transform: translateY(-1px) rotate(0.6deg);
+  }
+}
+
+@keyframes meadow-rain-sweep {
+  0% {
+    transform: translate3d(-18%, -6%, 0);
+  }
+  100% {
+    transform: translate3d(18%, 8%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.design-meadow-bloom .ui-panel::before,
+  body.design-meadow-bloom .ui-shell-art,
+  body.design-meadow-bloom .ui-shell-art--front,
+  body.design-meadow-bloom .ui-chip,
+  body.design-meadow-bloom .ui-btn-primary::before,
+  body.design-meadow-bloom .ui-btn-secondary::before,
+  body.design-meadow-bloom .ui-btn-ghost::before,
+  body.design-meadow-bloom .ui-btn-soft::before,
+  body.design-meadow-bloom .ui-btn-primary:hover::after,
+  body.design-meadow-bloom .ui-btn-secondary:hover::after,
+  body.design-meadow-bloom .ui-btn-ghost:hover::after,
+  body.design-meadow-bloom .ui-btn-soft:hover::after {
+    animation: none;
+    transform: none;
+  }
+}

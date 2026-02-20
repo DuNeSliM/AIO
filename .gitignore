@@ -1,0 +1,134 @@
+# ==========================
+# Executables & Binaries
+# ==========================
+*.exe
+*.dll
+*.so
+*.dylib
+*.bin
+*.out
+
+# ==========================
+# Node.js
+# ==========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ==========================
+# Build outputs
+# ==========================
+dist/
+build/
+out/
+target/
+*.build/
+
+# ==========================
+# Bruno
+# ==========================
+bruno/
+
+# ==========================
+# Go
+# ==========================
+*.test
+*.prof
+vendor/
+*.gocache
+*.gofmt
+
+# ==========================
+# Rust / Tauri
+# ==========================
+frontend/src-tauri/target/
+Cargo.lock
+
+# ==========================
+# .NET / C#
+# ==========================
+bin/
+obj/
+*.pdb
+*.user
+*.suo
+*.cache
+*.nupkg
+packages/
+TestResults/
+
+# ==========================
+# IDE & Editors
+# ==========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ==========================
+# OS Generated
+# ==========================
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==========================
+# Environment & Secrets
+# ==========================
+.env
+.env.local
+.env.*.local
+*.env
+.envrc
+*.pem
+*.key
+
+# ==========================
+# Logs
+# ==========================
+logs/
+*.log
+
+# ==========================
+# Temp & Cache
+# ==========================
+tmp/
+temp/
+.cache/
+*.tmp
+*.temp
+.turbo/
+
+# ==========================
+# Coverage & Testing
+# ==========================
+coverage/
+.nyc_output/
+*.lcov
+
+# ==========================
+# Docker
+# ==========================
+*.tar
+
+# ==========================
+# Misc
+# ==========================
+.parcel-cache/
+.next/
+.nuxt/
+.output/
+.vercel/
+Cargo.lock
