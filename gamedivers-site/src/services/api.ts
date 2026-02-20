@@ -1,6 +1,6 @@
 import type { AuthResponse, Game, ItadPricesResponse, ItadSearchItem, User } from '../types'
 
-export const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const AUTH_TOKEN_STORAGE_KEYS = ['accessToken', 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
 const REFRESH_TOKEN_STORAGE_KEYS = ['refreshToken', 'authRefreshToken'] as const
 

@@ -7,6 +7,14 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
+    proxy: {
+      // Keep browser requests same-origin in dev and strip "/api" for local backend routing.
+      '/api': {
+        target: process.env.VITE_DEV_API_PROXY_TARGET || 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {
