@@ -25,10 +25,6 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 	if normalized := normalizeOrigin(frontendOrigin); normalized != "" {
 		allowedOrigins[normalized] = struct{}{}
 	}
-	if isLocalOrigin(frontendOrigin) {
-		allowedOrigins["http://localhost:3000"] = struct{}{}
-		allowedOrigins["http://localhost:5173"] = struct{}{}
-	}
 	sensitiveAuthLimiter := authmw.NewIPRateLimiter(rate.Every(12*time.Second), 5, 15*time.Minute)
 	tokenAuthLimiter := authmw.NewIPRateLimiter(rate.Every(time.Second), 20, 15*time.Minute)
 
@@ -42,7 +38,7 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 			}
 
 			origin := normalizeOrigin(rawOrigin)
-			if _, ok := allowedOrigins[origin]; ok {
+			if _, ok := allowedOrigins[origin]; ok || isLocalOrigin(origin) {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
 				w.Header().Set("Vary", "Origin")
 				w.Header().Set("Access-Control-Allow-Credentials", "true")
