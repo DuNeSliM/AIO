@@ -137,11 +137,19 @@ func (c *Client) GetLoginURL(returnURL string) string {
 	params.Set("openid.ns", "http://specs.openid.net/auth/2.0")
 	params.Set("openid.mode", "checkid_setup")
 	params.Set("openid.return_to", returnURL)
-	params.Set("openid.realm", returnURL)
+	params.Set("openid.realm", openIDRealmFromReturnURL(returnURL))
 	params.Set("openid.identity", "http://specs.openid.net/auth/2.0/identifier_select")
 	params.Set("openid.claimed_id", "http://specs.openid.net/auth/2.0/identifier_select")
 
 	return steamOpenIDURL + "?" + params.Encode()
+}
+
+func openIDRealmFromReturnURL(returnURL string) string {
+	u, err := url.Parse(strings.TrimSpace(returnURL))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return returnURL
+	}
+	return u.Scheme + "://" + u.Host
 }
 
 // VerifyCallback verifies the Steam OpenID callback and extracts Steam ID
