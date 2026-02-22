@@ -2,6 +2,7 @@
 import GameList from '../components/GameList'
 import { useGames } from '../hooks/useGames'
 import type { SortBy } from '../hooks/useGames'
+import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
 import type { ViewMode } from '../types'
@@ -21,6 +22,7 @@ export default function GameLibrary() {
     loadSteamLibrary,
     loadEpicLibrary,
   } = useGames()
+  const { isLoggedIn, isLoading } = useAuth()
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -29,18 +31,21 @@ export default function GameLibrary() {
   })
 
   useEffect(() => {
+    if (isLoading || !isLoggedIn) return
     if (steamAuth.isLoggedIn && steamAuth.steamId) {
-      loadSteamLibrary(steamAuth.steamId ?? '')
+      void loadSteamLibrary(steamAuth.steamId ?? '')
     }
-  }, [steamAuth.isLoggedIn, steamAuth.steamId, loadSteamLibrary])
+  }, [isLoading, isLoggedIn, steamAuth.isLoggedIn, steamAuth.steamId, loadSteamLibrary])
 
   useEffect(() => {
-    loadEpicLibrary()
-  }, [loadEpicLibrary])
+    if (isLoading || !isLoggedIn) return
+    void loadEpicLibrary()
+  }, [isLoading, isLoggedIn, loadEpicLibrary])
 
   useEffect(() => {
+    if (isLoading || !isLoggedIn) return
     void reload()
-  }, [reload])
+  }, [isLoading, isLoggedIn, reload])
 
   useEffect(() => {
     localStorage.setItem('libraryView', viewMode)

@@ -23,6 +23,7 @@ type SteamHandler struct {
 	steamClient *steam.Client
 	repo        repo.Repo
 	frontendURL string
+	callbackURL string
 }
 
 func NewSteamHandler(steamAPIKey, callbackURL, frontendOrigin string, repo repo.Repo) *SteamHandler {
@@ -30,15 +31,14 @@ func NewSteamHandler(steamAPIKey, callbackURL, frontendOrigin string, repo repo.
 		steamClient: steam.NewClient(steamAPIKey, callbackURL),
 		repo:        repo,
 		frontendURL: sanitizeFrontendOrigin(frontendOrigin),
+		callbackURL: sanitizeCallbackURL(callbackURL),
 	}
 }
 
 // LoginRedirect redirects to Steam OpenID login
 // GET /v1/steam/login
 func (h *SteamHandler) LoginRedirect(w http.ResponseWriter, r *http.Request) {
-	// Build callback URL
-	scheme := requestScheme(r)
-	returnURL := fmt.Sprintf("%s://%s/v1/steam/callback", scheme, r.Host)
+	returnURL := h.resolveSteamCallbackURL(r)
 
 	state, err := newStateToken()
 	if err != nil {
@@ -330,6 +330,44 @@ func sanitizeFrontendOrigin(origin string) string {
 		return ""
 	}
 	return strings.TrimRight(origin, "/")
+}
+
+func sanitizeCallbackURL(raw string) string {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return ""
+	}
+
+	u, err := url.Parse(value)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+
+	u.RawQuery = ""
+	u.Fragment = ""
+	return strings.TrimRight(u.String(), "/")
+}
+
+func (h *SteamHandler) resolveSteamCallbackURL(r *http.Request) string {
+	if h.callbackURL != "" {
+		return h.callbackURL
+	}
+
+	path := strings.TrimSpace(r.URL.Path)
+	if path == "" {
+		path = "/v1/steam/login"
+	}
+
+	callbackPath := strings.TrimSuffix(path, "/login")
+	if callbackPath == path {
+		callbackPath = strings.TrimSuffix(path, "/")
+		if !strings.HasSuffix(callbackPath, "/steam") {
+			callbackPath = "/v1/steam"
+		}
+	}
+
+	callbackPath = strings.TrimSuffix(callbackPath, "/") + "/callback"
+	return fmt.Sprintf("%s://%s%s", requestScheme(r), r.Host, callbackPath)
 }
 
 func (h *SteamHandler) safeSteamRedirect(r *http.Request, steamID string) string {
