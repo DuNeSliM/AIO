@@ -8,6 +8,7 @@ RUN npm ci --no-audit --no-fund
 
 # Copy only files needed for the Vite production build.
 COPY index.html ./
+COPY public ./public
 COPY postcss.config.cjs tailwind.config.cjs tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts ./
 COPY src ./src
 
