@@ -1,393 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getItadPrices, searchItad } from '../services/api'
-import type { ItadDeal, ItadPrice, ItadPricesResponse, ItadSearchItem, WishlistItem } from '../types'
+import { APP_EVENTS, emitAppEvent } from '../shared/events'
+import type { WishlistItem } from '../types'
 import { idbDel, idbGet, idbSet } from '../utils/idb'
-
-type StorageMode = 'local' | 'onedrive'
-type OnedriveStatus = 'unsupported' | 'disconnected' | 'permission-required' | 'connected'
-type DirectoryHandle = any
-type PermissionMode = 'read' | 'readwrite'
-
-type WishlistAlert = {
-  id: string
-  message: string
-  createdAt: number
-}
-
-const WISHLIST_KEY = 'wishlist'
-const STORAGE_MODE_KEY = 'wishlistStorageMode'
-const NOTIFY_KEY = 'wishlistNotifyEnabled'
-const ONEDRIVE_HANDLE_KEY = 'wishlistOnedriveHandle'
-const WISHLIST_FILE = 'gamedivers-wishlist.json'
-const STEAM_NAME_CACHE_KEY = 'steamWishlistNameCache'
-const ITAD_LOOKUP_CACHE_KEY = 'wishlistItadLookupCache'
-const CHECK_INTERVAL_MINUTES = 30
-
-const defaultCurrency = 'EUR'
-
-function parseWishlist(raw: string | null): WishlistItem[] {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch (error) {
-    console.error('Failed to parse wishlist:', error)
-    return []
-  }
-}
-
-function isSteamPlaceholderTitle(title: string): boolean {
-  const normalized = title.trim().toLowerCase()
-  if (!normalized) return true
-  return /^steam:\d+$/.test(normalized) || /^app\s+\d+$/.test(normalized) || /^steam app\s+\d+$/.test(normalized) || /^\d+$/.test(normalized)
-}
-
-function normalizeTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
-function parseSteamAppID(value: string): number | null {
-  const match = value.match(/\b(\d{3,})\b/)
-  if (!match) return null
-  const parsed = Number.parseInt(match[1] ?? '', 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-}
-
-function getSteamAppIDFromItem(item: WishlistItem): number | null {
-  if (typeof item.steamAppId === 'number' && item.steamAppId > 0) return item.steamAppId
-
-  const fromID = parseSteamAppID(item.id)
-  if (fromID) return fromID
-
-  const fromTitle = parseSteamAppID(item.title ?? '')
-  if (fromTitle && isSteamPlaceholderTitle(item.title ?? '')) return fromTitle
-  return null
-}
-
-function isLegacySteamID(id: string, steamAppId?: number): boolean {
-  if (!steamAppId || steamAppId <= 0) return false
-  const raw = String(steamAppId)
-  return id === raw || id === `steam:${raw}`
-}
-
-function wishlistItemQualityScore(item: WishlistItem): number {
-  let value = 0
-  if (item.source === 'itad' || !!item.itadId) value += 4
-  if (!isSteamPlaceholderTitle(item.title || '')) value += 2
-  if (item.image || item.imageBackup) value += 1
-  if ((item.dealsTop3?.length ?? 0) > 0) value += 1
-  return value
-}
-
-function dedupeSteamDuplicates(items: WishlistItem[]): WishlistItem[] {
-  const remove = new Set<number>()
-  const bestBySteamAppID = new Map<number, number>()
-
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i]
-    const appID = item.steamAppId
-    if (!appID || appID <= 0) continue
-
-    const prevIndex = bestBySteamAppID.get(appID)
-    if (prevIndex === undefined) {
-      bestBySteamAppID.set(appID, i)
-      continue
-    }
-
-    const prev = items[prevIndex]
-    const keepCurrent = wishlistItemQualityScore(item) > wishlistItemQualityScore(prev)
-    if (keepCurrent) {
-      remove.add(prevIndex)
-      bestBySteamAppID.set(appID, i)
-    } else {
-      remove.add(i)
-    }
-  }
-
-  if (remove.size === 0) return items
-  return items.filter((_, index) => !remove.has(index))
-}
-
-function dedupeByID(items: WishlistItem[]): WishlistItem[] {
-  const keep = new Set<number>()
-  const bestByID = new Map<string, number>()
-
-  for (let i = 0; i < items.length; i += 1) {
-    const item = items[i]
-    const prevIndex = bestByID.get(item.id)
-    if (prevIndex === undefined) {
-      bestByID.set(item.id, i)
-      keep.add(i)
-      continue
-    }
-
-    const prev = items[prevIndex]
-    const keepCurrent = wishlistItemQualityScore(item) > wishlistItemQualityScore(prev)
-    if (keepCurrent) {
-      keep.delete(prevIndex)
-      keep.add(i)
-      bestByID.set(item.id, i)
-    }
-  }
-
-  if (keep.size === items.length) return items
-  return items.filter((_, index) => keep.has(index))
-}
-
-type ItadLookupCacheEntry = {
-  id: string
-  title?: string
-}
-
-type ItadLookupCache = Record<string, ItadLookupCacheEntry>
-
-function readItadLookupCache(): ItadLookupCache {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = localStorage.getItem(ITAD_LOOKUP_CACHE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return {}
-    return parsed as ItadLookupCache
-  } catch {
-    return {}
-  }
-}
-
-function writeItadLookupCache(cache: ItadLookupCache): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(ITAD_LOOKUP_CACHE_KEY, JSON.stringify(cache))
-  } catch {
-    // ignore storage write failures
-  }
-}
-
-function normalizeSearchResults(
-  data: ItadSearchItem[] | { data?: ItadSearchItem[]; results?: ItadSearchItem[] },
-): ItadSearchItem[] {
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data?.data)) return data.data
-  if (Array.isArray(data?.results)) return data.results
-  return []
-}
-
-function pickBestItadMatch(queryTitle: string, candidates: ItadSearchItem[]): ItadSearchItem | null {
-  if (!candidates.length) return null
-  const queryKey = normalizeTitle(queryTitle)
-  if (!queryKey) return candidates[0] ?? null
-
-  const exact = candidates.find((item) => normalizeTitle(item.title) === queryKey)
-  if (exact) return exact
-
-  const startsWith = candidates.find((item) => normalizeTitle(item.title).startsWith(queryKey))
-  if (startsWith) return startsWith
-
-  const contains = candidates.find((item) => {
-    const candidateKey = normalizeTitle(item.title)
-    return candidateKey.includes(queryKey) || queryKey.includes(candidateKey)
-  })
-  return contains ?? candidates[0] ?? null
-}
-
-async function resolveWishlistItemItad(
-  item: WishlistItem,
-  cache: ItadLookupCache,
-  queryCache: Map<string, ItadLookupCacheEntry | null>,
-): Promise<ItadLookupCacheEntry | null> {
-  const steamAppID = getSteamAppIDFromItem(item)
-  const title = item.title?.trim() ?? ''
-  const titleKey = normalizeTitle(title)
-
-  const lookupKeys: string[] = []
-  if (steamAppID) lookupKeys.push(`steam:${steamAppID}`)
-  if (titleKey) lookupKeys.push(`title:${titleKey}`)
-
-  for (const key of lookupKeys) {
-    const found = cache[key]
-    if (found?.id) return found
-  }
-
-  const queries: Array<{ query: string; expectedTitle?: string; strictSingle?: boolean }> = []
-  if (title && !isSteamPlaceholderTitle(title)) {
-    queries.push({ query: title, expectedTitle: title })
-  }
-  if (steamAppID) {
-    queries.push({
-      query: String(steamAppID),
-      expectedTitle: title && !isSteamPlaceholderTitle(title) ? title : undefined,
-      strictSingle: !title || isSteamPlaceholderTitle(title),
-    })
-  }
-
-  for (const candidate of queries) {
-    const queryKey = `q:${normalizeTitle(candidate.query) || candidate.query}`
-
-    let resolved = queryCache.get(queryKey)
-    if (resolved === undefined) {
-      try {
-        const raw = await searchItad(candidate.query, 6)
-        const results = normalizeSearchResults(raw)
-        let best: ItadSearchItem | null = null
-
-        if (candidate.strictSingle) {
-          best = results.length === 1 ? results[0] ?? null : null
-        } else if (candidate.expectedTitle) {
-          best = pickBestItadMatch(candidate.expectedTitle, results)
-        } else {
-          best = pickBestItadMatch(candidate.query, results)
-        }
-
-        resolved = best
-          ? {
-              id: best.id,
-              title: best.title?.trim() || undefined,
-            }
-          : null
-      } catch {
-        resolved = null
-      }
-      queryCache.set(queryKey, resolved)
-    }
-
-    if (!resolved?.id) {
-      continue
-    }
-
-    for (const key of lookupKeys) {
-      cache[key] = resolved
-    }
-    return resolved
-  }
-
-  return null
-}
-
-function normalizeStoredWishlistItems(items: WishlistItem[]): WishlistItem[] {
-  if (items.length === 0) return items
-
-  let steamNameCache: Record<string, string> = {}
-  try {
-    const raw = localStorage.getItem(STEAM_NAME_CACHE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object') {
-        steamNameCache = parsed as Record<string, string>
-      }
-    }
-  } catch {
-    // keep empty cache
-  }
-
-  const normalized = items.map((item) => {
-    const steamAppID = getSteamAppIDFromItem(item)
-    const source = item.source ?? (steamAppID ? 'steam' : 'itad')
-    const id =
-      source === 'steam' && steamAppID && !item.itadId
-        ? `steam:${steamAppID}`
-        : item.id
-
-    let title = item.title
-    if (steamAppID && isSteamPlaceholderTitle(title ?? '')) {
-      const cached = steamNameCache[String(steamAppID)]?.trim()
-      if (cached && !isSteamPlaceholderTitle(cached)) {
-        title = cached
-      }
-    }
-
-    if (steamAppID && title && !isSteamPlaceholderTitle(title)) {
-      steamNameCache[String(steamAppID)] = title
-    }
-
-    const nextSource: 'itad' | 'steam' =
-      source === 'itad' || !!item.itadId ? 'itad' : 'steam'
-
-    return {
-      ...item,
-      id,
-      title: title || item.id,
-      source: nextSource,
-      steamAppId: steamAppID ?? undefined,
-      itadId: item.itadId ?? (nextSource === 'itad' ? id : undefined),
-    }
-  })
-
-  try {
-    localStorage.setItem(STEAM_NAME_CACHE_KEY, JSON.stringify(steamNameCache))
-  } catch {
-    // ignore storage write failures
-  }
-
-  return dedupeSteamDuplicates(dedupeByID(normalized))
-}
-
-function pickLowestDeal(deals?: ItadDeal[] | null): ItadDeal | null {
-  if (!deals || deals.length === 0) return null
-  return deals.reduce<ItadDeal | null>((lowest, deal) => {
-    if (!deal?.price) return lowest
-    if (!lowest?.price) return deal
-    const a = getAmount(deal.price)
-    const b = getAmount(lowest.price)
-    if (a === null) return lowest
-    if (b === null) return deal
-    return a < b ? deal : lowest
-  }, null)
-}
-
-function getAmount(price?: ItadPrice): number | null {
-  if (!price) return null
-  if (typeof price.amount === 'number') return price.amount
-  if (typeof price.amountInt === 'number') return price.amountInt / 100
-  return null
-}
-
-function normalizePriceItem(prices: ItadPricesResponse | null, gameId: string) {
-  if (!prices) return null
-  if (Array.isArray(prices)) return prices.find((item) => item.id === gameId) ?? null
-  return prices.games?.[gameId] ?? null
-}
-
-async function readWishlistFile(handle: DirectoryHandle): Promise<WishlistItem[] | null> {
-  try {
-    const fileHandle = await handle.getFileHandle(WISHLIST_FILE)
-    const file = await fileHandle.getFile()
-    const text = await file.text()
-    return parseWishlist(text)
-  } catch (error) {
-    if ((error as DOMException)?.name === 'NotFoundError') return []
-    console.error('Failed to read wishlist file:', error)
-    return null
-  }
-}
-
-async function writeWishlistFile(handle: DirectoryHandle, items: WishlistItem[]): Promise<void> {
-  const fileHandle = await handle.getFileHandle(WISHLIST_FILE, { create: true })
-  const stream = await fileHandle.createWritable()
-  await stream.write(JSON.stringify(items, null, 2))
-  await stream.close()
-}
-
-async function ensurePermission(
-  handle: DirectoryHandle,
-  mode: PermissionMode,
-  prompt: boolean,
-): Promise<boolean> {
-  const query = await handle.queryPermission({ mode })
-  if (query === 'granted') return true
-  if (!prompt) return false
-  const request = await handle.requestPermission({ mode })
-  return request === 'granted'
-}
-
-function getPicker(): (() => Promise<DirectoryHandle>) | null {
-  if (typeof window === 'undefined') return null
-  const picker = (window as Window & { showDirectoryPicker?: () => Promise<DirectoryHandle> })
-    .showDirectoryPicker
-  return picker ?? null
-}
+import {
+  CHECK_INTERVAL_MINUTES,
+  DEFAULT_CURRENCY,
+  ITAD_MIN_REQUEST_INTERVAL_MS,
+  NOTIFY_KEY,
+  ONEDRIVE_HANDLE_KEY,
+  STORAGE_MODE_KEY,
+  WISHLIST_KEY,
+} from '../features/store/wishlist/constants'
+import {
+  dedupeByID,
+  dedupeSteamDuplicates,
+  getSteamAppIDFromItem,
+  isLegacySteamID,
+  isSteamPlaceholderTitle,
+  normalizeStoredWishlistItems,
+  normalizeTitle,
+  parseWishlist,
+} from '../features/store/wishlist/normalize'
+import {
+  readItadLookupCache,
+  resolveWishlistItemItad,
+  writeItadLookupCache,
+} from '../features/store/wishlist/itadLookup'
+import {
+  dedupeDealSummaries,
+  getAmount,
+  getItadPricesWithRetry,
+  getWishlistStoreDeals,
+  normalizePriceItem,
+  pickLowestDeal,
+  waitFor,
+} from '../features/store/wishlist/pricing'
+import {
+  ensurePermission,
+  getPicker,
+  readWishlistFile,
+  writeWishlistFile,
+} from '../features/store/wishlist/storage'
+import type {
+  DirectoryHandle,
+  ItadLookupCacheEntry,
+  OnedriveStatus,
+  StorageMode,
+  WishlistAlert,
+  WishlistDealSummary,
+} from '../features/store/wishlist/types'
 
 export function useWishlist(region: string) {
   const notificationsSupported = typeof window !== 'undefined' && 'Notification' in window
@@ -489,7 +150,7 @@ export function useWishlist(region: string) {
 
   useEffect(() => {
     localStorage.setItem(WISHLIST_KEY, JSON.stringify(items))
-    window.dispatchEvent(new Event('mission-update'))
+    emitAppEvent(APP_EVENTS.missionUpdate)
     if (storageMode !== 'onedrive') return
     if (onedriveStatus !== 'connected') return
     const handle = handleRef.current
@@ -618,7 +279,7 @@ export function useWishlist(region: string) {
           steamAppId: item.steamAppId,
           itadId: item.itadId ?? (source === 'itad' ? item.id : undefined),
           addedAt: item.addedAt ?? Date.now(),
-          currency: defaultCurrency,
+          currency: DEFAULT_CURRENCY,
         },
         ...prev,
       ]
@@ -688,100 +349,109 @@ export function useWishlist(region: string) {
     if (checkingRef.current) return
     checkingRef.current = true
     setChecking(true)
-    const lookupCache = readItadLookupCache()
-    const queryCache = new Map<string, ItadLookupCacheEntry | null>()
-    let lookupCacheDirty = false
-    const updated: WishlistItem[] = []
-    for (const item of itemsRef.current) {
-      try {
-        const source = item.source ?? (item.id.startsWith('steam:') ? 'steam' : 'itad')
-        const steamAppID = getSteamAppIDFromItem(item)
-        const placeholderTitle = isSteamPlaceholderTitle(item.title ?? '')
-        let resolvedTitle = item.title
-        let resolvedSource: 'itad' | 'steam' = source
-        let itadId = item.itadId ?? (source === 'itad' && !item.id.startsWith('steam:') ? item.id : null)
+    try {
+      const lookupCache = readItadLookupCache()
+      const queryCache = new Map<string, ItadLookupCacheEntry | null>()
+      let lookupCacheDirty = false
+      let lastItadRequestAt = 0
+      const updated: WishlistItem[] = []
 
-        if (!itadId) {
-          const resolved = await resolveWishlistItemItad(item, lookupCache, queryCache)
-          if (resolved?.id) {
-            itadId = resolved.id
-            resolvedSource = 'itad'
-            if (resolved.title && (placeholderTitle || !resolvedTitle)) {
-              resolvedTitle = resolved.title
+      for (const item of itemsRef.current) {
+        try {
+          const source = item.source ?? (item.id.startsWith('steam:') ? 'steam' : 'itad')
+          const steamAppID = getSteamAppIDFromItem(item)
+          const placeholderTitle = isSteamPlaceholderTitle(item.title ?? '')
+          let resolvedTitle = item.title
+          let resolvedSource: 'itad' | 'steam' = source
+          let itadId = item.itadId ?? (source === 'itad' && !item.id.startsWith('steam:') ? item.id : null)
+
+          if (!itadId) {
+            const resolved = await resolveWishlistItemItad(item, lookupCache, queryCache)
+            if (resolved?.id) {
+              itadId = resolved.id
+              resolvedSource = 'itad'
+              if (resolved.title && (placeholderTitle || !resolvedTitle)) {
+                resolvedTitle = resolved.title
+              }
+              lookupCacheDirty = true
             }
-            lookupCacheDirty = true
           }
-        }
 
-        if (!itadId) {
+          if (!itadId) {
+            updated.push({
+              ...item,
+              title: resolvedTitle || item.title,
+              source: resolvedSource,
+              steamAppId: steamAppID ?? item.steamAppId,
+              lastCheckedAt: Date.now(),
+            })
+            continue
+          }
+
+          const elapsed = Date.now() - lastItadRequestAt
+          if (lastItadRequestAt > 0 && elapsed < ITAD_MIN_REQUEST_INTERVAL_MS) {
+            await waitFor(ITAD_MIN_REQUEST_INTERVAL_MS - elapsed)
+          }
+
+          const prices = await getItadPricesWithRetry(itadId, region)
+          lastItadRequestAt = Date.now()
+
+          const priceItem = normalizePriceItem(prices, itadId)
+          const deals = priceItem?.deals ?? []
+          const bestDeal = pickLowestDeal(deals)
+          const amount = getAmount(bestDeal?.price ?? null)
+          const currency = bestDeal?.price?.currency ?? item.currency ?? DEFAULT_CURRENCY
+          const cut = bestDeal?.cut ?? 0
+          const onSale = cut > 0
+          const belowThreshold =
+            typeof item.threshold === 'number' && amount !== null ? amount <= item.threshold : false
+          const storeDeals = getWishlistStoreDeals(deals, currency)
+          const prioritizedDeals = dedupeDealSummaries(
+            [storeDeals.lowest, storeDeals.steam, storeDeals.epic].filter(
+              (deal): deal is WishlistDealSummary => !!deal,
+            ),
+          ).slice(0, 3)
+
+          if (notificationsEnabled) {
+            if (onSale && !item.onSale) {
+              notify('Sale alert', `${item.title} is on sale (${cut}% off).`)
+            }
+            if (belowThreshold && !item.belowThreshold) {
+              notify('Price alert', `${item.title} is now ${amount?.toFixed(2)} ${currency}.`)
+            }
+          }
+
           updated.push({
             ...item,
+            id: itadId,
             title: resolvedTitle || item.title,
-            source: resolvedSource,
+            source: 'itad',
             steamAppId: steamAppID ?? item.steamAppId,
+            itadId,
+            lastPrice: amount ?? item.lastPrice,
+            currency,
+            onSale,
+            belowThreshold,
+            lowestDeal: storeDeals.lowest ?? undefined,
+            dealsTop3: prioritizedDeals,
             lastCheckedAt: Date.now(),
           })
-          continue
+        } catch (error) {
+          lastItadRequestAt = Date.now()
+          console.error('Wishlist price check failed:', error)
+          updated.push({ ...item, lastCheckedAt: Date.now() })
         }
-
-        const prices = await getItadPrices(itadId, region)
-        const priceItem = normalizePriceItem(prices, itadId)
-        const deals = priceItem?.deals ?? []
-        const sortedDeals = deals
-          .filter((deal) => deal?.price)
-          .map((deal) => ({
-            shop: deal?.shop?.name,
-            price: getAmount(deal.price) ?? null,
-            currency: deal?.price?.currency ?? item.currency ?? defaultCurrency,
-            cut: deal?.cut ?? 0,
-            url: deal?.url,
-          }))
-          .filter((deal) => typeof deal.price === 'number')
-          .sort((a, b) => (a.price ?? 0) - (b.price ?? 0))
-        const topDeals = sortedDeals.slice(0, 3)
-        const bestDeal = pickLowestDeal(deals)
-        const amount = getAmount(bestDeal?.price ?? null)
-        const currency = bestDeal?.price?.currency ?? item.currency ?? defaultCurrency
-        const cut = bestDeal?.cut ?? 0
-        const onSale = cut > 0
-        const belowThreshold =
-          typeof item.threshold === 'number' && amount !== null ? amount <= item.threshold : false
-
-        if (notificationsEnabled) {
-          if (onSale && !item.onSale) {
-            notify('Sale alert', `${item.title} is on sale (${cut}% off).`)
-          }
-          if (belowThreshold && !item.belowThreshold) {
-            notify('Price alert', `${item.title} is now ${amount?.toFixed(2)} ${currency}.`)
-          }
-        }
-
-        updated.push({
-          ...item,
-          id: itadId,
-          title: resolvedTitle || item.title,
-          source: 'itad',
-          steamAppId: steamAppID ?? item.steamAppId,
-          itadId,
-          lastPrice: amount ?? item.lastPrice,
-          currency,
-          onSale,
-          belowThreshold,
-          dealsTop3: topDeals,
-          lastCheckedAt: Date.now(),
-        })
-      } catch (error) {
-        console.error('Wishlist price check failed:', error)
-        updated.push({ ...item, lastCheckedAt: Date.now() })
       }
+
+      if (lookupCacheDirty) {
+        writeItadLookupCache(lookupCache)
+      }
+      setItems(dedupeSteamDuplicates(dedupeByID(updated)))
+      setLastCheckedAt(Date.now())
+    } finally {
+      setChecking(false)
+      checkingRef.current = false
     }
-    if (lookupCacheDirty) {
-      writeItadLookupCache(lookupCache)
-    }
-    setItems(dedupeSteamDuplicates(dedupeByID(updated)))
-    setLastCheckedAt(Date.now())
-    setChecking(false)
-    checkingRef.current = false
   }, [notificationsEnabled, notify, region])
 
   useEffect(() => {

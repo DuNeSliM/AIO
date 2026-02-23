@@ -1,8 +1,11 @@
-﻿import { useI18n } from '../i18n/i18n'
+import { useI18n } from '../i18n/i18n'
+import UiCorners from '../components/ui/UiCorners'
 import { useWishlist } from '../hooks/useWishlist'
 import { useCommander } from '../hooks/useCommander'
 import { restartOnboardingMission } from '../components/OnboardingMission'
 import { DESIGN_CATALOG } from '../designs/registry'
+import { STORAGE_KEYS } from '../shared/storage/keys'
+import { getLocalString } from '../shared/storage/storage'
 import { equipDesign } from '../utils/gameify'
 import type { Theme } from '../types'
 
@@ -15,7 +18,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
   const { lang, setLang, t } = useI18n()
   const commander = useCommander()
   const isDark = theme === 'dark'
-  const region = localStorage.getItem('storeRegion') || 'DE'
+  const region = getLocalString(STORAGE_KEYS.app.storeRegion) || 'DE'
   const {
     onedriveStatus,
     onedriveSupported,
@@ -35,12 +38,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
     <div className="flex flex-col gap-6">
       <header className="ui-surface ui-surface--accent">
         <div className="ui-panel ui-panel-pad-lg">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <p className="ui-label">{t('settings.title')}</p>
           <h1 className="text-2xl tone-primary">{t('settings.title')}</h1>
           <p className="text-sm ui-subtle">{t('settings.subtitle')}</p>
@@ -49,12 +47,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.theme')}</div>
@@ -69,12 +62,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.design')}</div>
@@ -101,12 +89,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.tutorial')}</div>
@@ -121,12 +104,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <div className="text-lg tone-primary">{t('settings.language')}</div>
@@ -141,12 +119,7 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="ui-label">Wishlist Settings</div>
           <div className="mt-4 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -187,5 +160,6 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
     </div>
   )
 }
+
 
 

@@ -1,5 +1,8 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useI18n } from '../i18n/i18n'
+import UiCorners from './ui/UiCorners'
+import { APP_EVENTS, emitAppEvent, onAppEvent } from '../shared/events'
+import { STORAGE_KEYS } from '../shared/storage/keys'
 import type { Page } from '../types'
 import { loadCounters } from '../utils/gameify'
 
@@ -8,7 +11,7 @@ const ONBOARDING_PROGRESS_KEY = 'onboardingMissionProgress'
 const ONBOARDING_MINIMIZED_KEY = 'onboardingMissionMinimized'
 const ONBOARDING_BASELINE_KEY = 'onboardingMissionBaseline'
 
-export const OPEN_ONBOARDING_EVENT = 'open-onboarding'
+export const OPEN_ONBOARDING_EVENT = APP_EVENTS.openOnboarding
 
 type OnboardingStepId = 'search' | 'compare' | 'addWishlist' | 'runSync'
 
@@ -49,7 +52,7 @@ function defaultProgress(): OnboardingProgress {
 }
 
 function loadWishlistCount() {
-  const raw = localStorage.getItem('wishlist')
+  const raw = localStorage.getItem(STORAGE_KEYS.wishlist.items)
   if (!raw) return 0
   try {
     const parsed = JSON.parse(raw)
@@ -135,7 +138,7 @@ export function shouldShowOnboardingMission() {
 }
 
 export function openOnboardingMission() {
-  window.dispatchEvent(new Event(OPEN_ONBOARDING_EVENT))
+  emitAppEvent(APP_EVENTS.openOnboarding)
 }
 
 export function restartOnboardingMission() {
@@ -194,10 +197,10 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
 
   useEffect(() => {
     syncProgress()
-    window.addEventListener('mission-update', syncProgress)
+    const unsubMission = onAppEvent(APP_EVENTS.missionUpdate, syncProgress)
     window.addEventListener('focus', syncProgress)
     return () => {
-      window.removeEventListener('mission-update', syncProgress)
+      unsubMission()
       window.removeEventListener('focus', syncProgress)
     }
   }, [syncProgress])
@@ -233,12 +236,7 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
     <div className="fixed bottom-4 right-4 z-40 w-full max-w-md px-4 sm:px-0">
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
 
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -298,5 +296,7 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
     </div>
   )
 }
+
+
 
 

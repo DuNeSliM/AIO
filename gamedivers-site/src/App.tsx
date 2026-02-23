@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
 import CommanderHud from './components/CommanderHud'
-import OnboardingMission, { OPEN_ONBOARDING_EVENT, shouldShowOnboardingMission } from './components/OnboardingMission'
+import OnboardingMission, { shouldShowOnboardingMission } from './components/OnboardingMission'
 import { DEFAULT_DESIGN_ID, DESIGN_CLASS_NAMES, findDesignById, getDesignManifest } from './designs/registry'
 import { useCommander } from './hooks/useCommander'
 import { AuthProvider, useAuth } from './hooks/useAuth'
@@ -14,19 +14,22 @@ import Missions from './pages/Missions'
 import Register from './pages/Register'
 import Settings from './pages/Settings'
 import Store from './pages/Store'
+import { APP_EVENTS, onAppEvent } from './shared/events'
+import { STORAGE_KEYS } from './shared/storage/keys'
+import { getLocalString, getSessionString, setLocalString } from './shared/storage/storage'
 import type { Page, Theme } from './types'
-import { DESIGN_PREVIEW_EVENT, evaluateDailyMissionsFromStorage, loadDesignPreview } from './utils/gameify'
+import { evaluateDailyMissionsFromStorage, loadDesignPreview } from './utils/gameify'
 
 const PUBLIC_PAGES: Page[] = ['login', 'register', 'forgot-password']
 
 function getStoredTheme(): Theme {
-  const stored = localStorage.getItem('theme')
+  const stored = getLocalString(STORAGE_KEYS.app.theme)
   return stored === 'light' ? 'light' : 'dark'
 }
 
 function hasStoredSession(): boolean {
-  const accessToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-  const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken')
+  const accessToken = getLocalString(STORAGE_KEYS.auth.accessToken) || getSessionString(STORAGE_KEYS.auth.accessToken)
+  const refreshToken = getLocalString(STORAGE_KEYS.auth.refreshToken) || getSessionString(STORAGE_KEYS.auth.refreshToken)
   return !!accessToken && !!refreshToken
 }
 
@@ -44,7 +47,7 @@ function AppShell() {
 
   useEffect(() => {
     document.body.classList.toggle('theme-light', theme === 'light')
-    localStorage.setItem('theme', theme)
+    setLocalString(STORAGE_KEYS.app.theme, theme)
   }, [theme])
 
   useEffect(() => {
@@ -75,9 +78,9 @@ function AppShell() {
   }, [activeDesign?.id])
 
   useEffect(() => {
-    const handler = () => setPreviewDesign(loadDesignPreview())
-    window.addEventListener(DESIGN_PREVIEW_EVENT, handler)
-    return () => window.removeEventListener(DESIGN_PREVIEW_EVENT, handler)
+    return onAppEvent(APP_EVENTS.designPreviewUpdate, () => {
+      setPreviewDesign(loadDesignPreview())
+    })
   }, [])
 
   useEffect(() => {
@@ -85,14 +88,12 @@ function AppShell() {
       evaluateDailyMissionsFromStorage()
     }
     syncMissions()
-    window.addEventListener('mission-update', syncMissions)
-    return () => window.removeEventListener('mission-update', syncMissions)
+    return onAppEvent(APP_EVENTS.missionUpdate, syncMissions)
   }, [])
 
   useEffect(() => {
     const openOnboarding = () => setShowOnboarding(true)
-    window.addEventListener(OPEN_ONBOARDING_EVENT, openOnboarding)
-    return () => window.removeEventListener(OPEN_ONBOARDING_EVENT, openOnboarding)
+    return onAppEvent(APP_EVENTS.openOnboarding, openOnboarding)
   }, [])
 
   useEffect(() => {

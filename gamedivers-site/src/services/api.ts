@@ -1,8 +1,9 @@
 import type { AuthResponse, Game, ItadPricesResponse, ItadSearchItem, User } from '../types'
+import { STORAGE_KEYS } from '../shared/storage/keys'
 
 export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-const AUTH_TOKEN_STORAGE_KEYS = ['accessToken', 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
-const REFRESH_TOKEN_STORAGE_KEYS = ['refreshToken', 'authRefreshToken'] as const
+const AUTH_TOKEN_STORAGE_KEYS = [STORAGE_KEYS.auth.accessToken, 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
+const REFRESH_TOKEN_STORAGE_KEYS = [STORAGE_KEYS.auth.refreshToken, 'authRefreshToken'] as const
 
 function getStoredValue(keys: readonly string[]): string | null {
   if (typeof window === 'undefined') return null
@@ -53,9 +54,9 @@ export function clearPersistedAuthTokens() {
   const keys = new Set<string>([
     ...AUTH_TOKEN_STORAGE_KEYS,
     ...REFRESH_TOKEN_STORAGE_KEYS,
-    'accessToken',
-    'refreshToken',
-    'user',
+    STORAGE_KEYS.auth.accessToken,
+    STORAGE_KEYS.auth.refreshToken,
+    STORAGE_KEYS.auth.user,
   ])
 
   keys.forEach((key) => {
@@ -70,11 +71,11 @@ export function clearAuthTokens(): void {
 
 function persistAuthTokens(accessToken: string, refreshToken?: string) {
   if (typeof window === 'undefined') return
-  localStorage.setItem('accessToken', accessToken)
-  sessionStorage.setItem('accessToken', accessToken)
+  localStorage.setItem(STORAGE_KEYS.auth.accessToken, accessToken)
+  sessionStorage.setItem(STORAGE_KEYS.auth.accessToken, accessToken)
   if (refreshToken) {
-    localStorage.setItem('refreshToken', refreshToken)
-    sessionStorage.setItem('refreshToken', refreshToken)
+    localStorage.setItem(STORAGE_KEYS.auth.refreshToken, refreshToken)
+    sessionStorage.setItem(STORAGE_KEYS.auth.refreshToken, refreshToken)
   }
 }
 
@@ -213,6 +214,56 @@ async function readResponseErrorMessage(res: Response, fallback: string): Promis
   return fallback
 }
 
+class ApiStatusError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiStatusError'
+    this.status = status
+  }
+}
+
+const ITAD_RETRY_DELAYS_MS = [700, 1400, 2400] as const
+
+function isRetriableItadStatus(status: number): boolean {
+  return status === 429 || status === 502 || status === 503 || status === 504
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function fetchItadJsonWithRetry<T>(url: string): Promise<T> {
+  let attempt = 0
+
+  while (true) {
+    try {
+      const res = await fetchWithAuth(url)
+      if (res.ok) {
+        return (await res.json()) as T
+      }
+
+      const message = await readResponseErrorMessage(res, `HTTP ${res.status}`)
+      const error = new ApiStatusError(res.status, message)
+      if (!isRetriableItadStatus(res.status) || attempt >= ITAD_RETRY_DELAYS_MS.length) {
+        throw error
+      }
+    } catch (error) {
+      if (error instanceof ApiStatusError) {
+        if (!isRetriableItadStatus(error.status) || attempt >= ITAD_RETRY_DELAYS_MS.length) {
+          throw error
+        }
+      } else if (attempt >= ITAD_RETRY_DELAYS_MS.length) {
+        throw error
+      }
+    }
+
+    await wait(ITAD_RETRY_DELAYS_MS[attempt] ?? ITAD_RETRY_DELAYS_MS[ITAD_RETRY_DELAYS_MS.length - 1])
+    attempt += 1
+  }
+}
+
 export async function fetchGames(): Promise<Game[]> {
   const res = await tryJson<Game[] | { error?: unknown }>(`${API_BASE}/v1/games/installed`)
   if (Array.isArray(res)) return res
@@ -265,17 +316,28 @@ export async function searchItad(
   limit = 10,
 ): Promise<ItadSearchItem[] | { data?: ItadSearchItem[]; results?: ItadSearchItem[] }> {
   const url = `${API_BASE}/v1/itad/search?q=${encodeURIComponent(query)}&limit=${limit}`
-  const res = await tryJson<ItadSearchItem[] | { data?: ItadSearchItem[]; results?: ItadSearchItem[] }>(url)
-  if (!res) throw new Error('API nicht erreichbar')
-  if (Array.isArray(res)) return res
-  return res
+  try {
+    const res = await fetchItadJsonWithRetry<ItadSearchItem[] | { data?: ItadSearchItem[]; results?: ItadSearchItem[] }>(url)
+    if (Array.isArray(res)) return res
+    return res
+  } catch (error) {
+    if (error instanceof Error && error.message.trim()) {
+      throw new Error(error.message)
+    }
+    throw new Error('API nicht erreichbar')
+  }
 }
 
 export async function getItadPrices(gameId: string, country = 'DE'): Promise<ItadPricesResponse> {
   const url = `${API_BASE}/v1/itad/games/${encodeURIComponent(gameId)}/prices?country=${country}`
-  const res = await tryJson<ItadPricesResponse>(url)
-  if (!res) throw new Error('API nicht erreichbar')
-  return res
+  try {
+    return await fetchItadJsonWithRetry<ItadPricesResponse>(url)
+  } catch (error) {
+    if (error instanceof Error && error.message.trim()) {
+      throw new Error(error.message)
+    }
+    throw new Error('API nicht erreichbar')
+  }
 }
 
 export async function launchGame(platform: string, id: string | number, appName?: string) {

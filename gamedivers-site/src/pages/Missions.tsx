@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
+import UiCorners from '../components/ui/UiCorners'
 import { useCommander } from '../hooks/useCommander'
 import { useI18n } from '../i18n/i18n'
+import { APP_EVENTS, onAppEvent } from '../shared/events'
+import { STORAGE_KEYS } from '../shared/storage/keys'
 import {
-  DESIGN_PREVIEW_EVENT,
   DESIGN_CATALOG,
   buildMissionMetrics,
   clearDesignPreview,
@@ -40,7 +42,7 @@ const ENABLED_ENV_VALUES = new Set(['1', 'true', 'yes', 'on'])
 const DEV_CREDITS_ENABLED = ENABLED_ENV_VALUES.has((import.meta.env.VITE_ENABLE_CREDIT_CHEAT ?? '').trim().toLowerCase())
 
 function loadWishlistCount() {
-  const raw = localStorage.getItem('wishlist')
+  const raw = localStorage.getItem(STORAGE_KEYS.wishlist.items)
   if (!raw) return 0
   try {
     const parsed = JSON.parse(raw)
@@ -51,7 +53,7 @@ function loadWishlistCount() {
 }
 
 function loadPriceCache() {
-  const raw = localStorage.getItem('priceCache')
+  const raw = localStorage.getItem(STORAGE_KEYS.app.priceCache)
   if (!raw) return {}
   try {
     return JSON.parse(raw) as Record<string, { steam?: number; epic?: number }>
@@ -86,16 +88,14 @@ export default function Missions() {
     const handler = () => {
       refreshMissionData()
     }
-    window.addEventListener('mission-update', handler)
-    return () => window.removeEventListener('mission-update', handler)
+    return onAppEvent(APP_EVENTS.missionUpdate, handler)
   }, [refreshMissionData])
 
   useEffect(() => {
     const handler = () => {
       setPreviewDesignState(loadDesignPreview())
     }
-    window.addEventListener(DESIGN_PREVIEW_EVENT, handler)
-    return () => window.removeEventListener(DESIGN_PREVIEW_EVENT, handler)
+    return onAppEvent(APP_EVENTS.designPreviewUpdate, handler)
   }, [])
 
   useEffect(() => {
@@ -288,12 +288,7 @@ export default function Missions() {
     <div className="flex flex-col gap-6">
       <header className="ui-surface ui-surface--accent">
         <div className="ui-panel ui-panel-pad-lg">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="ui-label">{t('missions.label')}</div>
           <h1 className="mt-3 text-2xl tone-primary">{t('missions.title')}</h1>
           <p className="mt-2 text-sm ui-subtle">{t('missions.subtitle')}</p>
@@ -365,12 +360,7 @@ export default function Missions() {
       <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <div className="ui-surface">
           <div className="ui-panel ui-panel-pad-md">
-            <div className="ui-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            <UiCorners />
             <div className="ui-label">{t('missions.sections.daily')}</div>
             <div className="mt-4 grid gap-3">
               {!preferences.missionsEnabled && (
@@ -411,12 +401,7 @@ export default function Missions() {
 
         <div className="ui-surface">
           <div className="ui-panel ui-panel-pad-md">
-            <div className="ui-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            <UiCorners />
             <div className="ui-label">{t('missions.sections.report')}</div>
             <div className="mt-4 flex flex-col gap-3 text-xs uppercase tracking-[0.2em] text-white/60">
               <div className="flex items-center justify-between">
@@ -440,12 +425,7 @@ export default function Missions() {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="ui-surface">
           <div className="ui-panel ui-panel-pad-md">
-            <div className="ui-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            <UiCorners />
             <div className="ui-label">{t('missions.sections.badges')}</div>
             <div className="mt-4 grid gap-3">
               {BADGES.map((badge) => {
@@ -470,12 +450,7 @@ export default function Missions() {
         </div>
         <div className="ui-surface">
           <div className="ui-panel ui-panel-pad-md">
-            <div className="ui-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            <UiCorners />
             <div className="ui-label">{t('missions.sections.designs')}</div>
             {previewDesign && (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
@@ -530,12 +505,7 @@ export default function Missions() {
         </div>
         <div className="ui-surface">
           <div className="ui-panel ui-panel-pad-md">
-            <div className="ui-corners">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
+            <UiCorners />
             <div className="ui-label">{t('missions.sections.activity')}</div>
             <div className="mt-3 flex flex-col gap-2 text-xs uppercase tracking-[0.2em] text-white/60">
               {events.length === 0 && <span>{t('missions.activityEmpty')}</span>}
@@ -549,5 +519,6 @@ export default function Missions() {
     </div>
   )
 }
+
 
 
