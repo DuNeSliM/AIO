@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -56,9 +57,22 @@ func (h *GameHandler) StartSteamGame(w http.ResponseWriter, r *http.Request) {
 
 	// Start the Steam game
 	if err := startSteamApp(parsedAppID); err != nil {
+		var launchFallbackErr *LaunchFallbackError
+		if errors.As(err, &launchFallbackErr) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"success":    false,
+				"message":    launchFallbackErr.Error(),
+				"app_id":     canonicalAppID,
+				"launch_uri": launchFallbackErr.LaunchURI,
+			})
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]any{
+		_ = json.NewEncoder(w).Encode(map[string]any{
 			"success": false,
 			"message": err.Error(),
 			"app_id":  canonicalAppID,
@@ -90,9 +104,15 @@ func startSteamApp(appID uint64) error {
 		cmd = exec.Command("open", launchURI)
 
 	case "linux":
+		if strings.TrimSpace(os.Getenv("DISPLAY")) == "" && strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) == "" {
+			return NewLaunchFallbackError("server environment cannot launch Steam directly; use launch_uri on the client", launchURI)
+		}
+
 		// On Linux, try xdg-open first, then steam.
 		if err := exec.Command("xdg-open", launchURI).Run(); err == nil {
 			return nil
+		} else if errors.Is(err, exec.ErrNotFound) {
+			return NewLaunchFallbackError("Steam launcher is not available on this host; use launch_uri on the client", launchURI)
 		}
 		cmd = exec.Command("steam", launchURI)
 
@@ -100,7 +120,14 @@ func startSteamApp(appID uint64) error {
 		return ErrUnsupportedOS
 	}
 
-	return cmd.Start()
+	if err := cmd.Start(); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return NewLaunchFallbackError("Steam launcher is not available on this host; use launch_uri on the client", launchURI)
+		}
+		return err
+	}
+
+	return nil
 }
 
 // GetSteamLibrary retrieves the user's Steam game library
@@ -542,5 +569,24 @@ func NewStartGameError(msg string) StartGameError {
 }
 
 func (e StartGameError) Error() string {
+	return e.message
+}
+
+type LaunchFallbackError struct {
+	message   string
+	LaunchURI string
+}
+
+func NewLaunchFallbackError(message, launchURI string) *LaunchFallbackError {
+	return &LaunchFallbackError{
+		message:   message,
+		LaunchURI: launchURI,
+	}
+}
+
+func (e *LaunchFallbackError) Error() string {
+	if e == nil {
+		return ""
+	}
 	return e.message
 }

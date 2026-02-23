@@ -340,12 +340,31 @@ export async function getItadPrices(gameId: string, country = 'DE'): Promise<Ita
   }
 }
 
+function launchViaProtocolHandler(platform: string, id: string | number): { success: boolean; launchUri: string } | null {
+  if (typeof window === 'undefined') return null
+
+  const normalizedPlatform = platform.trim().toLowerCase()
+  if (normalizedPlatform !== 'steam') return null
+
+  const appID = String(id).trim()
+  if (!/^\d+$/.test(appID)) {
+    throw new Error('Invalid Steam app id')
+  }
+
+  const launchUri = `steam://rungameid/${appID}`
+  window.location.href = launchUri
+  return { success: true, launchUri }
+}
+
 export async function launchGame(platform: string, id: string | number, appName?: string) {
   try {
     if (typeof window !== 'undefined' && (window as Window & { __TAURI__?: unknown }).__TAURI__) {
       const { invoke } = await import('@tauri-apps/api/core')
       return await invoke('launch_game', { platform, id, appName })
     }
+
+    const protocolLaunch = launchViaProtocolHandler(platform, id)
+    if (protocolLaunch) return protocolLaunch
 
     let url
     switch (platform) {
@@ -363,7 +382,9 @@ export async function launchGame(platform: string, id: string | number, appName?
     }
 
     const res = await fetchWithAuth(url, { method: 'POST' })
-    if (!res.ok) throw new Error(`Launch failed: ${res.status}`)
+    if (!res.ok) {
+      throw new Error(await readResponseErrorMessage(res, `Launch failed: ${res.status}`))
+    }
     return await res.json()
   } catch (error) {
     console.error('Launch error:', error)

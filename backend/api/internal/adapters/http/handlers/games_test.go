@@ -22,9 +22,11 @@ func TestStartSteamGame(t *testing.T) {
 	router.Post("/games/steam/{appid}/start", handler.StartSteamGame)
 	router.ServeHTTP(w, req)
 
-	// Check response status
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
+	// Check response status:
+	// - 200 when launch command can run on the current host
+	// - 409 when server-side launch is unavailable and client protocol fallback is returned
+	if w.Code != http.StatusOK && w.Code != http.StatusConflict {
+		t.Errorf("Expected status 200 or 409, got %d", w.Code)
 	}
 
 	// Parse response JSON
@@ -35,8 +37,22 @@ func TestStartSteamGame(t *testing.T) {
 	}
 
 	// Check response fields
-	if success, ok := response["success"].(bool); !ok || !success {
-		t.Errorf("Expected success to be true")
+	success, ok := response["success"].(bool)
+	if !ok {
+		t.Errorf("Expected success field to be boolean")
+	}
+
+	if w.Code == http.StatusOK && !success {
+		t.Errorf("Expected success=true for status 200")
+	}
+
+	if w.Code == http.StatusConflict {
+		if success {
+			t.Errorf("Expected success=false for status 409")
+		}
+		if launchURI, ok := response["launch_uri"].(string); !ok || launchURI == "" {
+			t.Errorf("Expected non-empty launch_uri for status 409")
+		}
 	}
 
 	if appID, ok := response["app_id"].(string); !ok || appID != "1145350" {
