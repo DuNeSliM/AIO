@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { API_BASE } from '../services/api'
+import { STORAGE_KEYS } from '../shared/storage/keys'
+import {
+  getLocalString,
+  removeLocalString,
+  setLocalString,
+} from '../shared/storage/storage'
 
 type SteamAuth = {
   steamId: string | null
@@ -22,13 +28,13 @@ export function useSteamAuth(): SteamAuth {
       setSteamId(id)
       setUsername(name || 'Steam User')
 
-      localStorage.setItem('steamId', id)
-      if (name) localStorage.setItem('steamUsername', name)
+      setLocalString(STORAGE_KEYS.steam.id, id)
+      if (name) setLocalString(STORAGE_KEYS.steam.username, name)
 
       window.history.replaceState({}, '', window.location.pathname)
     } else {
-      const storedId = localStorage.getItem('steamId')
-      const storedName = localStorage.getItem('steamUsername')
+      const storedId = getLocalString(STORAGE_KEYS.steam.id)
+      const storedName = getLocalString(STORAGE_KEYS.steam.username)
       if (storedId) {
         setSteamId(storedId)
         setUsername(storedName)
@@ -43,8 +49,8 @@ export function useSteamAuth(): SteamAuth {
   const logout = () => {
     setSteamId(null)
     setUsername(null)
-    localStorage.removeItem('steamId')
-    localStorage.removeItem('steamUsername')
+    removeLocalString(STORAGE_KEYS.steam.id)
+    removeLocalString(STORAGE_KEYS.steam.username)
   }
 
   return { steamId, username, isLoggedIn: !!steamId, login, logout }

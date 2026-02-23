@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react'
 import { API_BASE } from '../services/api'
+import { STORAGE_KEYS } from '../shared/storage/keys'
+import {
+  getLocalString,
+  getSessionString,
+  removeLocalString,
+  removeSessionString,
+  setLocalString,
+  setSessionString,
+} from '../shared/storage/storage'
 
 type EpicAuth = {
   epicId: string | null
@@ -29,19 +38,19 @@ export function useEpicAuth(): EpicAuth {
       setUsername(name || 'Epic User')
       setAccessToken(token)
 
-      localStorage.setItem('epicId', id)
-      if (name) localStorage.setItem('epicUsername', name)
-      if (token) sessionStorage.setItem('epicAccessToken', token)
+      setLocalString(STORAGE_KEYS.epic.id, id)
+      if (name) setLocalString(STORAGE_KEYS.epic.username, name)
+      if (token) setSessionString(STORAGE_KEYS.epic.accessToken, token)
 
       window.history.replaceState({}, '', window.location.pathname)
     } else {
-      const storedId = localStorage.getItem('epicId')
-      const storedName = localStorage.getItem('epicUsername')
-      const storedToken = sessionStorage.getItem('epicAccessToken') || localStorage.getItem('epicAccessToken')
-      if (storedToken && !sessionStorage.getItem('epicAccessToken')) {
-        sessionStorage.setItem('epicAccessToken', storedToken)
+      const storedId = getLocalString(STORAGE_KEYS.epic.id)
+      const storedName = getLocalString(STORAGE_KEYS.epic.username)
+      const storedToken = getSessionString(STORAGE_KEYS.epic.accessToken) || getLocalString(STORAGE_KEYS.epic.accessToken)
+      if (storedToken && !getSessionString(STORAGE_KEYS.epic.accessToken)) {
+        setSessionString(STORAGE_KEYS.epic.accessToken, storedToken)
       }
-      localStorage.removeItem('epicAccessToken')
+      removeLocalString(STORAGE_KEYS.epic.accessToken)
       if (storedId) {
         setEpicId(storedId)
         setUsername(storedName)
@@ -58,10 +67,10 @@ export function useEpicAuth(): EpicAuth {
     setEpicId(null)
     setUsername(null)
     setAccessToken(null)
-    localStorage.removeItem('epicId')
-    localStorage.removeItem('epicUsername')
-    localStorage.removeItem('epicAccessToken')
-    sessionStorage.removeItem('epicAccessToken')
+    removeLocalString(STORAGE_KEYS.epic.id)
+    removeLocalString(STORAGE_KEYS.epic.username)
+    removeLocalString(STORAGE_KEYS.epic.accessToken)
+    removeSessionString(STORAGE_KEYS.epic.accessToken)
   }
 
   return {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import UiCorners from './ui/UiCorners'
 import { launchGame } from '../services/api'
 import { getLastPlayedDate, getPlaytimeHours } from '../utils/gameFormat'
 import type { Game, ViewMode } from '../types'
@@ -72,12 +73,7 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
           viewMode === 'list' ? 'items-center' : 'flex-col'
         }`}
       >
-        <div className="ui-corners">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <UiCorners />
         <div className="ui-cardHeader" />
         <div className={viewMode === 'list' ? 'flex h-16 w-24 shrink-0 items-center' : 'w-full'}>
           {imageSrc ? (
@@ -117,6 +113,7 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
     </article>
   )
 }
+
 
 
 

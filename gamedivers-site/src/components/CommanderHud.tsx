@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { getRank, setCommanderName } from '../utils/gameify'
 import { useCommander } from '../hooks/useCommander'
+import UiCorners from './ui/UiCorners'
 
 export default function CommanderHud() {
   const commander = useCommander()
@@ -24,12 +25,7 @@ export default function CommanderHud() {
   return (
     <div className="ui-surface ui-surface--accent">
       <div className="ui-panel ui-panel-pad-sm">
-        <div className="ui-corners">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
+        <UiCorners />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-[220px]">
             <div className="ui-label">PLAYER PROGRESS</div>
@@ -62,6 +58,7 @@ export default function CommanderHud() {
     </div>
   )
 }
+
 
 
 

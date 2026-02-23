@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { STORAGE_KEYS } from '../shared/storage/keys'
 import * as authApi from '../services/api'
 import type { User, AuthResponse } from '../types'
 
-const ACCESS_TOKEN_KEY = 'accessToken'
-const REFRESH_TOKEN_KEY = 'refreshToken'
-const USER_KEY = 'user'
+const ACCESS_TOKEN_KEY = STORAGE_KEYS.auth.accessToken
+const REFRESH_TOKEN_KEY = STORAGE_KEYS.auth.refreshToken
+const USER_KEY = STORAGE_KEYS.auth.user
 
 type AuthState = {
   user: User | null

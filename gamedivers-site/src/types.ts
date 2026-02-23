@@ -82,6 +82,13 @@ export type WishlistItem = {
     cut?: number
     url?: string
   }[]
+  lowestDeal?: {
+    shop?: string
+    price?: number
+    currency?: string
+    cut?: number
+    url?: string
+  }
   threshold?: number
   currency?: string
   lastPrice?: number

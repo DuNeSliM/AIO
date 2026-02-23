@@ -1,5 +1,7 @@
 import { DEFAULT_DESIGN_ID, DESIGN_CATALOG, isKnownDesignId } from '../designs/registry'
 import type { DesignId } from '../designs/registry'
+import { APP_EVENTS, emitAppEvent } from '../shared/events'
+import { STORAGE_KEYS } from '../shared/storage/keys'
 
 export { DESIGN_CATALOG } from '../designs/registry'
 
@@ -99,7 +101,7 @@ const LOG_KEY = 'eventLog'
 const MISSION_PREFS_KEY = 'commanderMissionPreferences'
 const DAILY_MISSIONS_KEY = 'commanderDailyMissionsV2'
 const DESIGN_PREVIEW_KEY = 'commanderDesignPreview'
-export const DESIGN_PREVIEW_EVENT = 'design-preview-update'
+export const DESIGN_PREVIEW_EVENT = APP_EVENTS.designPreviewUpdate
 
 const DAILY_MISSION_COUNT = 4
 export const DAILY_REROLL_LIMIT = 2
@@ -179,7 +181,7 @@ function nextLevel(xp: number) {
 }
 
 function dispatchMissionUpdate() {
-  window.dispatchEvent(new Event('mission-update'))
+  emitAppEvent(APP_EVENTS.missionUpdate)
 }
 
 function defaultMissionPreferences(): MissionPreferences {
@@ -424,7 +426,7 @@ export function evaluateDailyMissions(metrics: MissionMetrics): DailyMissionCard
 }
 
 function loadWishlistCountForMissions() {
-  const raw = localStorage.getItem('wishlist')
+  const raw = localStorage.getItem(STORAGE_KEYS.wishlist.items)
   if (!raw) return 0
   try {
     const parsed = JSON.parse(raw)
@@ -542,7 +544,7 @@ export function loadCommander(): CommanderState {
 
 export function saveCommander(state: CommanderState) {
   localStorage.setItem(COMMANDER_KEY, JSON.stringify(state))
-  window.dispatchEvent(new Event('commander-update'))
+  emitAppEvent(APP_EVENTS.commanderUpdate)
 }
 
 export function updateCommander(patch: Partial<CommanderState>) {
@@ -631,7 +633,7 @@ export function setDesignPreview(designId: DesignId | null) {
   } else {
     localStorage.removeItem(DESIGN_PREVIEW_KEY)
   }
-  window.dispatchEvent(new Event(DESIGN_PREVIEW_EVENT))
+  emitAppEvent(APP_EVENTS.designPreviewUpdate)
 }
 
 export function clearDesignPreview() {

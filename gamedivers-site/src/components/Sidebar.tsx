@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
+import { APP_EVENTS, emitAppEvent } from '../shared/events'
 import type { Page } from '../types'
 
 const LibraryIcon = () => (
@@ -75,6 +76,12 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   const { user, logout, isLoading } = useAuth()
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
+  const accountName = user?.username?.trim()
+  const steamName = steamAuth.username?.trim()
+  const showSteamName =
+    steamAuth.isLoggedIn &&
+    !!steamName &&
+    steamName.toLowerCase() !== (accountName ?? '').toLowerCase()
 
   const handleLogout = async () => {
     await logout()
@@ -84,16 +91,16 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   return (
     <aside className="ui-sidebar">
       <div className="flex flex-col items-center gap-3">
-        <div className="font-display text-xl text-ember">AIO</div>
+        <div className="font-display text-xl text-ember">Game<p></p>divers</div>
         <div className="ui-divider w-10" />
-        {user && (
-          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={user.username}>
-            {user.username}
+        {accountName && (
+          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={accountName}>
+            {accountName}
           </div>
         )}
-        {steamAuth.isLoggedIn && (
-          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={steamAuth.username ?? undefined}>
-            {steamAuth.username}
+        {showSteamName && (
+          <div className="text-[10px] uppercase tracking-[0.25em] tone-muted" title={steamName}>
+            {steamName}
           </div>
         )}
       </div>
@@ -138,7 +145,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
             {t('auth.steamLogout')}
           </button>
         )}
-        <button className="ui-btn-soft w-full text-xs" onClick={() => window.dispatchEvent(new Event('epic-local-sync'))}>
+        <button className="ui-btn-soft w-full text-xs" onClick={() => emitAppEvent(APP_EVENTS.epicLocalSync)}>
           {t('epic.localSync')}
         </button>
         <small className="text-center text-[10px] tone-muted">v0.1</small>

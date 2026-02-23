@@ -1,10 +1,14 @@
-﻿import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import UiCorners from '../components/ui/UiCorners'
 import GameList from '../components/GameList'
 import { useGames } from '../hooks/useGames'
 import type { SortBy } from '../hooks/useGames'
 import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
+import { APP_EVENTS, onAppEvent } from '../shared/events'
+import { STORAGE_KEYS } from '../shared/storage/keys'
+import { getLocalString, setLocalString } from '../shared/storage/storage'
 import type { ViewMode } from '../types'
 
 export default function GameLibrary() {
@@ -26,7 +30,7 @@ export default function GameLibrary() {
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const stored = localStorage.getItem('libraryView')
+    const stored = getLocalString(STORAGE_KEYS.app.libraryView)
     return stored === 'list' ? 'list' : 'grid'
   })
 
@@ -48,25 +52,19 @@ export default function GameLibrary() {
   }, [isLoading, isLoggedIn, reload])
 
   useEffect(() => {
-    localStorage.setItem('libraryView', viewMode)
+    setLocalString(STORAGE_KEYS.app.libraryView, viewMode)
   }, [viewMode])
 
   useEffect(() => {
     const handler = () => loadEpicLibrary()
-    window.addEventListener('epic-local-sync', handler)
-    return () => window.removeEventListener('epic-local-sync', handler)
+    return onAppEvent(APP_EVENTS.epicLocalSync, handler)
   }, [loadEpicLibrary])
 
   return (
     <div className="flex flex-col gap-6">
       <header className="ui-surface ui-surface--accent">
         <div className="ui-panel ui-panel-pad-lg">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="ui-label">{t('library.title')}</p>
@@ -98,12 +96,7 @@ export default function GameLibrary() {
 
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
-          <div className="ui-corners">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <UiCorners />
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex flex-1 items-center gap-3">
               <input
@@ -166,6 +159,7 @@ export default function GameLibrary() {
     </div>
   )
 }
+
 
 
 
