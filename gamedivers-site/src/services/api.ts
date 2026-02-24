@@ -340,6 +340,39 @@ export async function getItadPrices(gameId: string, country = 'DE'): Promise<Ita
   }
 }
 
+function launchExternalProtocol(launchUri: string): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+  const container = document.body ?? document.documentElement
+  if (!container) return
+
+  // First choice: open a disposable child tab/window and launch there.
+  // This keeps the current tab from becoming the navigation target.
+  const popup = window.open('', '_blank')
+  if (popup) {
+    popup.opener = null
+    popup.location.href = launchUri
+    window.setTimeout(() => {
+      try {
+        popup.close()
+      } catch {
+        // ignore close failures
+      }
+    }, 1500)
+    return
+  }
+
+  // Fallback: click a temporary off-screen anchor in a new browsing context.
+  const launcherLink = document.createElement('a')
+  launcherLink.href = launchUri
+  launcherLink.target = '_blank'
+  launcherLink.rel = 'noopener noreferrer'
+  launcherLink.style.display = 'none'
+  container.appendChild(launcherLink)
+  launcherLink.click()
+  launcherLink.remove()
+}
+
 function launchViaProtocolHandler(platform: string, id: string | number): { success: boolean; launchUri: string } | null {
   if (typeof window === 'undefined') return null
 
@@ -352,8 +385,25 @@ function launchViaProtocolHandler(platform: string, id: string | number): { succ
   }
 
   const launchUri = `steam://rungameid/${appID}`
-  window.location.href = launchUri
+  launchExternalProtocol(launchUri)
   return { success: true, launchUri }
+}
+
+function maybeLaunchFromApiIntent(payload: unknown): void {
+  if (typeof window === 'undefined') return
+  if (!payload || typeof payload !== 'object') return
+
+  const source = payload as { launch_uri?: unknown; launchUri?: unknown }
+  const launchUri =
+    typeof source.launch_uri === 'string'
+      ? source.launch_uri.trim()
+      : typeof source.launchUri === 'string'
+        ? source.launchUri.trim()
+        : ''
+
+  if (!launchUri) return
+  if (!/^(steam|com\.epicgames\.launcher|goggalaxy):\/\//i.test(launchUri)) return
+  launchExternalProtocol(launchUri)
 }
 
 export async function launchGame(platform: string, id: string | number, appName?: string) {
@@ -385,7 +435,9 @@ export async function launchGame(platform: string, id: string | number, appName?
     if (!res.ok) {
       throw new Error(await readResponseErrorMessage(res, `Launch failed: ${res.status}`))
     }
-    return await res.json()
+    const payload = await res.json()
+    maybeLaunchFromApiIntent(payload)
+    return payload
   } catch (error) {
     console.error('Launch error:', error)
     throw error
@@ -393,15 +445,23 @@ export async function launchGame(platform: string, id: string | number, appName?
 }
 
 export async function syncStore(store: string, credentials?: { steamId?: string; accessToken?: string }) {
-  let url
+  let url: string
   let headers: HeadersInit | undefined
-  if (store === 'steam' && credentials?.steamId) {
+  if (store === 'steam') {
+    if (!credentials?.steamId) {
+      throw new Error('Steam sync requires steamId')
+    }
     url = `${API_BASE}/v1/steam/sync?steamid=${encodeURIComponent(credentials.steamId)}`
-  } else if (store === 'epic' && credentials?.accessToken) {
-    url = `${API_BASE}/v1/epic/sync`
-    headers = { Authorization: `Bearer ${credentials.accessToken}` }
+  } else if (store === 'epic') {
+    if (credentials?.accessToken) {
+      url = `${API_BASE}/v1/epic/sync`
+      headers = { Authorization: `Bearer ${credentials.accessToken}` }
+    } else {
+      // Local Epic manifest fallback route.
+      url = `${API_BASE}/v1/games/epic/library`
+    }
   } else {
-    url = `${API_BASE}/v1/games/${store}/library`
+    throw new Error(`Unsupported sync store: ${store}`)
   }
 
   const res = await tryJson(url, { method: 'POST', headers })

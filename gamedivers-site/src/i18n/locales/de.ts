@@ -93,6 +93,7 @@ export const de: TranslationTree = {
         disable: 'Deaktivieren',
         permissionDenied: 'Browser blockiert Benachrichtigungen. Bitte in den Seiteneinstellungen erlauben.',
         onedrive: 'OneDrive Sync',
+        onedriveHint: 'Optional: Wishlist im OneDrive-Ordner speichern, damit sie zwischen Geraeten synchron bleibt.',
         connect: 'Verbinden',
         disconnect: 'Trennen',
         grant: 'Zugriff erlauben',

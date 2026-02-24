@@ -1,4 +1,4 @@
-﻿body.design-ghost-protocol {
+body.design-ghost-protocol {
   --tone-primary: #dfe7e6;
   --tone-muted: #96a6a5;
   --tone-soft: #bbc8c7;
@@ -10,6 +10,12 @@
 
   --ui-panel-bg: rgba(16, 24, 23, 0.84);
   --ui-panel-border: rgba(154, 172, 169, 0.25);
+  --ui-control-bg: rgba(17, 25, 24, 0.9);
+  --ui-control-border: rgba(160, 177, 174, 0.3);
+  --ui-control-border-focus: rgba(189, 205, 202, 0.62);
+  --ui-control-placeholder: rgba(209, 221, 219, 0.46);
+  --ui-control-shadow: inset 0 0 10px rgba(112, 126, 124, 0.16);
+  --ui-divider-line: linear-gradient(to right, transparent, rgba(154, 172, 169, 0.38), transparent);
 
   --ui-btn-primary-bg: #b8c5c3;
   --ui-btn-primary-color: #182423;
@@ -17,9 +23,19 @@
 
   --ui-btn-secondary-border: rgba(164, 181, 178, 0.45);
   --ui-btn-secondary-color: rgba(214, 226, 224, 0.92);
+  --ui-btn-ghost-bg: rgba(56, 72, 69, 0.42);
+  --ui-btn-ghost-border: rgba(161, 177, 174, 0.34);
+  --ui-btn-ghost-color: rgba(209, 222, 220, 0.9);
+  --ui-btn-ghost-hover-bg: rgba(167, 183, 180, 0.14);
+  --ui-btn-soft-bg: rgba(66, 82, 79, 0.38);
+  --ui-btn-soft-border: rgba(160, 176, 173, 0.24);
+  --ui-btn-soft-color: rgba(198, 211, 209, 0.84);
+  --ui-btn-soft-hover-bg: rgba(167, 183, 180, 0.19);
 
   --ui-chip-border: rgba(158, 175, 172, 0.42);
   --ui-chip-color: rgba(205, 219, 217, 0.92);
+  --ui-meter-border: rgba(159, 176, 173, 0.3);
+  --ui-meter-fill: linear-gradient(90deg, rgba(171, 188, 184, 0.58), rgba(121, 142, 139, 0.72));
 
   --ui-item-bg: rgba(17, 24, 24, 0.45);
   --ui-item-border: rgba(138, 157, 154, 0.25);
@@ -27,6 +43,14 @@
   --ui-toast-bg: rgba(16, 21, 21, 0.86);
   --ui-toast-border: rgba(161, 178, 175, 0.38);
   --ui-toast-color: #d1dfdd;
+  --ui-overlay-color: #d5e2e0;
+  --ui-scanline-bg: rgba(171, 188, 184, 0.72);
+
+  --ui-sidebar-bg: rgba(17, 25, 24, 0.7);
+  --ui-sidebar-border: rgba(151, 168, 165, 0.19);
+  --ui-sidebar-icon-bg: rgba(21, 31, 30, 0.84);
+  --ui-sidebar-icon-border: rgba(152, 169, 166, 0.3);
+  --ui-sidebar-icon-hover-border: rgba(191, 205, 202, 0.54);
 }
 
 body.design-ghost-protocol .ui-shell::after {
@@ -36,4 +60,3 @@ body.design-ghost-protocol .ui-shell::after {
     radial-gradient(circle at 48% 100%, rgba(67, 84, 81, 0.16), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.018) 1px, transparent 2px, transparent 4px);
 }
-

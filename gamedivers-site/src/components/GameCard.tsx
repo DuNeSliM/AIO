@@ -12,7 +12,7 @@ type LaunchButtonProps = {
 
 function LaunchButton({ onClick, loading }: LaunchButtonProps) {
   return (
-    <button className="ui-btn-primary text-xs" onClick={onClick} disabled={loading}>
+    <button type="button" className="ui-btn-primary text-xs" onClick={onClick} disabled={loading}>
       {loading ? '...' : 'Start'}
     </button>
   )
