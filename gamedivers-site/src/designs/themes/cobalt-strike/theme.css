@@ -1,4 +1,4 @@
-﻿body.design-cobalt-strike {
+body.design-cobalt-strike {
   --tone-primary: #d9eeff;
   --tone-muted: #8eb4ce;
   --tone-soft: #b4d4ea;
@@ -10,6 +10,12 @@
 
   --ui-panel-bg: rgba(9, 23, 49, 0.82);
   --ui-panel-border: rgba(112, 210, 255, 0.26);
+  --ui-control-bg: rgba(9, 24, 52, 0.88);
+  --ui-control-border: rgba(122, 210, 255, 0.34);
+  --ui-control-border-focus: rgba(153, 224, 255, 0.74);
+  --ui-control-placeholder: rgba(199, 234, 255, 0.5);
+  --ui-control-shadow: inset 0 0 10px rgba(94, 192, 255, 0.18);
+  --ui-divider-line: linear-gradient(to right, transparent, rgba(112, 210, 255, 0.4), transparent);
 
   --ui-btn-primary-bg: linear-gradient(135deg, #80e3ff, #66b7ff 58%, #4f87ff);
   --ui-btn-primary-color: #04132d;
@@ -17,9 +23,19 @@
 
   --ui-btn-secondary-border: rgba(132, 211, 255, 0.52);
   --ui-btn-secondary-color: rgba(198, 235, 255, 0.96);
+  --ui-btn-ghost-bg: rgba(20, 48, 92, 0.48);
+  --ui-btn-ghost-border: rgba(130, 208, 255, 0.42);
+  --ui-btn-ghost-color: rgba(198, 234, 255, 0.93);
+  --ui-btn-ghost-hover-bg: rgba(97, 182, 255, 0.16);
+  --ui-btn-soft-bg: rgba(24, 56, 106, 0.42);
+  --ui-btn-soft-border: rgba(130, 208, 255, 0.3);
+  --ui-btn-soft-color: rgba(191, 229, 255, 0.87);
+  --ui-btn-soft-hover-bg: rgba(97, 182, 255, 0.22);
 
   --ui-chip-border: rgba(124, 205, 255, 0.52);
   --ui-chip-color: rgba(194, 232, 255, 0.95);
+  --ui-meter-border: rgba(120, 206, 255, 0.34);
+  --ui-meter-fill: linear-gradient(90deg, rgba(127, 222, 255, 0.6), rgba(72, 144, 255, 0.78));
 
   --ui-item-bg: rgba(8, 22, 48, 0.46);
   --ui-item-border: rgba(104, 185, 255, 0.26);
@@ -27,6 +43,14 @@
   --ui-toast-bg: rgba(7, 20, 39, 0.86);
   --ui-toast-border: rgba(110, 205, 255, 0.44);
   --ui-toast-color: #bfe8ff;
+  --ui-overlay-color: #ccecff;
+  --ui-scanline-bg: rgba(130, 220, 255, 0.78);
+
+  --ui-sidebar-bg: rgba(10, 25, 49, 0.72);
+  --ui-sidebar-border: rgba(110, 202, 255, 0.2);
+  --ui-sidebar-icon-bg: rgba(11, 29, 60, 0.86);
+  --ui-sidebar-icon-border: rgba(124, 205, 255, 0.32);
+  --ui-sidebar-icon-hover-border: rgba(166, 226, 255, 0.62);
 }
 
 body.design-cobalt-strike .ui-shell::after {
@@ -36,4 +60,3 @@ body.design-cobalt-strike .ui-shell::after {
     radial-gradient(circle at 48% 100%, rgba(24, 88, 189, 0.16), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 4px);
 }
-

@@ -137,7 +137,10 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-3 text-sm">
-              <span className="ui-subtle">{t('store.wishlist.onedrive')}</span>
+              <div className="flex flex-col">
+                <span className="ui-subtle">{t('store.wishlist.onedrive')}</span>
+                <span className="text-xs ui-subtle">{t('store.wishlist.onedriveHint')}</span>
+              </div>
               {onedriveStatus === 'connected' ? (
                 <button className="ui-btn-secondary" onClick={() => void disconnectOnedrive()}>
                   {t('store.wishlist.disconnect')}

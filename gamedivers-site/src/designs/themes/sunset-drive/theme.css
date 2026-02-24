@@ -1,4 +1,4 @@
-﻿body.design-sunset-drive {
+body.design-sunset-drive {
   --tone-primary: #ffe9d6;
   --tone-muted: #d6b9a1;
   --tone-soft: #f2c9a8;
@@ -10,6 +10,12 @@
 
   --ui-panel-bg: rgba(41, 20, 13, 0.82);
   --ui-panel-border: rgba(255, 176, 109, 0.3);
+  --ui-control-bg: rgba(46, 23, 14, 0.88);
+  --ui-control-border: rgba(255, 179, 112, 0.36);
+  --ui-control-border-focus: rgba(255, 201, 147, 0.72);
+  --ui-control-placeholder: rgba(255, 222, 192, 0.52);
+  --ui-control-shadow: inset 0 0 10px rgba(255, 149, 80, 0.16);
+  --ui-divider-line: linear-gradient(to right, transparent, rgba(255, 176, 109, 0.42), transparent);
 
   --ui-btn-primary-bg: linear-gradient(135deg, #ffb56e, #ff8f45 60%, #ff7945);
   --ui-btn-primary-color: #2b1306;
@@ -17,9 +23,19 @@
 
   --ui-btn-secondary-border: rgba(255, 196, 144, 0.52);
   --ui-btn-secondary-color: rgba(255, 223, 193, 0.96);
+  --ui-btn-ghost-bg: rgba(82, 40, 22, 0.46);
+  --ui-btn-ghost-border: rgba(255, 196, 144, 0.44);
+  --ui-btn-ghost-color: rgba(255, 223, 193, 0.94);
+  --ui-btn-ghost-hover-bg: rgba(255, 172, 114, 0.16);
+  --ui-btn-soft-bg: rgba(101, 47, 22, 0.42);
+  --ui-btn-soft-border: rgba(255, 196, 144, 0.3);
+  --ui-btn-soft-color: rgba(255, 219, 187, 0.88);
+  --ui-btn-soft-hover-bg: rgba(255, 172, 114, 0.2);
 
   --ui-chip-border: rgba(255, 198, 146, 0.5);
   --ui-chip-color: rgba(255, 226, 195, 0.95);
+  --ui-meter-border: rgba(255, 183, 120, 0.34);
+  --ui-meter-fill: linear-gradient(90deg, rgba(255, 191, 132, 0.6), rgba(255, 122, 0, 0.78));
 
   --ui-item-bg: rgba(45, 20, 9, 0.45);
   --ui-item-border: rgba(255, 176, 109, 0.28);
@@ -27,6 +43,14 @@
   --ui-toast-bg: rgba(36, 15, 8, 0.84);
   --ui-toast-border: rgba(255, 176, 109, 0.45);
   --ui-toast-color: #ffcf99;
+  --ui-overlay-color: #ffd4ab;
+  --ui-scanline-bg: rgba(255, 192, 134, 0.74);
+
+  --ui-sidebar-bg: rgba(46, 22, 14, 0.72);
+  --ui-sidebar-border: rgba(255, 170, 106, 0.2);
+  --ui-sidebar-icon-bg: rgba(56, 25, 14, 0.86);
+  --ui-sidebar-icon-border: rgba(255, 174, 112, 0.32);
+  --ui-sidebar-icon-hover-border: rgba(255, 205, 154, 0.62);
 }
 
 body.design-sunset-drive .ui-shell::after {
@@ -36,4 +60,3 @@ body.design-sunset-drive .ui-shell::after {
     radial-gradient(circle at 45% 100%, rgba(255, 122, 0, 0.15), transparent 60%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 1px, transparent 2px, transparent 4px);
 }
-

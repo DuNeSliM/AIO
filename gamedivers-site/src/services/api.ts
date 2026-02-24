@@ -356,6 +356,23 @@ function launchViaProtocolHandler(platform: string, id: string | number): { succ
   return { success: true, launchUri }
 }
 
+function maybeLaunchFromApiIntent(payload: unknown): void {
+  if (typeof window === 'undefined') return
+  if (!payload || typeof payload !== 'object') return
+
+  const source = payload as { launch_uri?: unknown; launchUri?: unknown }
+  const launchUri =
+    typeof source.launch_uri === 'string'
+      ? source.launch_uri.trim()
+      : typeof source.launchUri === 'string'
+        ? source.launchUri.trim()
+        : ''
+
+  if (!launchUri) return
+  if (!/^(steam|com\.epicgames\.launcher|goggalaxy):\/\//i.test(launchUri)) return
+  window.location.href = launchUri
+}
+
 export async function launchGame(platform: string, id: string | number, appName?: string) {
   try {
     if (typeof window !== 'undefined' && (window as Window & { __TAURI__?: unknown }).__TAURI__) {
@@ -385,7 +402,9 @@ export async function launchGame(platform: string, id: string | number, appName?
     if (!res.ok) {
       throw new Error(await readResponseErrorMessage(res, `Launch failed: ${res.status}`))
     }
-    return await res.json()
+    const payload = await res.json()
+    maybeLaunchFromApiIntent(payload)
+    return payload
   } catch (error) {
     console.error('Launch error:', error)
     throw error
@@ -393,15 +412,23 @@ export async function launchGame(platform: string, id: string | number, appName?
 }
 
 export async function syncStore(store: string, credentials?: { steamId?: string; accessToken?: string }) {
-  let url
+  let url: string
   let headers: HeadersInit | undefined
-  if (store === 'steam' && credentials?.steamId) {
+  if (store === 'steam') {
+    if (!credentials?.steamId) {
+      throw new Error('Steam sync requires steamId')
+    }
     url = `${API_BASE}/v1/steam/sync?steamid=${encodeURIComponent(credentials.steamId)}`
-  } else if (store === 'epic' && credentials?.accessToken) {
-    url = `${API_BASE}/v1/epic/sync`
-    headers = { Authorization: `Bearer ${credentials.accessToken}` }
+  } else if (store === 'epic') {
+    if (credentials?.accessToken) {
+      url = `${API_BASE}/v1/epic/sync`
+      headers = { Authorization: `Bearer ${credentials.accessToken}` }
+    } else {
+      // Local Epic manifest fallback route.
+      url = `${API_BASE}/v1/games/epic/library`
+    }
   } else {
-    url = `${API_BASE}/v1/games/${store}/library`
+    throw new Error(`Unsupported sync store: ${store}`)
   }
 
   const res = await tryJson(url, { method: 'POST', headers })
