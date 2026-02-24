@@ -16,7 +16,7 @@ type AuthState = {
 
 type AuthFunctions = {
   login: (username: string, password: string) => Promise<void>
-  register: (username: string, email: string, password: string, firstName?: string, lastName?: string) => Promise<void>
+  register: (username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   clearError: () => void
   validateTokens: () => Promise<void>
@@ -140,13 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username: string,
     email: string,
     password: string,
-    firstName?: string,
-    lastName?: string,
   ) => {
     try {
       setIsLoading(true)
       setError(null)
-      const newUser = await authApi.register(username, email, password, firstName, lastName)
+      const newUser = await authApi.register(username, email, password)
       setUser(newUser)
       localStorage.setItem(USER_KEY, JSON.stringify(newUser))
       // After registration, user still needs to login
