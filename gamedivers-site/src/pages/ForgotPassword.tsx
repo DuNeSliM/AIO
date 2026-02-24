@@ -114,9 +114,6 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
           </div>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest ui-subtle">AIO GAME LIBRARY v1.0</p>
-        </div>
       </div>
     </div>
   )

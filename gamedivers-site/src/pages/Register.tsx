@@ -3,6 +3,50 @@ import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../i18n/i18n'
 import type { Page } from '../types'
 
+const EyeIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.269 2.943 9.542 7-1.273 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+    />
+  </svg>
+)
+
+const EyeOffIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.269-2.943-9.542-7a9.975 9.975 0 012.223-3.314M6.61 6.61A9.975 9.975 0 0112 5c4.478 0 8.269 2.943 9.542 7a9.968 9.968 0 01-1.19 2.1"
+    />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M15 15l5.5 5.5M2.5 2.5L8 8"
+    />
+  </svg>
+)
+
 interface RegisterPageProps {
   onSuccess: (page: Page) => void
 }
@@ -15,9 +59,9 @@ export default function Register({ onSuccess }: RegisterPageProps) {
     email: '',
     password: '',
     confirmPassword: '',
-    firstName: '',
-    lastName: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,8 +100,6 @@ export default function Register({ onSuccess }: RegisterPageProps) {
         formData.username,
         formData.email,
         formData.password,
-        formData.firstName || undefined,
-        formData.lastName || undefined,
       )
       onSuccess('login')
     } catch (err) {
@@ -91,40 +133,6 @@ export default function Register({ onSuccess }: RegisterPageProps) {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="firstName" className="ui-label mb-3 block">
-                      First Name
-                    </label>
-                    <input
-                      id="firstName"
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      placeholder="JOHN"
-                      className="ui-input w-full"
-                      disabled={isLoading}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="lastName" className="ui-label mb-3 block">
-                      Last Name
-                    </label>
-                    <input
-                      id="lastName"
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      placeholder="DOE"
-                      className="ui-input w-full"
-                      disabled={isLoading}
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label htmlFor="username" className="ui-label mb-3 block">
                     Username
@@ -161,32 +169,58 @@ export default function Register({ onSuccess }: RegisterPageProps) {
                   <label htmlFor="password" className="ui-label mb-3 block">
                     Password
                   </label>
-                  <input
-                    id="password"
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="MIN. 8 CHARACTERS"
-                    className="ui-input w-full"
-                    disabled={isLoading}
-                  />
+                  <div className="relative">
+                    <input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="MIN. 8 CHARACTERS"
+                      className="ui-input w-full"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-neon/70 hover:text-neon transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOffIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label htmlFor="confirmPassword" className="ui-label mb-3 block">
                     Confirm Password
                   </label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="CONFIRM PASSWORD"
-                    className="ui-input w-full"
-                    disabled={isLoading}
-                  />
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="CONFIRM PASSWORD"
+                      className="ui-input w-full"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((s) => !s)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-neon/70 hover:text-neon transition-colors"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOffIcon className="w-5 h-5" />
+                      ) : (
+                        <EyeIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <button type="submit" disabled={isLoading} className="ui-btn-primary w-full mt-6">
@@ -210,9 +244,6 @@ export default function Register({ onSuccess }: RegisterPageProps) {
           </div>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest ui-subtle">AIO GAME LIBRARY v1.0</p>
-        </div>
       </div>
     </div>
   )
