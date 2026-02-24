@@ -340,6 +340,39 @@ export async function getItadPrices(gameId: string, country = 'DE'): Promise<Ita
   }
 }
 
+function launchExternalProtocol(launchUri: string): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+  const container = document.body ?? document.documentElement
+  if (!container) return
+
+  // First choice: open a disposable child tab/window and launch there.
+  // This keeps the current tab from becoming the navigation target.
+  const popup = window.open('', '_blank')
+  if (popup) {
+    popup.opener = null
+    popup.location.href = launchUri
+    window.setTimeout(() => {
+      try {
+        popup.close()
+      } catch {
+        // ignore close failures
+      }
+    }, 1500)
+    return
+  }
+
+  // Fallback: click a temporary off-screen anchor in a new browsing context.
+  const launcherLink = document.createElement('a')
+  launcherLink.href = launchUri
+  launcherLink.target = '_blank'
+  launcherLink.rel = 'noopener noreferrer'
+  launcherLink.style.display = 'none'
+  container.appendChild(launcherLink)
+  launcherLink.click()
+  launcherLink.remove()
+}
+
 function launchViaProtocolHandler(platform: string, id: string | number): { success: boolean; launchUri: string } | null {
   if (typeof window === 'undefined') return null
 
@@ -352,7 +385,7 @@ function launchViaProtocolHandler(platform: string, id: string | number): { succ
   }
 
   const launchUri = `steam://rungameid/${appID}`
-  window.location.href = launchUri
+  launchExternalProtocol(launchUri)
   return { success: true, launchUri }
 }
 
@@ -370,7 +403,7 @@ function maybeLaunchFromApiIntent(payload: unknown): void {
 
   if (!launchUri) return
   if (!/^(steam|com\.epicgames\.launcher|goggalaxy):\/\//i.test(launchUri)) return
-  window.location.href = launchUri
+  launchExternalProtocol(launchUri)
 }
 
 export async function launchGame(platform: string, id: string | number, appName?: string) {
