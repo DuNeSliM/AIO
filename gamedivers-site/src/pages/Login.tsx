@@ -105,7 +105,7 @@ export default function Login({ onSuccess }: LoginPageProps) {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label htmlFor="username" className="ui-label mb-3 block">
-                    Username
+                    Username or Email
                   </label>
                   <input
                     id="username"
