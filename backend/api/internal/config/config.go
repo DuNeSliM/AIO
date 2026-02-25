@@ -28,6 +28,7 @@ type Config struct {
 	EpicClientID     string
 	EpicClientSecret string
 	EpicCallbackURL  string
+
 	// Keycloak configuration
 	KeycloakURL                  string
 	KeycloakRealm                string

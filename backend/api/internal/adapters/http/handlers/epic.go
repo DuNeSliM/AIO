@@ -9,14 +9,17 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
+	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 	"gamedivers.de/api/internal/adapters/stores/epic"
+	"gamedivers.de/api/internal/ports/repo"
 	"github.com/go-chi/chi/v5"
 )
 
 type EpicHandler struct {
-	client *epic.Client
-	// allowedRedirect is the single frontend origin we accept
+	client          *epic.Client
+	repo            repo.Repo
 	allowedRedirect string
 }
 
@@ -29,9 +32,10 @@ type EpicGameResponse struct {
 	Namespace string `json:"namespace"`
 }
 
-func NewEpicHandler(clientID, clientSecret, redirectURI, frontendOrigin string) *EpicHandler {
+func NewEpicHandler(clientID, clientSecret, redirectURI, frontendOrigin string, repo repo.Repo) *EpicHandler {
 	return &EpicHandler{
 		client:          epic.NewClient(clientID, clientSecret, redirectURI),
+		repo:            repo,
 		allowedRedirect: frontendOrigin,
 	}
 }
@@ -150,9 +154,20 @@ func (h *EpicHandler) GetLibrary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EpicHandler) SyncLibrary(w http.ResponseWriter, r *http.Request) {
+	user, ok := authmw.GetUserFromContext(r.Context())
+	if !ok || strings.TrimSpace(user.ID) == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	accessToken := extractBearerToken(r)
 	if accessToken == "" {
 		http.Error(w, "missing access token", http.StatusBadRequest)
+		return
+	}
+
+	if h.repo == nil {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -163,12 +178,29 @@ func (h *EpicHandler) SyncLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Store in database
+	now := time.Now().Unix()
+	if err := h.repo.UpsertUser(r.Context(), user.ID, now); err != nil {
+		logSafeError("upsert user failed during epic library sync", err)
+		writeInternalError(w)
+		return
+	}
+
+	// Store games in database
+	synced := 0
+	for _, game := range games {
+		gameIDStr := game.AppName
+		if err := h.repo.TrackGame(r.Context(), "epic", gameIDStr, "de", now); err != nil {
+			logSafeError("track game failed during epic library sync", err)
+			continue
+		}
+		synced++
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"synced": len(games),
-		"status": "success",
+		"synced":  synced,
+		"status":  "success",
+		"message": "",
 	})
 }
 

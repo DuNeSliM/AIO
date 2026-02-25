@@ -80,7 +80,11 @@ func main() {
 		cfg.EpicClientSecret,
 		cfg.EpicCallbackURL,
 		cfg.FrontendOrigin,
+		appRepo,
 	)
+
+	// Initialize GOG handler (local manifest - no OAuth)
+	gogHandler := handlers.NewGOGHandler(appRepo)
 
 	// Initialize Keycloak client
 	keycloakClient := keycloak.NewClient(
@@ -104,7 +108,7 @@ func main() {
 		cfg.KeycloakClientID,
 	)
 
-	router := httpapi.Router(cfg.FrontendOrigin, itadHandler, gameHandler, steamHandler, epicHandler, authHandler, jwtMiddleware)
+	router := httpapi.Router(cfg.FrontendOrigin, itadHandler, gameHandler, steamHandler, epicHandler, gogHandler, authHandler, jwtMiddleware)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

@@ -263,9 +263,20 @@ func (h *SteamHandler) SyncWishlistToWatchlist(w http.ResponseWriter, r *http.Re
 // SyncLibrary fetches and stores the user's Steam library in the database
 // POST /v1/steam/sync?steamid={steamid}
 func (h *SteamHandler) SyncLibrary(w http.ResponseWriter, r *http.Request) {
+	user, ok := authmw.GetUserFromContext(r.Context())
+	if !ok || strings.TrimSpace(user.ID) == "" {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	steamID := r.URL.Query().Get("steamid")
 	if steamID == "" {
 		http.Error(w, "missing steamid parameter", http.StatusBadRequest)
+		return
+	}
+
+	if h.repo == nil {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -276,13 +287,29 @@ func (h *SteamHandler) SyncLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Store in database
-	// For now, just return success with count
+	now := time.Now().Unix()
+	if err := h.repo.UpsertUser(r.Context(), user.ID, now); err != nil {
+		logSafeError("upsert user failed during steam library sync", err)
+		writeInternalError(w)
+		return
+	}
+
+	// Store games in database
+	synced := 0
+	for _, game := range games {
+		gameIDStr := strconv.Itoa(game.AppID)
+		if err := h.repo.TrackGame(r.Context(), "steam", gameIDStr, "de", now); err != nil {
+			logSafeError("track game failed during steam library sync", err)
+			continue
+		}
+		synced++
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]any{
-		"success": true,
-		"count":   len(games),
-		"message": fmt.Sprintf("Synced %d games from Steam", len(games)),
+		"synced":  synced,
+		"status":  "success",
+		"message": "",
 	})
 }
 

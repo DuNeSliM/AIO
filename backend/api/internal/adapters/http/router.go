@@ -14,7 +14,7 @@ import (
 	authmw "gamedivers.de/api/internal/adapters/http/middleware"
 )
 
-func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
+func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *handlers.GameHandler, steamHandler *handlers.SteamHandler, epicHandler *handlers.EpicHandler, gogHandler *handlers.GOGHandler, authh *handlers.AuthHandler, jwtMw *authmw.JWTMiddleware) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.RequestID)
@@ -61,7 +61,7 @@ func Router(frontendOrigin string, itadh *handlers.ITADHandler, gameHandler *han
 	})
 
 	register := func(router chi.Router) {
-		registerV1Routes(router, itadh, gameHandler, steamHandler, epicHandler, authh, jwtMw, sensitiveAuthLimiter, tokenAuthLimiter)
+		registerV1Routes(router, itadh, gameHandler, steamHandler, epicHandler, gogHandler, authh, jwtMw, sensitiveAuthLimiter, tokenAuthLimiter)
 	}
 	r.Route("/v1", register)
 	// Compatibility route for ingress setups that forward /api without stripping the prefix.
@@ -76,6 +76,7 @@ func registerV1Routes(
 	gameHandler *handlers.GameHandler,
 	steamHandler *handlers.SteamHandler,
 	epicHandler *handlers.EpicHandler,
+	gogHandler *handlers.GOGHandler,
 	authh *handlers.AuthHandler,
 	jwtMw *authmw.JWTMiddleware,
 	sensitiveAuthLimiter *authmw.IPRateLimiter,
@@ -134,6 +135,17 @@ func registerV1Routes(
 		// Authenticated Epic endpoints
 		r.With(jwtMw.Authenticate).Get("/library", epicHandler.GetLibrary)
 		r.With(jwtMw.Authenticate).Post("/sync", epicHandler.SyncLibrary)
+	})
+
+	// GOG endpoints (local manifest - no OAuth)
+	r.Route("/gog", func(r chi.Router) {
+		r.Get("/available", gogHandler.IsAvailable)
+
+		// Authenticated GOG endpoints
+		r.With(jwtMw.Authenticate).Get("/library", gogHandler.GetLibrary)
+		r.With(jwtMw.Authenticate).Get("/wishlist", gogHandler.GetWishlist)
+		r.With(jwtMw.Authenticate).Post("/wishlist/sync", gogHandler.SyncWishlist)
+		r.With(jwtMw.Authenticate).Post("/sync", gogHandler.SyncLibrary)
 	})
 
 	// Protected API endpoints (authentication required)
