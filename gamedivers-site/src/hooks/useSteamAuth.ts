@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { API_BASE } from '../services/api'
+import { useI18n } from '../i18n/i18n'
 import { STORAGE_KEYS } from '../shared/storage/keys'
 import {
   getLocalString,
@@ -16,6 +17,7 @@ type SteamAuth = {
 }
 
 export function useSteamAuth(): SteamAuth {
+  const { t } = useI18n()
   const [steamId, setSteamId] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
 
@@ -26,7 +28,7 @@ export function useSteamAuth(): SteamAuth {
 
     if (id) {
       setSteamId(id)
-      setUsername(name || 'Steam User')
+      setUsername(name || t('auth.steamUserFallback'))
 
       setLocalString(STORAGE_KEYS.steam.id, id)
       if (name) setLocalString(STORAGE_KEYS.steam.username, name)
@@ -40,7 +42,7 @@ export function useSteamAuth(): SteamAuth {
         setUsername(storedName)
       }
     }
-  }, [])
+  }, [t])
 
   const login = () => {
     window.location.href = `${API_BASE}/v1/steam/login`

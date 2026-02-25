@@ -83,7 +83,7 @@ export default function Store() {
   const pushLog = useCallback((entry: string) => addEventLog(entry), [])
   const compareRef = useRef<HTMLDivElement | null>(null)
   const wishlistRef = useRef<HTMLDivElement | null>(null)
-  const { wishlistSyncing, onSyncSteamWishlist } = useSteamWishlistSync({
+  const { wishlistSyncing, wishlistPrefetching, prefetchSteamWishlist, onSyncSteamWishlist } = useSteamWishlistSync({
     steamId: steamAuth.steamId,
     items,
     addItem,
@@ -115,6 +115,11 @@ export default function Store() {
   useEffect(() => {
     setLocalString(STORAGE_KEYS.app.showWishlist, showWishlist ? 'true' : 'false')
   }, [showWishlist])
+
+  useEffect(() => {
+    if (!steamAuth.isLoggedIn || !steamAuth.steamId) return
+    void prefetchSteamWishlist()
+  }, [steamAuth.isLoggedIn, steamAuth.steamId, prefetchSteamWishlist])
 
   const onSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -309,6 +314,7 @@ export default function Store() {
           sectionRef={wishlistRef}
           steamLoggedIn={steamAuth.isLoggedIn}
           wishlistSyncing={wishlistSyncing}
+          wishlistPrefetching={wishlistPrefetching}
           checking={checking}
           items={items}
           sortedItems={sortedWishlistItems}

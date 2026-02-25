@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import UiCorners from './ui/UiCorners'
 import { launchGame } from '../services/api'
+import { useI18n } from '../i18n/i18n'
 import { getLastPlayedDate, getPlaytimeHours } from '../utils/gameFormat'
 import type { Game, ViewMode } from '../types'
 import { addEventLog, award, recordLaunchUnplayed } from '../utils/gameify'
@@ -8,12 +9,14 @@ import { addEventLog, award, recordLaunchUnplayed } from '../utils/gameify'
 type LaunchButtonProps = {
   onClick: () => void
   loading: boolean
+  label: string
+  loadingLabel: string
 }
 
-function LaunchButton({ onClick, loading }: LaunchButtonProps) {
+function LaunchButton({ onClick, loading, label, loadingLabel }: LaunchButtonProps) {
   return (
     <button type="button" className="ui-btn-primary text-xs" onClick={onClick} disabled={loading}>
-      {loading ? '...' : 'Start'}
+      {loading ? loadingLabel : label}
     </button>
   )
 }
@@ -25,12 +28,13 @@ type GameCardProps = {
 }
 
 export default function GameCard({ game, viewMode = 'grid', index }: GameCardProps) {
+  const { t } = useI18n()
   const { name, platform, image, imageFallback, id, appId, appName, gameName, lastPlayed, playtime } = game
   const [launching, setLaunching] = useState(false)
   const [imageSrc, setImageSrc] = useState<string | undefined>(image)
   const [usedImageFallback, setUsedImageFallback] = useState(false)
   const assetId = `AIO-${String(index + 1).padStart(4, '0')}`
-  const nodeLabel = platform ? platform.toUpperCase() : 'UNKNOWN'
+  const nodeLabel = platform ? platform.toUpperCase() : t('library.card.unknownStore')
 
   useEffect(() => {
     setImageSrc(image)
@@ -51,7 +55,7 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('Launch failed:', err)
-      alert(`Fehler beim Starten von ${name}: ${message}`)
+      alert(t('library.card.launchError', { name, message }))
     } finally {
       setLaunching(false)
     }
@@ -89,24 +93,29 @@ export default function GameCard({ game, viewMode = 'grid', index }: GameCardPro
         </div>
         <div className="flex flex-1 flex-col gap-3">
           <div>
-            <p className="ui-label">ID: {assetId}</p>
+            <p className="ui-label">{t('library.card.assetId', { id: assetId })}</p>
             <h3 className="text-lg tone-primary">{name}</h3>
           </div>
           <div className="space-y-1 text-xs ui-subtle">
             <div className="flex items-center justify-between">
-              <span>Last played</span>
+              <span>{t('library.card.lastPlayed')}</span>
               <span className="tone-soft">{getLastPlayedDate(lastPlayed)}</span>
             </div>
             {(playtime ?? 0) > 0 && (
               <div className="flex items-center justify-between">
-                <span>Playtime</span>
+                <span>{t('library.card.playtime')}</span>
                 <span className="tone-soft">{getPlaytimeHours(playtime)}</span>
               </div>
             )}
           </div>
           <div className="flex items-center justify-between">
-            <span className="ui-chip">Store: {nodeLabel}</span>
-            <LaunchButton onClick={start} loading={launching} />
+            <span className="ui-chip">{t('library.card.store', { store: nodeLabel })}</span>
+            <LaunchButton
+              onClick={start}
+              loading={launching}
+              label={t('library.card.start')}
+              loadingLabel={t('library.card.starting')}
+            />
           </div>
         </div>
       </div>

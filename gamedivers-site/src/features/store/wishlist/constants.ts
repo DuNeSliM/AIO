@@ -6,6 +6,7 @@ export const NOTIFY_KEY = STORAGE_KEYS.wishlist.notifyEnabled
 export const ONEDRIVE_HANDLE_KEY = STORAGE_KEYS.wishlist.oneDriveHandle
 export const WISHLIST_FILE = 'gamedivers-wishlist.json'
 export const STEAM_NAME_CACHE_KEY = STORAGE_KEYS.steam.wishlistNameCache
+export const STEAM_WISHLIST_SHADOW_CACHE_KEY = STORAGE_KEYS.steam.wishlistShadowCache
 export const ITAD_LOOKUP_CACHE_KEY = STORAGE_KEYS.wishlist.itadLookupCache
 export const CHECK_INTERVAL_MINUTES = 30
 export const ITAD_MIN_REQUEST_INTERVAL_MS = 900

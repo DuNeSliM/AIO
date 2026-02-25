@@ -13,6 +13,7 @@ import {
   grantCredits,
   getDailyMissionCards,
   getDailyMissionMeta,
+  getDesignPreviewRemainingMs,
   loadCounters,
   loadDesignPreview,
   loadEventLog,
@@ -23,7 +24,6 @@ import {
   saveMissionPreferences,
   setDesignPreview,
   type DesignId,
-  type MissionDifficulty,
 } from '../utils/gameify'
 
 type BadgeItem = {
@@ -37,7 +37,6 @@ const BADGES: BadgeItem[] = [
   { id: 'badge-elite', cost: 200 },
 ]
 
-const DIFFICULTY_OPTIONS: MissionDifficulty[] = ['relaxed', 'standard', 'hardcore']
 const ENABLED_ENV_VALUES = new Set(['1', 'true', 'yes', 'on'])
 const DEV_CREDITS_ENABLED = ENABLED_ENV_VALUES.has((import.meta.env.VITE_ENABLE_CREDIT_CHEAT ?? '').trim().toLowerCase())
 
@@ -62,8 +61,11 @@ function loadPriceCache() {
   }
 }
 
-function formatDifficulty(difficulty: MissionDifficulty, t: (key: string) => string) {
-  return t(`missions.difficultyOption.${difficulty}`).toUpperCase()
+function formatPreviewTime(remainingMs: number): string {
+  const clamped = Math.max(0, Math.floor(remainingMs / 1000))
+  const minutes = Math.floor(clamped / 60)
+  const seconds = clamped % 60
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 export default function Missions() {
@@ -75,6 +77,7 @@ export default function Missions() {
   const [toast, setToast] = useState<string | null>(null)
   const [events, setEvents] = useState(() => loadEventLog())
   const [previewDesign, setPreviewDesignState] = useState<DesignId | null>(() => loadDesignPreview())
+  const [previewRemainingMs, setPreviewRemainingMs] = useState(() => getDesignPreviewRemainingMs())
 
   const refreshMissionData = useCallback(() => {
     setCounters(loadCounters())
@@ -82,6 +85,7 @@ export default function Missions() {
     setMissionMeta(getDailyMissionMeta())
     setEvents(loadEventLog())
     setPreviewDesignState(loadDesignPreview())
+    setPreviewRemainingMs(getDesignPreviewRemainingMs())
   }, [])
 
   useEffect(() => {
@@ -94,9 +98,29 @@ export default function Missions() {
   useEffect(() => {
     const handler = () => {
       setPreviewDesignState(loadDesignPreview())
+      setPreviewRemainingMs(getDesignPreviewRemainingMs())
     }
     return onAppEvent(APP_EVENTS.designPreviewUpdate, handler)
   }, [])
+
+  useEffect(() => {
+    if (!previewDesign) {
+      setPreviewRemainingMs(0)
+      return
+    }
+
+    const tick = () => {
+      const remaining = getDesignPreviewRemainingMs()
+      setPreviewRemainingMs(remaining)
+      if (remaining <= 0) {
+        setPreviewDesignState(loadDesignPreview())
+      }
+    }
+
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [previewDesign])
 
   useEffect(() => {
     if (!toast) return
@@ -112,7 +136,7 @@ export default function Missions() {
 
   const dailyMissions = useMemo(
     () => getDailyMissionCards(metrics),
-    [metrics, preferences.difficulty, missionMeta.rerollsUsed, events.length],
+    [metrics, missionMeta.rerollsUsed, events.length],
   )
 
   const report = useMemo(() => {
@@ -142,6 +166,21 @@ export default function Missions() {
       const localized = t(key)
       return localized === key ? fallback : localized
     },
+    [t],
+  )
+
+  const getLocalizedMissionDifficulty = useCallback(
+    (difficulty: 'easy' | 'standard' | 'hard') => {
+      const key = `missions.missionDifficulty.${difficulty}`
+      const localized = t(key)
+      return localized === key ? difficulty.toUpperCase() : localized.toUpperCase()
+    },
+    [t],
+  )
+
+  const getMissionObjective = useCallback(
+    (metric: 'scans' | 'syncs' | 'launchUnplayed' | 'compares' | 'wishlistCount', count: number) =>
+      t(`missions.objectiveByMetric.${metric}`, { count }),
     [t],
   )
 
@@ -193,16 +232,6 @@ export default function Missions() {
       return
     }
     setToast(t('missions.toasts.purchased', { title: getLocalizedBadgeName(badge.id) }))
-  }
-
-  const onSetDifficulty = (difficulty: MissionDifficulty) => {
-    saveMissionPreferences({ difficulty })
-    refreshMissionData()
-    setToast(
-      t('missions.toasts.difficultySet', {
-        difficulty: formatDifficulty(difficulty, t),
-      }),
-    )
   }
 
   const onToggleMissions = () => {
@@ -298,23 +327,13 @@ export default function Missions() {
               {preferences.missionsEnabled ? t('missions.enabledOn') : t('missions.enabledOff')}
             </button>
 
-            <span className="text-xs uppercase tracking-[0.18em] text-white/50">{t('missions.difficulty')}</span>
-            <select
-              className="ui-select"
-              value={preferences.difficulty}
-              onChange={(event) => onSetDifficulty(event.target.value as MissionDifficulty)}
-              disabled={!preferences.missionsEnabled}
-            >
-              {DIFFICULTY_OPTIONS.map((difficulty) => (
-                <option key={difficulty} value={difficulty}>
-                  {t(`missions.difficultyOption.${difficulty}`)}
-                </option>
-              ))}
-            </select>
-
             <button className="ui-btn-secondary" onClick={onToggleRerolls} disabled={!preferences.missionsEnabled}>
               {preferences.rerollsEnabled ? t('missions.rerollsOn') : t('missions.rerollsOff')}
             </button>
+
+            {preferences.missionsEnabled && (
+              <span className="text-xs uppercase tracking-[0.18em] text-white/50">{t('missions.fixedDifficultyInfo')}</span>
+            )}
 
             {preferences.missionsEnabled && preferences.rerollsEnabled && (
               <span className="text-xs uppercase tracking-[0.18em] text-white/50">
@@ -372,9 +391,13 @@ export default function Missions() {
                 dailyMissions.map((mission) => (
                   <div key={mission.id} className="ui-item">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.2em] text-white/60">
-                      <span>{getLocalizedMissionLabel(mission.id, mission.label)}</span>
+                      <span className="flex items-center gap-2">
+                        <span>{getLocalizedMissionLabel(mission.id, mission.label)}</span>
+                        <span className="ui-chip">{getLocalizedMissionDifficulty(mission.difficulty)}</span>
+                      </span>
                       <span>{mission.done ? t('missions.status.complete') : mission.rewardLabel}</span>
                     </div>
+                    <div className="mt-2 text-xs ui-subtle">{getMissionObjective(mission.metric, mission.target)}</div>
                     <div className="mt-3 flex items-center gap-3 text-xs text-white/50">
                       <div
                         className="ui-meter"
@@ -456,6 +479,7 @@ export default function Missions() {
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/55">
                 <span className="ui-chip">{t('missions.status.preview')}</span>
                 <span>{getLocalizedDesignName(previewDesign)}</span>
+                <span>{t('missions.previewTimeLeft', { time: formatPreviewTime(previewRemainingMs) })}</span>
                 <button className="ui-btn-secondary" onClick={onClearPreview}>
                   {t('missions.clearPreview')}
                 </button>

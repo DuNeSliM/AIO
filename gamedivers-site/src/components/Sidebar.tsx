@@ -89,7 +89,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
   }
 
   return (
-    <aside className="ui-sidebar">
+    <aside className="ui-sidebar h-full">
       <div className="flex flex-col items-center gap-3">
         <div className="font-display text-xl text-ember">Game<p></p>divers</div>
         <div className="ui-divider w-10" />
@@ -148,7 +148,7 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
         <button className="ui-btn-soft w-full text-xs" onClick={() => emitAppEvent(APP_EVENTS.epicLocalSync)}>
           {t('epic.localSync')}
         </button>
-        <small className="text-center text-[10px] tone-muted">v0.1</small>
+        <small className="text-center text-[10px] tone-muted">{t('app.version')}</small>
       </div>
     </aside>
   )

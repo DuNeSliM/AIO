@@ -18,7 +18,7 @@ import { APP_EVENTS, onAppEvent } from './shared/events'
 import { STORAGE_KEYS } from './shared/storage/keys'
 import { getLocalString, getSessionString, setLocalString } from './shared/storage/storage'
 import type { Page, Theme } from './types'
-import { evaluateDailyMissionsFromStorage, loadDesignPreview } from './utils/gameify'
+import { evaluateDailyMissionsFromStorage, getDesignPreviewRemainingMs, loadDesignPreview } from './utils/gameify'
 
 const PUBLIC_PAGES: Page[] = ['login', 'register', 'forgot-password']
 
@@ -84,6 +84,19 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
+    if (!previewDesign) return
+    const remainingMs = getDesignPreviewRemainingMs()
+    if (remainingMs <= 0) {
+      setPreviewDesign(loadDesignPreview())
+      return
+    }
+    const timer = window.setTimeout(() => {
+      setPreviewDesign(loadDesignPreview())
+    }, remainingMs + 120)
+    return () => window.clearTimeout(timer)
+  }, [previewDesign])
+
+  useEffect(() => {
     const syncMissions = () => {
       evaluateDailyMissionsFromStorage()
     }
@@ -138,7 +151,7 @@ function AppShell() {
         {page === 'library' && <GameLibrary />}
       </AppLayout>
 
-      {showOnboarding && <OnboardingMission onNavigate={setPage} onClose={() => setShowOnboarding(false)} />}
+      {showOnboarding && <OnboardingMission currentPage={page} onNavigate={setPage} onClose={() => setShowOnboarding(false)} />}
     </div>
   )
 }

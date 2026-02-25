@@ -217,8 +217,11 @@ body.design-meadow-bloom .ui-btn-soft {
   overflow: hidden;
   border-width: 2px;
   border-radius: 0;
+  clip-path: var(--ui-btn-sunflower-shape);
   padding-top: 0.58rem;
   padding-bottom: 0.58rem;
+  padding-left: 1.1rem;
+  padding-right: 1.1rem;
   font-family: var(--ui-font-display);
   font-weight: 700;
   text-transform: none;

@@ -14,12 +14,13 @@ type WishlistSectionProps = {
   sectionRef: RefObject<HTMLDivElement | null>
   steamLoggedIn: boolean
   wishlistSyncing: boolean
+  wishlistPrefetching: boolean
   checking: boolean
   items: WishlistItem[]
   sortedItems: WishlistItem[]
   alerts: WishlistAlert[]
   lastCheckedLabel: string
-  onSyncSteamWishlist: () => void | Promise<void>
+  onSyncSteamWishlist: () => void | Promise<unknown>
   onCheckNow: () => void | Promise<void>
   onUpdateThreshold: (id: string, threshold: number | null) => void
   onRemove: (id: string, title: string) => void
@@ -29,6 +30,7 @@ export default function WishlistSection({
   sectionRef,
   steamLoggedIn,
   wishlistSyncing,
+  wishlistPrefetching,
   checking,
   items,
   sortedItems,
@@ -54,7 +56,7 @@ export default function WishlistSection({
           <div className="flex flex-wrap items-center gap-2">
             {steamLoggedIn && (
               <button className="ui-btn-secondary" onClick={() => void onSyncSteamWishlist()} disabled={wishlistSyncing}>
-                {wishlistSyncing ? '...' : t('store.wishlist.syncSteam')}
+                {wishlistSyncing ? t('store.wishlist.loading') : t('store.wishlist.syncSteam')}
               </button>
             )}
             <button className="ui-btn-primary" onClick={() => void onCheckNow()} disabled={checking || items.length === 0}>
@@ -62,6 +64,12 @@ export default function WishlistSection({
             </button>
           </div>
         </div>
+        {steamLoggedIn && (wishlistPrefetching || wishlistSyncing) && (
+          <div className="mt-3 inline-flex items-center gap-2 text-xs ui-subtle">
+            <span className="ui-signal" />
+            <span>{wishlistSyncing ? t('store.wishlist.loadingHint') : t('store.wishlist.prefetchingHint')}</span>
+          </div>
+        )}
 
         {items.length === 0 && <div className="mt-4 text-sm ui-subtle">{t('store.wishlist.empty')}</div>}
 

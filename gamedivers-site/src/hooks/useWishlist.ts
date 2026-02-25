@@ -5,9 +5,12 @@ import { idbDel, idbGet, idbSet } from '../utils/idb'
 import {
   CHECK_INTERVAL_MINUTES,
   DEFAULT_CURRENCY,
+  ITAD_LOOKUP_CACHE_KEY,
   ITAD_MIN_REQUEST_INTERVAL_MS,
   NOTIFY_KEY,
   ONEDRIVE_HANDLE_KEY,
+  STEAM_NAME_CACHE_KEY,
+  STEAM_WISHLIST_SHADOW_CACHE_KEY,
   STORAGE_MODE_KEY,
   WISHLIST_KEY,
 } from '../features/store/wishlist/constants'
@@ -345,6 +348,53 @@ export function useWishlist(region: string) {
     return true
   }, [])
 
+  const clearWishlist = useCallback(async () => {
+    localStorage.removeItem(WISHLIST_KEY)
+    setItems([])
+    setAlerts([])
+    setLastCheckedAt(null)
+    localStorage.removeItem(ITAD_LOOKUP_CACHE_KEY)
+    localStorage.removeItem(STEAM_NAME_CACHE_KEY)
+    localStorage.removeItem(STEAM_WISHLIST_SHADOW_CACHE_KEY)
+    if (storageMode !== 'onedrive') return
+    if (onedriveStatus !== 'connected') return
+    const handle = handleRef.current
+    if (!handle) return
+    await writeWishlistFile(handle, [])
+  }, [storageMode, onedriveStatus])
+
+  const reloadWishlist = useCallback(async () => {
+    const localItems = normalizeStoredWishlistItems(parseWishlist(localStorage.getItem(WISHLIST_KEY)))
+    if (storageMode !== 'onedrive' || !onedriveSupported) {
+      setItems(localItems)
+      return true
+    }
+
+    const handle = handleRef.current ?? (await idbGet<DirectoryHandle>(ONEDRIVE_HANDLE_KEY))
+    if (!handle) {
+      setOnedriveStatus('disconnected')
+      setItems(localItems)
+      return false
+    }
+
+    handleRef.current = handle
+    const hasPermission = await ensurePermission(handle, 'readwrite', false)
+    if (!hasPermission) {
+      setOnedriveStatus('permission-required')
+      setItems(localItems)
+      return false
+    }
+
+    const fileItems = await readWishlistFile(handle)
+    if (fileItems) {
+      setItems(normalizeStoredWishlistItems(fileItems))
+    } else {
+      setItems(localItems)
+    }
+    setOnedriveStatus('connected')
+    return true
+  }, [storageMode, onedriveSupported])
+
   const checkPrices = useCallback(async () => {
     if (checkingRef.current) return
     checkingRef.current = true
@@ -478,6 +528,8 @@ export function useWishlist(region: string) {
     notificationPermission,
     enableNotifications,
     disableNotifications,
+    clearWishlist,
+    reloadWishlist,
     alerts,
     checking,
     lastCheckedAt,

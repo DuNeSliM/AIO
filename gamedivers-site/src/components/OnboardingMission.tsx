@@ -4,7 +4,7 @@ import UiCorners from './ui/UiCorners'
 import { APP_EVENTS, emitAppEvent, onAppEvent } from '../shared/events'
 import { STORAGE_KEYS } from '../shared/storage/keys'
 import type { Page } from '../types'
-import { loadCounters } from '../utils/gameify'
+import { loadCounters, loadEventLog } from '../utils/gameify'
 
 const ONBOARDING_MISSION_KEY = 'onboardingMissionCompleted'
 const ONBOARDING_PROGRESS_KEY = 'onboardingMissionProgress'
@@ -13,7 +13,17 @@ const ONBOARDING_BASELINE_KEY = 'onboardingMissionBaseline'
 
 export const OPEN_ONBOARDING_EVENT = APP_EVENTS.openOnboarding
 
-type OnboardingStepId = 'search' | 'compare' | 'addWishlist' | 'runSync'
+type OnboardingStepId =
+  | 'visitLibrary'
+  | 'visitStore'
+  | 'search'
+  | 'compare'
+  | 'addWishlist'
+  | 'runSync'
+  | 'visitMissions'
+  | 'visitSettings'
+  | 'importWishlist'
+  | 'launchGame'
 
 type OnboardingProgress = Record<OnboardingStepId, boolean>
 
@@ -22,32 +32,48 @@ type OnboardingBaseline = {
   scans: number
   compares: number
   syncs: number
+  launchUnplayed: number
   wishlistCount: number
+  startedAt: number
 }
 
 type TutorialStep = {
   id: OnboardingStepId
   page: Page
+  optional?: boolean
 }
 
 type OnboardingMissionProps = {
+  currentPage: Page
   onNavigate: (page: Page) => void
   onClose: () => void
 }
 
 const STEPS: TutorialStep[] = [
+  { id: 'visitLibrary', page: 'library' },
+  { id: 'visitStore', page: 'store' },
   { id: 'search', page: 'store' },
   { id: 'compare', page: 'store' },
   { id: 'addWishlist', page: 'store' },
   { id: 'runSync', page: 'store' },
+  { id: 'visitMissions', page: 'downloads' },
+  { id: 'visitSettings', page: 'settings' },
+  { id: 'importWishlist', page: 'store', optional: true },
+  { id: 'launchGame', page: 'library', optional: true },
 ]
 
 function defaultProgress(): OnboardingProgress {
   return {
+    visitLibrary: false,
+    visitStore: false,
     search: false,
     compare: false,
     addWishlist: false,
     runSync: false,
+    visitMissions: false,
+    visitSettings: false,
+    importWishlist: false,
+    launchGame: false,
   }
 }
 
@@ -69,7 +95,9 @@ function snapshotBaseline(): OnboardingBaseline {
     scans: counters.scans,
     compares: counters.compares,
     syncs: counters.syncs,
+    launchUnplayed: counters.launchUnplayed,
     wishlistCount: loadWishlistCount(),
+    startedAt: Date.now(),
   }
 }
 
@@ -80,10 +108,16 @@ function loadOnboardingProgress(): OnboardingProgress {
   try {
     const parsed = JSON.parse(raw) as Partial<OnboardingProgress>
     return {
+      visitLibrary: parsed.visitLibrary === true,
+      visitStore: parsed.visitStore === true,
       search: parsed.search === true,
       compare: parsed.compare === true,
       addWishlist: parsed.addWishlist === true,
       runSync: parsed.runSync === true,
+      visitMissions: parsed.visitMissions === true,
+      visitSettings: parsed.visitSettings === true,
+      importWishlist: parsed.importWishlist === true,
+      launchGame: parsed.launchGame === true,
     }
   } catch {
     return defaultProgress()
@@ -121,7 +155,9 @@ function loadOnboardingBaseline(): OnboardingBaseline {
       scans: typeof parsed.scans === 'number' ? parsed.scans : current.scans,
       compares: typeof parsed.compares === 'number' ? parsed.compares : current.compares,
       syncs: typeof parsed.syncs === 'number' ? parsed.syncs : current.syncs,
+      launchUnplayed: typeof parsed.launchUnplayed === 'number' ? parsed.launchUnplayed : current.launchUnplayed,
       wishlistCount: typeof parsed.wishlistCount === 'number' ? parsed.wishlistCount : current.wishlistCount,
+      startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : current.startedAt,
     }
   } catch {
     localStorage.setItem(ONBOARDING_BASELINE_KEY, JSON.stringify(current))
@@ -149,7 +185,7 @@ export function restartOnboardingMission() {
   openOnboardingMission()
 }
 
-export default function OnboardingMission({ onNavigate, onClose }: OnboardingMissionProps) {
+export default function OnboardingMission({ currentPage, onNavigate, onClose }: OnboardingMissionProps) {
   const { t } = useI18n()
   const [progress, setProgress] = useState<OnboardingProgress>(() => loadOnboardingProgress())
   const [minimized, setMinimized] = useState(() => loadOnboardingMinimized())
@@ -166,25 +202,43 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
         scans: counters.scans,
         compares: counters.compares,
         syncs: counters.syncs,
+        launchUnplayed: counters.launchUnplayed,
         wishlistCount,
+        startedAt: Date.now(),
       }
       setBaseline(activeBaseline)
       saveOnboardingBaseline(activeBaseline)
     }
 
+    const importedFromSteam = loadEventLog().some(
+      (entry) => entry.timestamp >= activeBaseline.startedAt && entry.message.startsWith('STEAM WISHLIST SYNC:'),
+    )
+
     setProgress((prev) => {
       const next: OnboardingProgress = {
+        visitLibrary: prev.visitLibrary || currentPage === 'library',
+        visitStore: prev.visitStore || currentPage === 'store',
         search: prev.search || counters.scans > activeBaseline.scans,
         compare: prev.compare || counters.compares > activeBaseline.compares,
         addWishlist: prev.addWishlist || wishlistCount > activeBaseline.wishlistCount,
         runSync: prev.runSync || counters.syncs > activeBaseline.syncs,
+        visitMissions: prev.visitMissions || currentPage === 'downloads',
+        visitSettings: prev.visitSettings || currentPage === 'settings',
+        importWishlist: prev.importWishlist || importedFromSteam,
+        launchGame: prev.launchGame || counters.launchUnplayed > activeBaseline.launchUnplayed,
       }
 
       const changed =
+        next.visitLibrary !== prev.visitLibrary ||
+        next.visitStore !== prev.visitStore ||
         next.search !== prev.search ||
         next.compare !== prev.compare ||
         next.addWishlist !== prev.addWishlist ||
-        next.runSync !== prev.runSync
+        next.runSync !== prev.runSync ||
+        next.visitMissions !== prev.visitMissions ||
+        next.visitSettings !== prev.visitSettings ||
+        next.importWishlist !== prev.importWishlist ||
+        next.launchGame !== prev.launchGame
 
       if (changed) {
         saveOnboardingProgress(next)
@@ -193,7 +247,7 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
 
       return prev
     })
-  }, [baseline])
+  }, [baseline, currentPage])
 
   useEffect(() => {
     syncProgress()
@@ -205,8 +259,41 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
     }
   }, [syncProgress])
 
-  const doneCount = useMemo(() => STEPS.filter((step) => progress[step.id]).length, [progress])
-  const allDone = doneCount === STEPS.length
+  const requiredSteps = useMemo(() => STEPS.filter((step) => step.optional !== true), [])
+  const optionalSteps = useMemo(() => STEPS.filter((step) => step.optional === true), [])
+  const requiredDoneCount = useMemo(
+    () => requiredSteps.filter((step) => progress[step.id]).length,
+    [requiredSteps, progress],
+  )
+  const optionalDoneCount = useMemo(
+    () => optionalSteps.filter((step) => progress[step.id]).length,
+    [optionalSteps, progress],
+  )
+  const allDone = requiredDoneCount === requiredSteps.length
+  const currentRequiredStep = useMemo(
+    () => requiredSteps.find((step) => !progress[step.id]) ?? null,
+    [requiredSteps, progress],
+  )
+  const currentOptionalStep = useMemo(
+    () => optionalSteps.find((step) => !progress[step.id]) ?? null,
+    [optionalSteps, progress],
+  )
+  const activeStep = currentRequiredStep ?? currentOptionalStep
+  const activeStepIndex = activeStep ? STEPS.findIndex((step) => step.id === activeStep.id) + 1 : null
+  const activeStepPageKey = activeStep ? `onboarding.pages.${activeStep.page}` : null
+  const activeStepPageLabel =
+    activeStep && activeStepPageKey
+      ? t(activeStepPageKey) === activeStepPageKey
+        ? activeStep.page
+        : t(activeStepPageKey)
+      : ''
+  const activeStepHowToKey = activeStep ? `onboarding.steps.${activeStep.id}.howTo` : null
+  const activeStepHowTo =
+    activeStep && activeStepHowToKey
+      ? t(activeStepHowToKey) === activeStepHowToKey
+        ? t(`onboarding.steps.${activeStep.id}.description`)
+        : t(activeStepHowToKey)
+      : ''
 
   const setMinimizedState = (value: boolean) => {
     setMinimized(value)
@@ -226,14 +313,14 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
           onClick={() => setMinimizedState(false)}
           title={t('onboarding.open')}
         >
-          {t('onboarding.open')} {doneCount}/{STEPS.length}
+          {t('onboarding.open')} {requiredDoneCount}/{requiredSteps.length}
         </button>
       </div>
     )
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 w-full max-w-md px-4 sm:px-0">
+    <div className="fixed bottom-4 right-4 z-40 w-full max-w-sm px-4 sm:px-0">
       <div className="ui-surface">
         <div className="ui-panel ui-panel-pad-md">
           <UiCorners />
@@ -251,36 +338,40 @@ export default function OnboardingMission({ onNavigate, onClose }: OnboardingMis
           <p className="mt-2 text-sm ui-subtle">{t('onboarding.subtitle')}</p>
 
           <div className="mt-4 text-xs uppercase tracking-[0.2em] text-white/55">
-            {t('onboarding.progress', { done: doneCount, total: STEPS.length })}
+            {t('onboarding.progress', { done: requiredDoneCount, total: requiredSteps.length })}
+          </div>
+          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-white/45">
+            {t('onboarding.optionalProgress', { done: optionalDoneCount, total: optionalSteps.length })}
           </div>
 
-          <div className="mt-4 grid gap-2">
-            {STEPS.map((step) => {
-              const done = progress[step.id] === true
-              const pageKey = `onboarding.pages.${step.page}`
-              const pageLabel = t(pageKey) === pageKey ? step.page : t(pageKey)
-
-              return (
-                <div key={step.id} className="ui-item">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <div className="text-[11px] uppercase tracking-[0.16em] text-white/70">
-                        {t(`onboarding.steps.${step.id}.title`)}
-                      </div>
-                      <div className="mt-1 text-xs ui-subtle">{t(`onboarding.steps.${step.id}.description`)}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="ui-chip">{done ? t('onboarding.status.complete') : t('onboarding.status.pending')}</span>
-                      {!done && (
-                        <button className="ui-btn-secondary" onClick={() => onNavigate(step.page)}>
-                          {t('onboarding.openPage', { page: pageLabel })}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+          <div className="mt-4">
+            {activeStep ? (
+              <div className="ui-item">
+                <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-[0.16em] text-white/70">
+                  <span>{t('onboarding.currentMission')}</span>
+                  {activeStepIndex && (
+                    <span>{t('onboarding.missionIndex', { index: activeStepIndex, total: STEPS.length })}</span>
+                  )}
                 </div>
-              )
-            })}
+                <div className="mt-2 text-xs uppercase tracking-[0.16em] text-white/75">
+                  {t(`onboarding.steps.${activeStep.id}.title`)}
+                </div>
+                <div className="mt-1 text-xs ui-subtle">{t(`onboarding.steps.${activeStep.id}.description`)}</div>
+                <div className="mt-2 text-xs text-white/65">{activeStepHowTo}</div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {activeStep.optional && <span className="ui-chip">{t('onboarding.status.optional')}</span>}
+                  <span className="ui-chip">{t('onboarding.status.pending')}</span>
+                  <button className="ui-btn-secondary" onClick={() => onNavigate(activeStep.page)}>
+                    {t('onboarding.openPage', { page: activeStepPageLabel })}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="ui-item">
+                <div className="text-xs uppercase tracking-[0.18em] text-white/75">{t('onboarding.completeTitle')}</div>
+                <div className="mt-1 text-xs ui-subtle">{t('onboarding.completeDescription')}</div>
+              </div>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap justify-end gap-2">
