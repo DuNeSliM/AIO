@@ -22,6 +22,11 @@ export const STORAGE_KEYS = {
     username: 'epicUsername',
     accessToken: 'epicAccessToken',
   },
+  gog: {
+    id: 'gogId',
+    username: 'gogUsername',
+    accessToken: 'gogAccessToken',
+  },
   wishlist: {
     items: 'wishlist',
     storageMode: 'wishlistStorageMode',

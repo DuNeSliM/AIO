@@ -1,6 +1,7 @@
 export const APP_EVENTS = {
   missionUpdate: 'mission-update',
   epicLocalSync: 'epic-local-sync',
+  gogLocalSync: 'gog-local-sync',
   commanderUpdate: 'commander-update',
   designPreviewUpdate: 'design-preview-update',
   openOnboarding: 'open-onboarding',

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
+import { useEpicAuth } from '../hooks/useEpicAuth'
+import { useGogAuth } from '../hooks/useGogAuth'
 import { useI18n } from '../i18n/i18n'
 import { APP_EVENTS, emitAppEvent } from '../shared/events'
 import type { Page } from '../types'
@@ -75,6 +77,8 @@ type SidebarProps = {
 export default function Sidebar({ activePage = 'library', onNavigate }: SidebarProps) {
   const { user, logout, isLoading } = useAuth()
   const steamAuth = useSteamAuth()
+  const epicAuth = useEpicAuth()
+  const gogAuth = useGogAuth()
   const { t } = useI18n()
   const accountName = user?.username?.trim()
   const steamName = steamAuth.username?.trim()
@@ -145,8 +149,29 @@ export default function Sidebar({ activePage = 'library', onNavigate }: SidebarP
             {t('auth.steamLogout')}
           </button>
         )}
+        {!epicAuth.isLoggedIn ? (
+          <button className="ui-btn-soft w-full text-xs" onClick={epicAuth.login}>
+            EPIC LOGIN
+          </button>
+        ) : (
+          <button className="ui-btn-ghost w-full text-xs" onClick={epicAuth.logout}>
+            EPIC LOGOUT
+          </button>
+        )}
+        {!gogAuth.isLoggedIn ? (
+          <button className="ui-btn-soft w-full text-xs" onClick={gogAuth.login}>
+            GOG LOGIN
+          </button>
+        ) : (
+          <button className="ui-btn-ghost w-full text-xs" onClick={gogAuth.logout}>
+            GOG LOGOUT
+          </button>
+        )}
         <button className="ui-btn-soft w-full text-xs" onClick={() => emitAppEvent(APP_EVENTS.epicLocalSync)}>
           {t('epic.localSync')}
+        </button>
+        <button className="ui-btn-soft w-full text-xs" onClick={() => emitAppEvent(APP_EVENTS.gogLocalSync)}>
+          GOG SYNC
         </button>
         <small className="text-center text-[10px] tone-muted">v0.1</small>
       </div>

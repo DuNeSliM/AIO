@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { fetchGames, syncStore, fetchSteamLibrary, fetchEpicLibrary } from '../services/api'
+import { fetchGames, syncStore, fetchSteamLibrary, fetchEpicLibrary, fetchGogLibrary } from '../services/api'
 import type { Game } from '../types'
 
 export type SortBy = 'recent' | 'a-z' | 'z-a' | 'playtime'
@@ -18,12 +18,14 @@ type UseGamesResult = {
   reload: () => Promise<void>
   loadSteamLibrary: (steamId: string) => Promise<void>
   loadEpicLibrary: () => Promise<void>
+  loadGogLibrary: () => Promise<void>
 }
 
 export function useGames(): UseGamesResult {
   const [installedGames, setInstalledGames] = useState<Game[]>([])
   const [steamGames, setSteamGames] = useState<Game[]>([])
   const [epicGames, setEpicGames] = useState<Game[]>([])
+  const [gogGames, setGogGames] = useState<Game[]>([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,9 +79,24 @@ export function useGames(): UseGamesResult {
     }
   }, [])
 
+  const loadGogLibrary = useCallback(async () => {
+    setSyncing(true)
+    setError(null)
+    try {
+      const data = await fetchGogLibrary()
+      setGogGames(Array.isArray(data) ? data : [])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('Failed to load GOG library:', err)
+      setError(message)
+    } finally {
+      setSyncing(false)
+    }
+  }, [])
+
   const combinedGames = useMemo(() => {
-    return [...steamGames, ...epicGames, ...installedGames]
-  }, [steamGames, epicGames, installedGames])
+    return [...steamGames, ...epicGames, ...gogGames, ...installedGames]
+  }, [steamGames, epicGames, gogGames, installedGames])
 
   const filteredGames = useMemo(() => {
     const needle = search.toLowerCase()
@@ -132,5 +149,6 @@ export function useGames(): UseGamesResult {
     reload: loadGames,
     loadSteamLibrary,
     loadEpicLibrary,
+    loadGogLibrary,
   }
 }

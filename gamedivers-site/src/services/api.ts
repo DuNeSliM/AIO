@@ -311,6 +311,40 @@ export async function syncSteamWishlistToBackend(appIds: number[]): Promise<void
   if (!res.ok) throw await readApiError(res)
 }
 
+export type GOGWishlistEntry = {
+  id: string
+  title: string
+  image?: string
+}
+
+export async function fetchGogLibrary(): Promise<Game[]> {
+  // Uses local GOG Galaxy manifest - JWT auth handled by fetchWithAuth
+  const res = await fetchWithAuth(`${API_BASE}/v1/gog/library`)
+  if (!res.ok) throw await readApiError(res)
+  const data = (await res.json()) as Game[]
+  return Array.isArray(data) ? data : []
+}
+
+export async function fetchGogWishlist(): Promise<GOGWishlistEntry[]> {
+  // Uses local GOG Galaxy manifest - JWT auth handled by fetchWithAuth
+  const res = await fetchWithAuth(`${API_BASE}/v1/gog/wishlist`)
+  if (!res.ok) throw await readApiError(res)
+  const data = (await res.json()) as GOGWishlistEntry[]
+  return Array.isArray(data) ? data : []
+}
+
+export async function syncGogWishlistToBackend(gameIds: string[]): Promise<void> {
+  const unique = Array.from(new Set(gameIds.filter((id) => id && id.length > 0)))
+  if (unique.length === 0) return
+
+  const res = await fetchWithAuth(`${API_BASE}/v1/gog/wishlist/sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gameIds: unique.map(BigInt) }),
+  })
+  if (!res.ok) throw await readApiError(res)
+}
+
 export async function searchItad(
   query: string,
   limit = 10,
@@ -460,6 +494,12 @@ export async function syncStore(store: string, credentials?: { steamId?: string;
       // Local Epic manifest fallback route.
       url = `${API_BASE}/v1/games/epic/library`
     }
+  } else if (store === 'gog') {
+    if (!credentials?.accessToken) {
+      throw new Error('GOG sync requires accessToken')
+    }
+    url = `${API_BASE}/v1/gog/sync`
+    headers = { Authorization: `Bearer ${credentials.accessToken}` }
   } else {
     throw new Error(`Unsupported sync store: ${store}`)
   }
