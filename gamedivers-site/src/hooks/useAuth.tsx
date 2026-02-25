@@ -18,7 +18,7 @@ type AuthState = {
 
 type AuthFunctions = {
   login: (username: string, password: string) => Promise<void>
-  register: (username: string, email: string, password: string, firstName?: string, lastName?: string) => Promise<void>
+  register: (username: string, email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   clearError: () => void
 }
@@ -189,11 +189,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  const register = async (username: string, email: string, password: string, firstName?: string, lastName?: string) => {
+  const register = async (username: string, email: string, password: string) => {
     try {
       setIsLoading(true)
       setError(null)
-      await authApi.register(username, email, password, firstName, lastName)
+      await authApi.register(username, email, password)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed'
       setError(message)

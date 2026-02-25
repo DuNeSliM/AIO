@@ -485,13 +485,11 @@ export async function register(
   username: string,
   email: string,
   password: string,
-  firstName?: string,
-  lastName?: string,
 ): Promise<User> {
   const res = await fetch(`${API_BASE}/v1/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, email, password, firstName, lastName }),
+    body: JSON.stringify({ username, email, password }),
   })
   if (!res.ok) {
     throw new Error(await readResponseErrorMessage(res, 'Registration failed'))

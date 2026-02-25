@@ -34,7 +34,7 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
       await requestPasswordReset(email)
       setSubmitted(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.forgotPasswordFailed'))
+      setError(err instanceof Error ? err.message : 'Failed to process request')
     } finally {
       setIsLoading(false)
     }
@@ -54,9 +54,9 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
             <div className="ui-notch" />
 
             <div className="relative z-10">
-              <h1 className="mb-2 text-4xl font-bold tracking-wide">{t('authPages.forgotPassword.title')}</h1>
+              <h1 className="mb-2 text-4xl font-bold tracking-wide">RESET PASSWORD</h1>
               <p className="mb-8 text-xs uppercase tracking-widest ui-subtle">
-                {t('authPages.forgotPassword.subtitle')}
+                Enter your email to receive recovery instructions
               </p>
 
               {error && (
@@ -67,33 +67,33 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
 
               {submitted ? (
                 <div className="rounded-lg border border-neon/40 bg-black/50 p-6 text-center">
-                  <div className="mb-4 text-lg text-neon">{t('authPages.forgotPassword.successTitle')}</div>
+                  <div className="mb-4 text-lg text-neon">[OK] SUCCESS</div>
                   <p className="mb-6 text-xs uppercase tracking-widest ui-subtle">
-                    {t('authPages.forgotPassword.successMessage')}
+                    Check your email for password reset instructions
                   </p>
                   <button type="button" onClick={() => onSuccess('login' as Page)} className="ui-btn-primary w-full">
-                    {t('authPages.forgotPassword.returnToLogin')}
+                    RETURN TO LOGIN
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
                   <div>
                     <label htmlFor="email" className="ui-label mb-3 block">
-                      {t('authPages.fields.emailAddress')}
+                      Email Address
                     </label>
                     <input
                       id="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder={t('authPages.fields.emailPlaceholder')}
+                      placeholder="YOUR@EMAIL.COM"
                       className="ui-input w-full"
                       disabled={isLoading}
                     />
                   </div>
 
                   <button type="submit" disabled={isLoading} className="ui-btn-primary w-full mt-6">
-                    {isLoading ? t('authPages.forgotPassword.sending') : t('authPages.forgotPassword.sendResetLink')}
+                    {isLoading ? '... SENDING ...' : 'SEND RESET LINK'}
                   </button>
                 </form>
               )}
@@ -101,22 +101,19 @@ export default function ForgotPassword({ onSuccess }: ForgotPasswordPageProps) {
               <div className="ui-divider my-6" />
 
               <p className="text-center text-xs uppercase tracking-widest ui-subtle">
-                {t('authPages.forgotPassword.rememberPassword')}{' '}
+                Remember password?{' '}
                 <button
                   type="button"
                   onClick={() => onSuccess('login' as Page)}
                   className="inline font-bold text-neon/90 hover:text-neon transition-colors"
                 >
-                  {t('authPages.login.submit')}
+                  LOGIN
                 </button>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest ui-subtle">{t('app.footer')}</p>
-        </div>
       </div>
     </div>
   )
