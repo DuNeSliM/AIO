@@ -1,0 +1,10 @@
+{
+  "name": "gamedivers-desktop-wrapper",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "tauri:dev": "npm --prefix ../gamedivers-site exec tauri dev -- --config ../frontend/src-tauri/tauri.conf.json",
+    "tauri:build": "npm --prefix ../gamedivers-site exec tauri build -- --config ../frontend/src-tauri/tauri.conf.json",
+    "tauri:icon": "npm --prefix ../gamedivers-site exec tauri icon public/gamedivers-logo.svg -- --output ../frontend/src-tauri/icons"
+  }
+}

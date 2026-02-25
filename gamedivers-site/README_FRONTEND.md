@@ -1,4 +1,8 @@
-# Frontend (Tauri) - Game Library
+# Frontend (Web) - Game Library
+
+Desktop wrapper note:
+- Tauri backend is now in `../frontend/src-tauri`
+- Desktop run/build commands are documented in `../frontend/README.md`
 
 ## Struktur
 
@@ -45,10 +49,10 @@ frontend/
 
 ## Setup
 
-### 1. Dependencies installieren
+### 1. Dependencies installieren (Web UI)
 
 ```bash
-cd frontend
+cd gamedivers-site
 npm install
 ```
 
@@ -71,9 +75,10 @@ npm run dev
 
 Öffne `http://localhost:3000`
 
-### 3b. Tauri Desktop App
+### 3b. Tauri Desktop App (separate wrapper)
 
 ```bash
+cd ../frontend
 npm run tauri:dev
 ```
 
@@ -94,6 +99,9 @@ Erstelle eine `.env` Datei (siehe `.env.example`):
 ```env
 VITE_API_BASE=http://localhost:8080
 VITE_ENABLE_CREDIT_CHEAT=false
+VITE_ENABLE_WEB_GOG_LIBRARY=false
+# Optional for website download links:
+# VITE_DESKTOP_DOWNLOAD_BASE_URL=https://github.com/DuNeSliM/AIO/releases/latest/download
 ```
 
 ## UI Theme System (Semantic)
@@ -118,7 +126,7 @@ Bearbeite [src/components/Sidebar.tsx](src/components/Sidebar.tsx) und füge neu
 
 ### Weitere Platforms
 1. Erweitere `launchGame()` in [src/services/api.ts](src/services/api.ts)
-2. Füge Case in [src-tauri/src/main.rs](src-tauri/src/main.rs) hinzu
+2. Füge Case in [../frontend/src-tauri/src/main.rs](../frontend/src-tauri/src/main.rs) hinzu
 3. Backend Endpoint implementieren
 
 ## Troubleshooting
@@ -133,6 +141,6 @@ Bearbeite [src/components/Sidebar.tsx](src/components/Sidebar.tsx) und füge neu
 - CORS-Headers müssen vom Backend gesetzt sein (bereits implementiert)
 
 **Tauri Build Fehler:**
-- `npm install @tauri-apps/cli @tauri-apps/api` erneut ausführen
+- In `frontend/`: `npm install` erneut ausführen
 - Rust muss installiert sein: https://rustup.rs/
 

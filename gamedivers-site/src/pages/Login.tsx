@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useI18n } from '../i18n/i18n'
+import { desktopDownloadUrls } from '../shared/desktopDownload'
 import type { Page } from '../types'
 
 const EyeIcon = ({ className }: { className?: string }) => (
@@ -159,6 +160,18 @@ export default function Login({ onSuccess }: LoginPageProps) {
               </form>
 
               <div className="ui-divider my-6" />
+
+              <div className="mb-4 flex flex-col items-center gap-2">
+                <p className="text-[10px] uppercase tracking-widest ui-subtle">Desktop app</p>
+                <a
+                  className="ui-btn-secondary w-full text-center"
+                  href={desktopDownloadUrls.setupExe}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Download Windows Setup
+                </a>
+              </div>
 
               <p className="text-center text-xs uppercase tracking-widest ui-subtle">
                 No credentials yet?{' '}

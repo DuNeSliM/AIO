@@ -6,6 +6,7 @@ import type { SortBy } from '../hooks/useGames'
 import { useAuth } from '../hooks/useAuth'
 import { useSteamAuth } from '../hooks/useSteamAuth'
 import { useI18n } from '../i18n/i18n'
+import { canLoadGogLibrary } from '../services/api'
 import { APP_EVENTS, onAppEvent } from '../shared/events'
 import { STORAGE_KEYS } from '../shared/storage/keys'
 import { getLocalString, setLocalString } from '../shared/storage/storage'
@@ -25,10 +26,12 @@ export default function GameLibrary() {
     reload,
     loadSteamLibrary,
     loadEpicLibrary,
+    loadGogLibrary,
   } = useGames()
   const { isLoggedIn, isLoading } = useAuth()
   const steamAuth = useSteamAuth()
   const { t } = useI18n()
+  const showGogSync = canLoadGogLibrary()
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const stored = getLocalString(STORAGE_KEYS.app.libraryView)
     return stored === 'list' ? 'list' : 'grid'
@@ -48,6 +51,12 @@ export default function GameLibrary() {
 
   useEffect(() => {
     if (isLoading || !isLoggedIn) return
+    if (!showGogSync) return
+    void loadGogLibrary()
+  }, [isLoading, isLoggedIn, loadGogLibrary, showGogSync])
+
+  useEffect(() => {
+    if (isLoading || !isLoggedIn) return
     void reload()
   }, [isLoading, isLoggedIn, reload])
 
@@ -56,9 +65,14 @@ export default function GameLibrary() {
   }, [viewMode])
 
   useEffect(() => {
-    const handler = () => loadEpicLibrary()
+    const handler = () => {
+      void loadEpicLibrary()
+      if (showGogSync) {
+        void loadGogLibrary()
+      }
+    }
     return onAppEvent(APP_EVENTS.epicLocalSync, handler)
-  }, [loadEpicLibrary])
+  }, [loadEpicLibrary, loadGogLibrary, showGogSync])
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,6 +100,11 @@ export default function GameLibrary() {
               <button className="ui-btn-secondary" onClick={() => loadEpicLibrary()} disabled={loading || syncing}>
                 {syncing ? '...' : t('library.syncEpic')}
               </button>
+              {showGogSync && (
+                <button className="ui-btn-secondary" onClick={() => loadGogLibrary()} disabled={loading || syncing}>
+                  {syncing ? '...' : t('library.syncGog')}
+                </button>
+              )}
               <button className="ui-btn-secondary" onClick={reload} disabled={loading || syncing}>
                 {t('library.reload')}
               </button>
