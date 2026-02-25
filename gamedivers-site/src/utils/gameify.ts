@@ -32,10 +32,9 @@ type MissionProgress = {
   sync: boolean
 }
 
-export type MissionDifficulty = 'relaxed' | 'standard' | 'hardcore'
+export type MissionDifficulty = 'easy' | 'standard' | 'hard'
 
 export type MissionPreferences = {
-  difficulty: MissionDifficulty
   rerollsEnabled: boolean
   missionsEnabled: boolean
 }
@@ -54,7 +53,8 @@ type MissionDefinition = {
   id: string
   label: string
   metric: MissionMetricKey
-  targets: Record<MissionDifficulty, number>
+  target: number
+  difficulty: MissionDifficulty
   rewardXp: number
   rewardCredits: number
   rewardLabel: string
@@ -70,6 +70,8 @@ type DailyMissionState = {
 export type DailyMissionCard = {
   id: string
   label: string
+  metric: MissionMetricKey
+  difficulty: MissionDifficulty
   progress: number
   target: number
   rewardXp: number
@@ -101,9 +103,10 @@ const LOG_KEY = 'eventLog'
 const MISSION_PREFS_KEY = 'commanderMissionPreferences'
 const DAILY_MISSIONS_KEY = 'commanderDailyMissionsV2'
 const DESIGN_PREVIEW_KEY = 'commanderDesignPreview'
+const DESIGN_PREVIEW_DURATION_MS = 12 * 60 * 1000
 export const DESIGN_PREVIEW_EVENT = APP_EVENTS.designPreviewUpdate
 
-const DAILY_MISSION_COUNT = 4
+const DAILY_MISSION_COUNT = 5
 export const DAILY_REROLL_LIMIT = 2
 
 const MISSION_POOL: MissionDefinition[] = [
@@ -111,64 +114,151 @@ const MISSION_POOL: MissionDefinition[] = [
     id: 'scan-sector',
     label: 'Run market scans',
     metric: 'scans',
-    targets: { relaxed: 2, standard: 3, hardcore: 5 },
-    rewardXp: 25,
-    rewardCredits: 20,
-    rewardLabel: 'SCAN SECTOR',
+    target: 2,
+    difficulty: 'easy',
+    rewardXp: 24,
+    rewardCredits: 18,
+    rewardLabel: 'RECON SWEEP',
   },
   {
     id: 'compare-market',
     label: 'Compare store offers',
     metric: 'compares',
-    targets: { relaxed: 1, standard: 2, hardcore: 3 },
-    rewardXp: 25,
-    rewardCredits: 20,
-    rewardLabel: 'MARKET COMPARER',
+    target: 1,
+    difficulty: 'easy',
+    rewardXp: 22,
+    rewardCredits: 16,
+    rewardLabel: 'QUICK COMPARE',
   },
   {
     id: 'track-cargo',
     label: 'Track wishlist cargo',
     metric: 'wishlistCount',
-    targets: { relaxed: 3, standard: 5, hardcore: 8 },
-    rewardXp: 30,
-    rewardCredits: 30,
-    rewardLabel: 'CARGO TRACKER',
+    target: 3,
+    difficulty: 'easy',
+    rewardXp: 26,
+    rewardCredits: 20,
+    rewardLabel: 'CARGO LOCK',
   },
   {
     id: 'sync-watchlist',
     label: 'Sync watchlist',
     metric: 'syncs',
-    targets: { relaxed: 1, standard: 1, hardcore: 2 },
-    rewardXp: 20,
-    rewardCredits: 10,
-    rewardLabel: 'SYNC OPERATOR',
+    target: 1,
+    difficulty: 'easy',
+    rewardXp: 24,
+    rewardCredits: 18,
+    rewardLabel: 'WATCHLIST SYNC',
   },
   {
     id: 'launch-drop',
     label: 'Launch unplayed titles',
     metric: 'launchUnplayed',
-    targets: { relaxed: 1, standard: 1, hardcore: 2 },
-    rewardXp: 40,
-    rewardCredits: 35,
-    rewardLabel: 'FIRST DROP',
+    target: 1,
+    difficulty: 'easy',
+    rewardXp: 30,
+    rewardCredits: 24,
+    rewardLabel: 'FIRST LAUNCH',
   },
   {
     id: 'price-audit',
     label: 'Run deal checks',
     metric: 'syncs',
-    targets: { relaxed: 1, standard: 2, hardcore: 3 },
-    rewardXp: 30,
-    rewardCredits: 20,
+    target: 2,
+    difficulty: 'standard',
+    rewardXp: 38,
+    rewardCredits: 32,
     rewardLabel: 'DEAL AUDIT',
   },
   {
     id: 'search-burst',
     label: 'Search fresh titles',
     metric: 'scans',
-    targets: { relaxed: 3, standard: 4, hardcore: 6 },
-    rewardXp: 35,
-    rewardCredits: 25,
+    target: 4,
+    difficulty: 'standard',
+    rewardXp: 36,
+    rewardCredits: 30,
     rewardLabel: 'SEARCH BURST',
+  },
+  {
+    id: 'offer-analyst',
+    label: 'Audit competing offers',
+    metric: 'compares',
+    target: 3,
+    difficulty: 'standard',
+    rewardXp: 40,
+    rewardCredits: 34,
+    rewardLabel: 'OFFER ANALYST',
+  },
+  {
+    id: 'cargo-convoy',
+    label: 'Expand wishlist convoy',
+    metric: 'wishlistCount',
+    target: 6,
+    difficulty: 'standard',
+    rewardXp: 42,
+    rewardCredits: 36,
+    rewardLabel: 'CARGO CONVOY',
+  },
+  {
+    id: 'playtest-rotation',
+    label: 'Launch your backlog rotation',
+    metric: 'launchUnplayed',
+    target: 2,
+    difficulty: 'standard',
+    rewardXp: 45,
+    rewardCredits: 38,
+    rewardLabel: 'PLAYTEST ROTATION',
+  },
+  {
+    id: 'deep-scan',
+    label: 'Run deep market scans',
+    metric: 'scans',
+    target: 7,
+    difficulty: 'hard',
+    rewardXp: 56,
+    rewardCredits: 52,
+    rewardLabel: 'DEEP SCAN',
+  },
+  {
+    id: 'market-marathon',
+    label: 'Complete comparison marathon',
+    metric: 'compares',
+    target: 5,
+    difficulty: 'hard',
+    rewardXp: 58,
+    rewardCredits: 54,
+    rewardLabel: 'MARKET MARATHON',
+  },
+  {
+    id: 'sync-surge',
+    label: 'Execute sync surge',
+    metric: 'syncs',
+    target: 3,
+    difficulty: 'hard',
+    rewardXp: 60,
+    rewardCredits: 58,
+    rewardLabel: 'SYNC SURGE',
+  },
+  {
+    id: 'collector-surge',
+    label: 'Build a collector surge',
+    metric: 'wishlistCount',
+    target: 10,
+    difficulty: 'hard',
+    rewardXp: 62,
+    rewardCredits: 60,
+    rewardLabel: 'COLLECTOR SURGE',
+  },
+  {
+    id: 'field-commander',
+    label: 'Command a full launch sweep',
+    metric: 'launchUnplayed',
+    target: 3,
+    difficulty: 'hard',
+    rewardXp: 68,
+    rewardCredits: 70,
+    rewardLabel: 'FIELD COMMANDER',
   },
 ]
 
@@ -186,7 +276,6 @@ function dispatchMissionUpdate() {
 
 function defaultMissionPreferences(): MissionPreferences {
   return {
-    difficulty: 'standard',
     rerollsEnabled: false,
     missionsEnabled: true,
   }
@@ -231,11 +320,34 @@ function findMission(id: string): MissionDefinition | undefined {
   return MISSION_POOL.find((mission) => mission.id === id)
 }
 
+function missionIdsForDifficulty(difficulty: MissionDifficulty): string[] {
+  return MISSION_POOL.filter((mission) => mission.difficulty === difficulty).map((mission) => mission.id)
+}
+
+function pushMissionId(selected: string[], candidate: string | undefined, maxCount: number) {
+  if (!candidate) return
+  if (selected.length >= maxCount) return
+  if (selected.includes(candidate)) return
+  selected.push(candidate)
+}
+
 function generateMissionIds(seedInput: string): string[] {
-  return shuffle(
+  const maxCount = Math.min(DAILY_MISSION_COUNT, MISSION_POOL.length)
+  const easy = shuffle(missionIdsForDifficulty('easy'), makeSeed(`${seedInput}:easy`))
+  const standard = shuffle(missionIdsForDifficulty('standard'), makeSeed(`${seedInput}:standard`))
+  const hard = shuffle(missionIdsForDifficulty('hard'), makeSeed(`${seedInput}:hard`))
+  const selected: string[] = []
+
+  pushMissionId(selected, easy[0], maxCount)
+  pushMissionId(selected, standard[0], maxCount)
+  pushMissionId(selected, hard[0], maxCount)
+
+  const remainder = shuffle(
     MISSION_POOL.map((mission) => mission.id),
-    makeSeed(seedInput),
-  ).slice(0, Math.min(DAILY_MISSION_COUNT, MISSION_POOL.length))
+    makeSeed(`${seedInput}:remainder`),
+  )
+  remainder.forEach((id) => pushMissionId(selected, id, maxCount))
+  return selected.slice(0, maxCount)
 }
 
 function createDailyMissionState(dateKey: string): DailyMissionState {
@@ -317,8 +429,8 @@ function saveDailyMissionState(state: DailyMissionState) {
   dispatchMissionUpdate()
 }
 
-function missionTarget(mission: MissionDefinition, difficulty: MissionDifficulty) {
-  return mission.targets[difficulty]
+function missionTarget(mission: MissionDefinition) {
+  return mission.target
 }
 
 function missionProgress(mission: MissionDefinition, metrics: MissionMetrics) {
@@ -329,13 +441,11 @@ export function loadMissionPreferences(): MissionPreferences {
   const raw = localStorage.getItem(MISSION_PREFS_KEY)
   if (!raw) return defaultMissionPreferences()
   try {
-    const parsed = JSON.parse(raw) as Partial<MissionPreferences>
-    const difficulty: MissionDifficulty =
-      parsed.difficulty === 'relaxed' || parsed.difficulty === 'hardcore' || parsed.difficulty === 'standard'
-        ? parsed.difficulty
-        : 'standard'
+    const parsed = JSON.parse(raw) as Partial<MissionPreferences> | null
+    if (!parsed || typeof parsed !== 'object') {
+      return defaultMissionPreferences()
+    }
     return {
-      difficulty,
       rerollsEnabled: parsed.rerollsEnabled === true,
       missionsEnabled: parsed.missionsEnabled !== false,
     }
@@ -350,10 +460,7 @@ export function saveMissionPreferences(patch: Partial<MissionPreferences>) {
     ...current,
     ...patch,
     missionsEnabled: typeof patch.missionsEnabled === 'boolean' ? patch.missionsEnabled : current.missionsEnabled,
-    difficulty:
-      patch.difficulty === 'relaxed' || patch.difficulty === 'hardcore' || patch.difficulty === 'standard'
-        ? patch.difficulty
-        : current.difficulty,
+    rerollsEnabled: typeof patch.rerollsEnabled === 'boolean' ? patch.rerollsEnabled : current.rerollsEnabled,
   }
   localStorage.setItem(MISSION_PREFS_KEY, JSON.stringify(next))
   dispatchMissionUpdate()
@@ -370,18 +477,19 @@ export function buildMissionMetrics(counters: CountersState, wishlistCount: numb
 }
 
 export function getDailyMissionCards(metrics: MissionMetrics): DailyMissionCard[] {
-  const preferences = loadMissionPreferences()
   const state = loadDailyMissionState()
 
   return state.missionIds
     .map((id) => findMission(id))
     .filter((mission): mission is MissionDefinition => !!mission)
     .map((mission) => {
-      const target = missionTarget(mission, preferences.difficulty)
+      const target = missionTarget(mission)
       const progress = Math.min(target, missionProgress(mission, metrics))
       return {
         id: mission.id,
         label: mission.label,
+        metric: mission.metric,
+        difficulty: mission.difficulty,
         progress,
         target,
         rewardXp: mission.rewardXp,
@@ -406,7 +514,7 @@ export function evaluateDailyMissions(metrics: MissionMetrics): DailyMissionCard
     if (!mission) return
     if (completed[id]) return
 
-    const target = missionTarget(mission, preferences.difficulty)
+    const target = missionTarget(mission)
     const progress = missionProgress(mission, metrics)
     if (progress >= target) {
       completed[id] = true
@@ -460,7 +568,20 @@ export function rerollDailyMission(missionId: string): RerollMissionResult {
     return { ok: false, reason: 'limit' }
   }
 
-  const alternatives = MISSION_POOL.map((mission) => mission.id).filter((id) => !state.missionIds.includes(id))
+  const currentMission = findMission(missionId)
+  if (!currentMission) {
+    return { ok: false, reason: 'missing' }
+  }
+
+  const sameDifficultyAlternatives = MISSION_POOL.filter(
+    (mission) => mission.difficulty === currentMission.difficulty && !state.missionIds.includes(mission.id),
+  ).map((mission) => mission.id)
+
+  const allAlternatives = MISSION_POOL.filter((mission) => !state.missionIds.includes(mission.id)).map(
+    (mission) => mission.id,
+  )
+
+  const alternatives = sameDifficultyAlternatives.length > 0 ? sameDifficultyAlternatives : allAlternatives
   if (alternatives.length === 0) {
     return { ok: false, reason: 'no-alternative' }
   }
@@ -621,15 +742,72 @@ export function grantCredits(amount: number): boolean {
   return true
 }
 
-export function loadDesignPreview(): DesignId | null {
+type DesignPreviewState = {
+  id: DesignId
+  expiresAt: number
+}
+
+function readDesignPreviewState(): DesignPreviewState | null {
   const raw = localStorage.getItem(DESIGN_PREVIEW_KEY)
-  return isKnownDesignId(raw) ? raw : null
+  if (!raw) return null
+
+  if (isKnownDesignId(raw)) {
+    const migrated: DesignPreviewState = {
+      id: raw,
+      expiresAt: Date.now() + DESIGN_PREVIEW_DURATION_MS,
+    }
+    localStorage.setItem(DESIGN_PREVIEW_KEY, JSON.stringify(migrated))
+    return migrated
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<DesignPreviewState>
+    if (!isKnownDesignId(parsed.id)) return null
+    const expiresAt =
+      typeof parsed.expiresAt === 'number' && Number.isFinite(parsed.expiresAt)
+        ? parsed.expiresAt
+        : Date.now() + DESIGN_PREVIEW_DURATION_MS
+    return { id: parsed.id, expiresAt }
+  } catch {
+    return null
+  }
+}
+
+export function loadDesignPreview(): DesignId | null {
+  const preview = readDesignPreviewState()
+  if (!preview) {
+    localStorage.removeItem(DESIGN_PREVIEW_KEY)
+    return null
+  }
+  if (preview.expiresAt <= Date.now()) {
+    localStorage.removeItem(DESIGN_PREVIEW_KEY)
+    return null
+  }
+  return preview.id
+}
+
+export function getDesignPreviewRemainingMs(): number {
+  const preview = readDesignPreviewState()
+  if (!preview) {
+    localStorage.removeItem(DESIGN_PREVIEW_KEY)
+    return 0
+  }
+  const remainingMs = preview.expiresAt - Date.now()
+  if (remainingMs <= 0) {
+    localStorage.removeItem(DESIGN_PREVIEW_KEY)
+    return 0
+  }
+  return remainingMs
 }
 
 export function setDesignPreview(designId: DesignId | null) {
   if (designId && !isKnownDesignId(designId)) return
   if (designId) {
-    localStorage.setItem(DESIGN_PREVIEW_KEY, designId)
+    const payload: DesignPreviewState = {
+      id: designId,
+      expiresAt: Date.now() + DESIGN_PREVIEW_DURATION_MS,
+    }
+    localStorage.setItem(DESIGN_PREVIEW_KEY, JSON.stringify(payload))
   } else {
     localStorage.removeItem(DESIGN_PREVIEW_KEY)
   }

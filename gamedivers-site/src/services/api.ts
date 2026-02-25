@@ -136,7 +136,17 @@ function withToken(opts: RequestInit | undefined, token: string): RequestInit {
 }
 
 async function fetchWithAuth(url: string, opts?: RequestInit): Promise<Response> {
-  const first = await fetch(url, withAuth(opts))
+  const storedAccess = resolveAuthToken()
+  let requestOptions = withAuth(opts)
+
+  if (storedAccess && isTokenExpiringSoon(storedAccess)) {
+    const refreshedAccess = await tryRefreshToken()
+    if (refreshedAccess) {
+      requestOptions = withToken(opts, refreshedAccess)
+    }
+  }
+
+  const first = await fetch(url, requestOptions)
   if (first.status !== 401) return first
 
   const refreshedAccess = await tryRefreshToken()

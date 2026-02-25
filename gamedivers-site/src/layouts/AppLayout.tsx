@@ -10,8 +10,8 @@ type AppLayoutProps = {
 
 function renderDefaultLayout(sidebar: ReactNode, header: ReactNode, children: ReactNode) {
   return (
-    <div className="relative z-10 flex min-h-screen">
-      {sidebar}
+    <div className="relative z-10 flex min-h-screen items-start">
+      <div className="sticky top-0 h-screen shrink-0">{sidebar}</div>
       <main className="flex-1 px-6 py-8 lg:px-10">
         <div className="mb-6">{header}</div>
         {children}

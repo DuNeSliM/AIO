@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
-import { fetchSteamWishlist, searchItad, syncSteamWishlistToBackend } from '../../../services/api'
+import { useCallback, useRef, useState } from 'react'
+import { fetchSteamWishlist, searchItad, syncSteamWishlistToBackend, type SteamWishlistEntry } from '../../../services/api'
 import { STORAGE_KEYS } from '../../../shared/storage/keys'
 import { getLocalJSON, setLocalJSON } from '../../../shared/storage/storage'
 import type { ItadSearchItem, WishlistItem } from '../../../types'
+import { STEAM_WISHLIST_SHADOW_CACHE_KEY } from '../wishlist/constants'
 import { backupSteamHeaderUrl, defaultSteamCapsuleUrl } from '../utils/steamAssets'
 
 type AddWishlistItemInput = {
@@ -25,6 +26,16 @@ type UseSteamWishlistSyncParams = {
   pushLog: (entry: string) => void
   t: (key: string) => string
 }
+
+type SteamWishlistShadowCache = Record<
+  string,
+  {
+    fetchedAt: number
+    items: SteamWishlistEntry[]
+  }
+>
+
+const STEAM_WISHLIST_SHADOW_TTL_MS = 25 * 60 * 1000
 
 function normalizeTitleKey(title: string): string {
   return title
@@ -66,6 +77,32 @@ function writeSteamNameCache(cache: Record<string, string>): void {
   setLocalJSON(STORAGE_KEYS.steam.wishlistNameCache, cache)
 }
 
+function readSteamWishlistShadowCache(): SteamWishlistShadowCache {
+  return getLocalJSON<SteamWishlistShadowCache>(STEAM_WISHLIST_SHADOW_CACHE_KEY, {})
+}
+
+function writeSteamWishlistShadowCache(cache: SteamWishlistShadowCache): void {
+  setLocalJSON(STEAM_WISHLIST_SHADOW_CACHE_KEY, cache)
+}
+
+function readCachedSteamWishlist(steamID: string): SteamWishlistEntry[] | null {
+  const cache = readSteamWishlistShadowCache()
+  const cached = cache[steamID]
+  if (!cached || !Array.isArray(cached.items)) return null
+  if (!Number.isFinite(cached.fetchedAt)) return null
+  if (Date.now() - cached.fetchedAt > STEAM_WISHLIST_SHADOW_TTL_MS) return null
+  return cached.items
+}
+
+function writeCachedSteamWishlist(steamID: string, items: SteamWishlistEntry[]): void {
+  const cache = readSteamWishlistShadowCache()
+  cache[steamID] = {
+    fetchedAt: Date.now(),
+    items,
+  }
+  writeSteamWishlistShadowCache(cache)
+}
+
 export function useSteamWishlistSync({
   steamId,
   items,
@@ -76,16 +113,59 @@ export function useSteamWishlistSync({
   t,
 }: UseSteamWishlistSyncParams) {
   const [wishlistSyncing, setWishlistSyncing] = useState(false)
+  const [wishlistPrefetching, setWishlistPrefetching] = useState(false)
+  const inFlightFetchRef = useRef<Promise<SteamWishlistEntry[]> | null>(null)
+
+  const fetchSteamWishlistWithCache = useCallback(async () => {
+    if (!steamId) {
+      throw new Error('missing-steam-id')
+    }
+
+    const cached = readCachedSteamWishlist(steamId)
+    if (cached) return cached
+
+    if (inFlightFetchRef.current) {
+      return inFlightFetchRef.current
+    }
+
+    setWishlistPrefetching(true)
+    const request = fetchSteamWishlist(steamId)
+      .then((fetched) => {
+        writeCachedSteamWishlist(steamId, fetched)
+        return fetched
+      })
+      .finally(() => {
+        inFlightFetchRef.current = null
+        setWishlistPrefetching(false)
+      })
+
+    inFlightFetchRef.current = request
+    return request
+  }, [steamId])
+
+  const prefetchSteamWishlist = useCallback(async () => {
+    if (!steamId) return false
+
+    try {
+      await fetchSteamWishlistWithCache()
+      return true
+    } catch {
+      return false
+    }
+  }, [steamId, fetchSteamWishlistWithCache])
 
   const onSyncSteamWishlist = useCallback(async () => {
     if (!steamId) {
       setError(t('store.wishlist.loginRequired'))
-      return
+      return false
     }
     setWishlistSyncing(true)
     setError(null)
     try {
-      const steamItems = await fetchSteamWishlist(steamId)
+      let steamItems = readCachedSteamWishlist(steamId)
+      if (!steamItems) {
+        steamItems = await fetchSteamWishlistWithCache()
+      }
       const sorted = [...steamItems].sort((a, b) => (a.added ?? 0) - (b.added ?? 0))
       const titleLookupCache = new Map<string, ItadSearchItem | null>()
       const steamNameCache = readSteamNameCache()
@@ -201,6 +281,7 @@ export function useSteamWishlistSync({
       window.setTimeout(() => {
         void checkPrices()
       }, 150)
+      return true
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (message === 'steam-private') {
@@ -210,13 +291,16 @@ export function useSteamWishlistSync({
       } else {
         setError(message)
       }
+      return false
     } finally {
       setWishlistSyncing(false)
     }
-  }, [steamId, setError, t, items, addItem, pushLog, checkPrices])
+  }, [steamId, setError, t, items, addItem, pushLog, checkPrices, fetchSteamWishlistWithCache])
 
   return {
     wishlistSyncing,
+    wishlistPrefetching,
+    prefetchSteamWishlist,
     onSyncSteamWishlist,
   }
 }

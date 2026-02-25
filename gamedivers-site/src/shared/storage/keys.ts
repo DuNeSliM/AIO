@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
     id: 'steamId',
     username: 'steamUsername',
     wishlistNameCache: 'steamWishlistNameCache',
+    wishlistShadowCache: 'steamWishlistShadowCache',
   },
   epic: {
     id: 'epicId',

@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { getRank, setCommanderName } from '../utils/gameify'
 import { useCommander } from '../hooks/useCommander'
+import { useI18n } from '../i18n/i18n'
 import UiCorners from './ui/UiCorners'
 
 export default function CommanderHud() {
   const commander = useCommander()
+  const { t } = useI18n()
   const [name, setName] = useState(commander.commanderName)
   const [pulse, setPulse] = useState(false)
 
@@ -28,29 +30,29 @@ export default function CommanderHud() {
         <UiCorners />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-[220px]">
-            <div className="ui-label">PLAYER PROGRESS</div>
+            <div className="ui-label">{t('commander.progressLabel')}</div>
             <input
               className="ui-input mt-3 w-full max-w-xs"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              onBlur={() => setCommanderName(name.trim() || 'Commander')}
+              onBlur={() => setCommanderName(name.trim() || t('commander.defaultName'))}
             />
             <div className="mt-2 text-xs uppercase tracking-[0.2em] text-white/50">
-              RANK: {rank} | LEVEL {commander.level}
+              {t('commander.rankLevel', { rank, level: commander.level })}
             </div>
           </div>
           <div className="flex flex-1 flex-wrap items-center gap-4">
             <div className="min-w-[200px]">
-              <div className="ui-label">XP</div>
+              <div className="ui-label">{t('commander.xpLabel')}</div>
               <div
                 className={`ui-progress mt-2 ${pulse ? 'ui-progress--pulse' : ''}`}
                 style={{ '--ui-progress': `${progress}%` } as CSSProperties}
               />
-              <div className="mt-2 text-xs text-white/50">{commander.xp} XP</div>
+              <div className="mt-2 text-xs text-white/50">{t('commander.xpAmount', { xp: commander.xp })}</div>
             </div>
             <div className="flex items-center gap-3">
-              <span className="ui-chip">CREDITS: {commander.credits}</span>
-              <span className="ui-chip">STREAK: {commander.streak}</span>
+              <span className="ui-chip">{t('commander.credits', { credits: commander.credits })}</span>
+              <span className="ui-chip">{t('commander.streak', { streak: commander.streak })}</span>
             </div>
           </div>
         </div>

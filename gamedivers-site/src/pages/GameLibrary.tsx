@@ -106,7 +106,7 @@ export default function GameLibrary() {
                 onChange={(event) => setSearch(event.target.value)}
                 className="ui-input"
               />
-              {search && <span className="ui-chip">RESULTS: {games.length}</span>}
+              {search && <span className="ui-chip">{t('library.results', { count: games.length })}</span>}
             </div>
 
             <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ export default function GameLibrary() {
         {loading && <div className="text-sm ui-subtle">{t('library.loading')}</div>}
         {error && (
           <div className="text-sm text-red-400">
-            Fehler: {error === 'steam-private' ? t('library.steamPrivate') : error}
+            {t('library.errorPrefix')}: {error === 'steam-private' ? t('library.steamPrivate') : error}
           </div>
         )}
         {!loading && !error && games.length === 0 && <div className="text-sm ui-subtle">{t('library.empty')}</div>}

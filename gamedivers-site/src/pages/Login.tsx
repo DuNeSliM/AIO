@@ -20,7 +20,7 @@ export default function Login({ onSuccess }: LoginPageProps) {
     setLocalError(null)
 
     if (!username.trim() || !password.trim()) {
-      setLocalError('Username and password are required')
+      setLocalError(t('auth.validation.usernamePasswordRequired'))
       return
     }
 
@@ -28,7 +28,7 @@ export default function Login({ onSuccess }: LoginPageProps) {
       await login(username, password)
       onSuccess('library')
     } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Login failed')
+      setLocalError(err instanceof Error ? err.message : t('auth.loginFailed'))
     }
   }
 
@@ -48,8 +48,8 @@ export default function Login({ onSuccess }: LoginPageProps) {
             <div className="ui-notch" />
 
             <div className="relative z-10">
-              <h1 className="mb-2 text-4xl font-bold tracking-wide">{t?.('login') || 'LOGIN'}</h1>
-              <p className="mb-8 text-xs uppercase tracking-widest ui-subtle">Access your game library</p>
+              <h1 className="mb-2 text-4xl font-bold tracking-wide">{t('authPages.login.title')}</h1>
+              <p className="mb-8 text-xs uppercase tracking-widest ui-subtle">{t('authPages.login.subtitle')}</p>
 
               {displayError && (
                 <div className="mb-6 rounded-lg border border-ember/40 bg-black/50 p-4 text-xs text-ember/90">
@@ -60,14 +60,14 @@ export default function Login({ onSuccess }: LoginPageProps) {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label htmlFor="username" className="ui-label mb-3 block">
-                    Username
+                    {t('authPages.fields.username')}
                   </label>
                   <input
                     id="username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="ENTER USERNAME"
+                    placeholder={t('authPages.fields.usernamePlaceholder')}
                     className="ui-input w-full"
                     disabled={isLoading}
                   />
@@ -75,14 +75,14 @@ export default function Login({ onSuccess }: LoginPageProps) {
 
                 <div>
                   <label htmlFor="password" className="ui-label mb-3 block">
-                    Password
+                    {t('authPages.fields.password')}
                   </label>
                   <input
                     id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="ENTER PASSWORD"
+                    placeholder={t('authPages.fields.passwordPlaceholder')}
                     className="ui-input w-full"
                     disabled={isLoading}
                   />
@@ -91,25 +91,25 @@ export default function Login({ onSuccess }: LoginPageProps) {
                     onClick={() => onSuccess('forgot-password' as Page)}
                     className="mt-2 text-[10px] uppercase tracking-widest text-neon/70 hover:text-neon transition-colors"
                   >
-                    FORGOT PASSWORD?
+                    {t('authPages.login.forgotPassword')}
                   </button>
                 </div>
 
                 <button type="submit" disabled={isLoading} className="ui-btn-primary w-full mt-6">
-                  {isLoading ? '... CONNECTING ...' : 'LOGIN'}
+                  {isLoading ? t('authPages.login.connecting') : t('authPages.login.submit')}
                 </button>
               </form>
 
               <div className="ui-divider my-6" />
 
               <p className="text-center text-xs uppercase tracking-widest ui-subtle">
-                No credentials yet?{' '}
+                {t('authPages.login.noAccount')}{' '}
                 <button
                   type="button"
                   onClick={() => onSuccess('register' as Page)}
                   className="inline font-bold text-neon/90 hover:text-neon transition-colors"
                 >
-                  CREATE ACCOUNT
+                  {t('authPages.login.createAccount')}
                 </button>
               </p>
             </div>
@@ -117,7 +117,7 @@ export default function Login({ onSuccess }: LoginPageProps) {
         </div>
 
         <div className="mt-8 text-center">
-          <p className="text-[10px] uppercase tracking-widest ui-subtle">AIO GAME LIBRARY v1.0</p>
+          <p className="text-[10px] uppercase tracking-widest ui-subtle">{t('app.footer')}</p>
         </div>
       </div>
     </div>

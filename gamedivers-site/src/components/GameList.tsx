@@ -1,4 +1,5 @@
 import GameCard from './GameCard'
+import { useI18n } from '../i18n/i18n'
 import type { Game, ViewMode } from '../types'
 
 type GameListProps = {
@@ -7,7 +8,8 @@ type GameListProps = {
 }
 
 export default function GameList({ games = [], viewMode = 'grid' }: GameListProps) {
-  if (!games.length) return <div className="text-sm tone-muted">No games found</div>
+  const { t } = useI18n()
+  if (!games.length) return <div className="text-sm tone-muted">{t('library.noGamesFound')}</div>
   return (
     <div
       className={
