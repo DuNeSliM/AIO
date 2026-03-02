@@ -1,0 +1,106 @@
+name: Build Desktop Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional tag name (for example desktop-v2026.02.25)
+        required: false
+        default: ""
+      prerelease:
+        description: Mark the GitHub release as prerelease
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows-desktop-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: gamedivers-site/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install web dependencies
+        working-directory: gamedivers-site
+        run: npm ci
+
+      - name: Install desktop wrapper dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Resolve release metadata
+        shell: pwsh
+        run: |
+          $inputTag = "${{ inputs.release_tag }}"
+          if ([string]::IsNullOrWhiteSpace($inputTag)) {
+            if ($env:GITHUB_REF -like "refs/tags/*") {
+              $tag = $env:GITHUB_REF.Substring(10)
+            } else {
+              $tag = "desktop-v$(Get-Date -Format 'yyyy.MM.dd')-$($env:GITHUB_RUN_NUMBER)"
+            }
+          } else {
+            $tag = $inputTag.Trim()
+          }
+
+          "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "RELEASE_NAME=Desktop $tag" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build desktop bundles
+        working-directory: frontend
+        run: npm run tauri:build
+
+      - name: Collect release assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+
+          $setup = Get-ChildItem -Path "frontend/src-tauri/target/release/bundle/nsis/*-setup.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $msi = Get-ChildItem -Path "frontend/src-tauri/target/release/bundle/msi/*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+          if (-not $setup) { throw "NSIS setup executable not found." }
+          if (-not $msi) { throw "MSI package not found." }
+
+          Copy-Item -Path $setup.FullName -Destination "release-assets/GameDivers-Windows-Setup.exe" -Force
+          Copy-Item -Path $msi.FullName -Destination "release-assets/GameDivers-Windows.msi" -Force
+
+          $hashes = Get-FileHash -Algorithm SHA256 "release-assets/GameDivers-Windows-Setup.exe", "release-assets/GameDivers-Windows.msi"
+          $lines = @()
+          foreach ($hash in $hashes) {
+            $lines += "$($hash.Hash.ToLower())  $([System.IO.Path]::GetFileName($hash.Path))"
+          }
+          Set-Content -Path "release-assets/SHA256SUMS.txt" -Value $lines -Encoding Ascii
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-release-assets
+          path: release-assets/*
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_NAME }}
+          files: |
+            release-assets/GameDivers-Windows-Setup.exe
+            release-assets/GameDivers-Windows.msi
+            release-assets/SHA256SUMS.txt
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          generate_release_notes: true

@@ -5,6 +5,16 @@ export const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const AUTH_TOKEN_STORAGE_KEYS = [STORAGE_KEYS.auth.accessToken, 'authAccessToken', 'authToken', 'keycloakAccessToken'] as const
 const REFRESH_TOKEN_STORAGE_KEYS = [STORAGE_KEYS.auth.refreshToken, 'authRefreshToken'] as const
 
+export function isTauriRuntime(): boolean {
+  return typeof window !== 'undefined' && !!(window as Window & { __TAURI__?: unknown }).__TAURI__
+}
+
+const ENABLE_WEB_GOG_LIBRARY_FALLBACK = import.meta.env.VITE_ENABLE_WEB_GOG_LIBRARY === 'true'
+
+export function canLoadGogLibrary(): boolean {
+  return isTauriRuntime() || ENABLE_WEB_GOG_LIBRARY_FALLBACK
+}
+
 function getStoredValue(keys: readonly string[]): string | null {
   if (typeof window === 'undefined') return null
 
@@ -290,7 +300,36 @@ export async function fetchSteamLibrary(steamId: string): Promise<Game[]> {
 }
 
 export async function fetchEpicLibrary(): Promise<Game[]> {
+  if (isTauriRuntime()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const localGames = await invoke<Game[]>('get_epic_library')
+      return Array.isArray(localGames) ? localGames : []
+    } catch (error) {
+      console.error('Tauri Epic library failed, falling back to API:', error)
+    }
+  }
+
   const res = await tryJson<Game[]>(`${API_BASE}/v1/games/epic/library`)
+  return Array.isArray(res) ? res : []
+}
+
+export async function fetchGogLibrary(): Promise<Game[]> {
+  if (isTauriRuntime()) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const localGames = await invoke<Game[]>('get_gog_library')
+      return Array.isArray(localGames) ? localGames : []
+    } catch (error) {
+      console.error('Tauri GOG library failed, falling back to API:', error)
+    }
+  }
+
+  if (!ENABLE_WEB_GOG_LIBRARY_FALLBACK) {
+    return []
+  }
+
+  const res = await tryJson<Game[]>(`${API_BASE}/v1/games/gog/library`)
   return Array.isArray(res) ? res : []
 }
 

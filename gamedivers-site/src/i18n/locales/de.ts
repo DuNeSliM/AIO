@@ -108,6 +108,7 @@ export const de: TranslationTree = {
       reload: 'Reload',
       syncSteam: 'Steam',
       syncEpic: 'Epic (lokal)',
+      syncGog: 'GOG (lokal)',
       card: {
         unknownStore: 'UNBEKANNT',
         launchError: 'Start von {name} fehlgeschlagen: {message}',
@@ -196,6 +197,13 @@ export const de: TranslationTree = {
       tutorial: 'Tutorial',
       tutorialHint: 'Starte die Einfuehrung erneut fuer Tests oder neue Nutzer.',
       restartTutorial: 'Tutorial neu starten',
+      desktop: {
+        title: 'Desktop App',
+        hint: 'Installiere die Windows App, um lokale Epic- und GOG-Spiele zu laden.',
+        downloadSetup: 'Setup (.exe)',
+        downloadMsi: 'MSI',
+        checksums: 'SHA256',
+      },
       wishlist: {
         title: 'Wishlist Einstellungen',
       },

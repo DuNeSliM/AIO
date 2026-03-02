@@ -5,6 +5,7 @@ import { useWishlist } from '../hooks/useWishlist'
 import { useCommander } from '../hooks/useCommander'
 import { restartOnboardingMission } from '../components/OnboardingMission'
 import { DESIGN_CATALOG } from '../designs/registry'
+import { desktopDownloadUrls } from '../shared/desktopDownload'
 import { STORAGE_KEYS } from '../shared/storage/keys'
 import { getLocalString } from '../shared/storage/storage'
 import { equipDesign } from '../utils/gameify'
@@ -207,6 +208,29 @@ export default function Settings({ theme, onToggleTheme }: SettingsProps) {
               )}
               {!onedriveSupported && <span className="text-xs ui-subtle">{t('store.wishlist.notSupported')}</span>}
               {onedriveSupported && onedriveStatus === 'connected' && <span className="ui-chip">{t('store.wishlist.connected')}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ui-surface">
+        <div className="ui-panel ui-panel-pad-md">
+          <UiCorners />
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-lg tone-primary">{t('settings.desktop.title')}</div>
+              <div className="text-xs ui-subtle">{t('settings.desktop.hint')}</div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a className="ui-btn-primary" href={desktopDownloadUrls.setupExe} target="_blank" rel="noreferrer noopener">
+                {t('settings.desktop.downloadSetup')}
+              </a>
+              <a className="ui-btn-secondary" href={desktopDownloadUrls.msi} target="_blank" rel="noreferrer noopener">
+                {t('settings.desktop.downloadMsi')}
+              </a>
+              <a className="ui-btn-ghost" href={desktopDownloadUrls.checksums} target="_blank" rel="noreferrer noopener">
+                {t('settings.desktop.checksums')}
+              </a>
             </div>
           </div>
         </div>
