@@ -101,7 +101,8 @@ VITE_API_BASE=http://localhost:8080
 VITE_ENABLE_CREDIT_CHEAT=false
 VITE_ENABLE_WEB_GOG_LIBRARY=false
 # Optional for website download links:
-# VITE_DESKTOP_DOWNLOAD_BASE_URL=https://github.com/DuNeSliM/AIO/releases/latest/download
+# VITE_DESKTOP_DOWNLOAD_BASE_URL=https://github.com/DuNeSliM/AIO/releases/download/desktop-v2026.03.04-1
+# VITE_DESKTOP_RELEASE_TAG=desktop-v2026.03.04-1
 ```
 
 ## UI Theme System (Semantic)
