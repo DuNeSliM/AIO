@@ -28,7 +28,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push API image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend/api
           push: true
@@ -37,7 +37,7 @@ jobs:
             ghcr.io/duneslim/gamedivers-api:latest
 
       - name: Build & push Web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./gamedivers-site
           push: true
